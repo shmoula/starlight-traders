@@ -88,6 +88,20 @@ describe("checkLoss", () => {
   });
 });
 
+describe("refuel partial fill (soft-lock fix)", () => {
+  it("buys as many fuel units as the player can afford instead of rejecting the whole bundle", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 24 }; // can afford 3 units @8 = 24
+    const s2 = refuel(s, 5);
+    expect(s2.fuel).toBe(3);     // partial fill, not 0
+    expect(s2.credits).toBe(0);
+  });
+
+  it("still returns the same state when the player cannot afford even one unit", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 5 }; // < REFUEL_PRICE (8)
+    expect(refuel(s, 5)).toBe(s);
+  });
+});
+
 describe("resolveChoice", () => {
   it("resolving a pirate 'pay' choice reduces credits", () => {
     const s = createGame(42);

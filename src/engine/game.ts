@@ -80,10 +80,10 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
 
 export function refuel(state: GameState, units: number): GameState {
   const room = state.fuelCapacity - state.fuel;
-  const buyUnits = Math.min(units, room);
+  const affordable = Math.floor(state.credits / REFUEL_PRICE);
+  const buyUnits = Math.min(units, room, affordable);
   if (buyUnits <= 0) return state;
   const cost = buyUnits * REFUEL_PRICE;
-  if (cost > state.credits) return state;
   return withLog(
     { ...state, fuel: state.fuel + buyUnits, credits: state.credits - cost },
     `Refueled ${buyUnits} for ${cost}cr.`,
