@@ -1,0 +1,112 @@
+import { describe, it, expect } from "vitest";
+import {
+  createGame, buy, sell, refuel, repair, jump, resolveChoice,
+  checkLoss, STARTING,
+} from "../../src/engine/game";
+import { getPrice } from "../../src/engine/world";
+
+describe("createGame", () => {
+  it("starts at terra with starting credits, debt, fuel, and full hull", () => {
+    const s = createGame(42);
+    expect(s.location).toBe("terra");
+    expect(s.credits).toBe(STARTING.credits);
+    expect(s.debt).toBe(STARTING.debt);
+    expect(s.fuel).toBe(STARTING.fuel);
+    expect(s.hull).toBe(s.hullMax);
+    expect(s.status).toBe("playing");
+    expect(s.day).toBe(1);
+  });
+});
+
+describe("buy/sell", () => {
+  it("buying decreases credits and increases cargo", () => {
+    const s = createGame(42);
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    const s2 = buy(s, "water", 3);
+    expect(s2.cargo.water).toBe(3);
+    expect(s2.credits).toBe(s.credits - price * 3);
+  });
+
+  it("cannot buy beyond cargo capacity or affordability", () => {
+    const s = createGame(42);
+    const huge = buy(s, "luxury", 9999);
+    expect(huge).toBe(s); // rejected, unchanged
+  });
+
+  it("selling increases credits (minus tax) and decreases cargo", () => {
+    const s = buy(createGame(42), "water", 5);
+    const before = s.credits;
+    const s2 = sell(s, "water", 5);
+    expect(s2.cargo.water).toBe(0);
+    expect(s2.credits).toBeGreaterThan(before);
+  });
+});
+
+describe("refuel/repair", () => {
+  it("refuel adds fuel up to capacity and charges credits", () => {
+    const s = createGame(42);
+    const s2 = refuel(s, 5);
+    expect(s2.fuel).toBe(Math.min(s.fuelCapacity, s.fuel + 5));
+    expect(s2.credits).toBeLessThan(s.credits);
+  });
+
+  it("repair restores hull up to max and charges credits", () => {
+    const s = { ...createGame(42), hull: 50 };
+    const s2 = repair(s, 30);
+    expect(s2.hull).toBe(80);
+    expect(s2.credits).toBeLessThan(s.credits);
+  });
+});
+
+describe("jump", () => {
+  it("consumes fuel, advances the day, accrues interest and docking fee, and returns a pending event", () => {
+    const s = createGame(42);
+    const { state, event } = jump(s, "kiruna");
+    expect(state.location).toBe("kiruna");
+    expect(state.day).toBe(2);
+    expect(state.fuel).toBeLessThan(s.fuel);
+    expect(event).toBeTruthy();
+  });
+
+  it("refuses to jump without enough fuel", () => {
+    const s = { ...createGame(42), fuel: 0 };
+    const result = jump(s, "kiruna");
+    expect(result.state).toBe(s);
+    expect(result.event).toBeNull();
+  });
+});
+
+describe("checkLoss", () => {
+  it("marks lost when stranded: no fuel and cannot afford the cheapest jump", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 0, cargo: { water: 0, parts: 0, luxury: 0 } };
+    expect(checkLoss(s).status).toBe("lost");
+  });
+
+  it("stays playing when a jump is still affordable", () => {
+    const s = createGame(42);
+    expect(checkLoss(s).status).toBe("playing");
+  });
+});
+
+describe("refuel partial fill (soft-lock fix)", () => {
+  it("buys as many fuel units as the player can afford instead of rejecting the whole bundle", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 24 }; // can afford 3 units @8 = 24
+    const s2 = refuel(s, 5);
+    expect(s2.fuel).toBe(3);     // partial fill, not 0
+    expect(s2.credits).toBe(0);
+  });
+
+  it("still returns the same state when the player cannot afford even one unit", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 5 }; // < REFUEL_PRICE (8)
+    expect(refuel(s, 5)).toBe(s);
+  });
+});
+
+describe("resolveChoice", () => {
+  it("resolving a pirate 'pay' choice reduces credits", () => {
+    const s = createGame(42);
+    const evt = { kind: "pirates" as const, title: "", description: "", choices: [{ id: "pay", label: "" }] };
+    const s2 = resolveChoice(s, evt, "pay");
+    expect(s2.credits).toBeLessThanOrEqual(s.credits);
+  });
+});

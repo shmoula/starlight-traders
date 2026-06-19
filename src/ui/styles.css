@@ -1,0 +1,15 @@
+:root { color-scheme: dark; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #0b1020; color: #e6ecff; }
+#app { max-width: 760px; margin: 0 auto; padding: 16px; }
+header h1 { margin: 0 0 8px; }
+.stats { display: flex; flex-wrap: wrap; gap: 12px; font-size: 14px; opacity: 0.9; }
+section { border: 1px solid #1e2a4a; border-radius: 8px; padding: 12px; margin: 12px 0; }
+table { width: 100%; border-collapse: collapse; }
+td { padding: 4px 6px; border-bottom: 1px solid #16203c; }
+button { background: #2a3c66; color: #e6ecff; border: 0; border-radius: 6px; padding: 6px 10px; margin: 2px; cursor: pointer; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.routes { display: flex; flex-wrap: wrap; gap: 8px; }
+.event-card, .run-end { text-align: center; padding: 40px 20px; }
+.run-end .score { font-size: 28px; font-weight: 700; }
+.log { font-size: 12px; opacity: 0.7; }
+.log div { padding: 2px 0; }
