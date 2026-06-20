@@ -6,6 +6,7 @@ import { eventScreen, runEndScreen, stationScreen } from "./screens";
 export interface ViewModel {
   state: GameState;
   pendingEvent: GameEvent | null;
+  flash: string[];
 }
 
 export function render(root: HTMLElement, vm: ViewModel): void {
@@ -14,6 +15,6 @@ export function render(root: HTMLElement, vm: ViewModel): void {
   } else if (vm.pendingEvent) {
     root.innerHTML = eventScreen(vm.pendingEvent);
   } else {
-    root.innerHTML = stationScreen(vm.state);
+    root.innerHTML = stationScreen(vm.state, vm.flash);
   }
 }

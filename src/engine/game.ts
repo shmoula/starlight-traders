@@ -128,9 +128,11 @@ export function acceptMission(state: GameState, mission: Mission): GameState {
 }
 
 /** Complete any active missions satisfied by current location + cargo, paying rewards. */
-function settleMissions(state: GameState): GameState {
+function settleMissions(state: GameState): { state: GameState; delivered: Mission[]; expired: Mission[] } {
   let s = state;
   const remaining: Mission[] = [];
+  const delivered: Mission[] = [];
+  const expired: Mission[] = [];
   for (const m of s.activeMissions) {
     if (m.destination === s.location && s.cargo[m.commodity] >= m.qty && s.day <= m.deadlineDay) {
       s = {
@@ -139,13 +141,15 @@ function settleMissions(state: GameState): GameState {
         credits: s.credits + m.reward,
       };
       s = withLog(s, `Delivery complete: +${m.reward}cr.`);
+      delivered.push(m);
     } else if (s.day > m.deadlineDay) {
       s = withLog(s, `Delivery to ${m.destination} expired.`);
+      expired.push(m);
     } else {
       remaining.push(m);
     }
   }
-  return { ...s, activeMissions: remaining };
+  return { state: { ...s, activeMissions: remaining }, delivered, expired };
 }
 
 export function checkLoss(state: GameState): GameState {
@@ -166,10 +170,13 @@ export function checkLoss(state: GameState): GameState {
  * Jump to a destination: spend fuel, advance the day, accrue interest, pay docking,
  * settle deliveries, then return the pending in-transit event for the UI to resolve.
  */
-export function jump(state: GameState, to: NodeId): { state: GameState; event: GameEvent | null } {
-  if (to === state.location) return { state, event: null };
+export function jump(
+  state: GameState,
+  to: NodeId,
+): { state: GameState; event: GameEvent | null; delivered: Mission[]; expired: Mission[] } {
+  if (to === state.location) return { state, event: null, delivered: [], expired: [] };
   const cost = fuelCost(state.location, to);
-  if (state.fuel < cost) return { state, event: null };
+  if (state.fuel < cost) return { state, event: null, delivered: [], expired: [] };
 
   let s: GameState = { ...state, fuel: state.fuel - cost, location: to, day: state.day + 1 };
 
@@ -183,11 +190,11 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
   const fee = dockingFee(to);
   s = withLog({ ...s, credits: s.credits - fee }, `Docked at ${to}, fee ${fee}cr.`);
 
-  s = settleMissions(s);
-  s = trackPeak(s);
+  const settled = settleMissions(s);
+  s = trackPeak(settled.state);
 
   const event = rollEvent(s.seed, s.day, state.location, to);
-  return { state: s, event };
+  return { state: s, event, delivered: settled.delivered, expired: settled.expired };
 }
 
 /** Apply the consequences of an event choice. Deterministic per seed/day. */

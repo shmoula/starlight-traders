@@ -13,6 +13,7 @@ import {
   missionsHere,
 } from "./engine/game";
 import { score as scoreFn } from "./engine/economy";
+import { NODES } from "./engine/world";
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
 import { render } from "./ui/render";
 import { copyShare } from "./ui/share";
@@ -21,9 +22,10 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 
 let state: GameState = createGame(dailySeed(new Date()));
 let pendingEvent: GameEvent | null = null;
+let flash: string[] = [];
 
 function paint() {
-  render(app, { state, pendingEvent });
+  render(app, { state, pendingEvent, flash });
 }
 
 app.addEventListener("click", async (e) => {
@@ -31,6 +33,11 @@ app.addEventListener("click", async (e) => {
   if (!btn) return;
   const act = btn.dataset.act;
   const id = btn.dataset.id;
+
+  // Flash clears on any new action, but survives resolving an in-transit event
+  // so the arrival message still greets you on the station screen.
+  const prevFlash = flash;
+  flash = [];
 
   switch (act) {
     case "buy":
@@ -57,11 +64,20 @@ app.addEventListener("click", async (e) => {
       const r = jump(state, id as NodeId);
       state = r.state;
       pendingEvent = r.event;
+      flash = [
+        ...r.delivered.map(
+          (m) => `✓ Contract fulfilled: ${m.qty} ${m.commodity} → ${NODES[m.destination].name} · +${m.reward.toLocaleString()}cr`,
+        ),
+        ...r.expired.map(
+          (m) => `✗ Contract expired: ${m.qty} ${m.commodity} → ${NODES[m.destination].name}`,
+        ),
+      ];
       break;
     }
     case "resolve": {
       if (pendingEvent) state = resolveChoice(state, pendingEvent, id!);
       pendingEvent = null;
+      flash = prevFlash; // keep the arrival flash visible after the event clears
       break;
     }
     case "share": {

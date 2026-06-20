@@ -7,10 +7,48 @@ import {
   repair,
   jump,
   resolveChoice,
+  acceptMission,
   checkLoss,
   STARTING,
 } from "../../src/engine/game";
 import { getPrice } from "../../src/engine/world";
+import { Mission } from "../../src/engine/types";
+
+describe("jump settlement reporting", () => {
+  const contract: Mission = {
+    id: "c1", commodity: "water", qty: 5, destination: "kiruna", reward: 500, deadlineDay: 99,
+  };
+
+  it("reports delivered contracts and subtracts their cargo", () => {
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, cargo: { ...s.cargo, water: 8 }, fuel: 20 };
+    const r = jump(s, "kiruna");
+    expect(r.delivered.map((m) => m.id)).toEqual(["c1"]);
+    expect(r.expired).toEqual([]);
+    expect(r.state.cargo.water).toBe(3);
+    expect(r.state.activeMissions).toEqual([]);
+  });
+
+  it("reports expired contracts past their deadline", () => {
+    let s = createGame(42);
+    s = acceptMission(s, { ...contract, deadlineDay: 1 });
+    s = { ...s, cargo: { ...s.cargo, water: 8 }, fuel: 20 };
+    const r = jump(s, "kiruna");
+    expect(r.delivered).toEqual([]);
+    expect(r.expired.map((m) => m.id)).toEqual(["c1"]);
+  });
+
+  it("does not report a contract still in progress", () => {
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, fuel: 20 }; // no cargo carried
+    const r = jump(s, "kiruna");
+    expect(r.delivered).toEqual([]);
+    expect(r.expired).toEqual([]);
+    expect(r.state.activeMissions.map((m) => m.id)).toEqual(["c1"]);
+  });
+});
 
 describe("createGame", () => {
   it("starts at terra with starting credits, debt, fuel, and full hull", () => {

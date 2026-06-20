@@ -82,3 +82,44 @@ button:disabled {
 .log div {
   padding: 2px 0;
 }
+.hint {
+  font-size: 12px;
+  opacity: 0.6;
+  margin: 0 0 8px;
+}
+.good {
+  color: #6ee7a8;
+  font-size: 13px;
+}
+.bad {
+  color: #ff9b8a;
+  font-size: 13px;
+}
+.accepted {
+  color: #6ee7a8;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.flash {
+  border: 1px solid #2f6b4a;
+  background: #12351f;
+  color: #b9f5cf;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 12px 0;
+  font-weight: 600;
+  animation: flash-in 0.35s ease-out;
+}
+.flash div {
+  padding: 1px 0;
+}
+@keyframes flash-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
