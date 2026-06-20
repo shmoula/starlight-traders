@@ -9,12 +9,13 @@ import {
   payDebt,
   acceptMission,
   jump,
+  arrive,
   resolveChoice,
   missionsHere,
 } from "./engine/game";
 import { score as scoreFn } from "./engine/economy";
 import { NODES } from "./engine/world";
-import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
+import { CommodityId, GameEvent, GameState, Mission, NodeId } from "./engine/types";
 import { render } from "./ui/render";
 import { copyShare } from "./ui/share";
 
@@ -28,15 +29,25 @@ function paint() {
   render(app, { state, pendingEvent, flash });
 }
 
+function arrivalFlash(delivered: Mission[], expired: Mission[]): string[] {
+  return [
+    ...delivered.map(
+      (m) =>
+        `✓ Contract fulfilled: ${m.qty} ${m.commodity} → ${NODES[m.destination].name} · +${m.reward.toLocaleString()}cr`
+    ),
+    ...expired.map(
+      (m) => `✗ Contract expired: ${m.qty} ${m.commodity} → ${NODES[m.destination].name}`
+    ),
+  ];
+}
+
 app.addEventListener("click", async (e) => {
   const btn = (e.target as HTMLElement).closest("button");
   if (!btn) return;
   const act = btn.dataset.act;
   const id = btn.dataset.id;
 
-  // Flash clears on any new action, but survives resolving an in-transit event
-  // so the arrival message still greets you on the station screen.
-  const prevFlash = flash;
+  // Flash clears on any new action; it is re-populated when an arrival settles.
   flash = [];
 
   switch (act) {
@@ -64,20 +75,15 @@ app.addEventListener("click", async (e) => {
       const r = jump(state, id as NodeId);
       state = r.state;
       pendingEvent = r.event;
-      flash = [
-        ...r.delivered.map(
-          (m) => `✓ Contract fulfilled: ${m.qty} ${m.commodity} → ${NODES[m.destination].name} · +${m.reward.toLocaleString()}cr`,
-        ),
-        ...r.expired.map(
-          (m) => `✗ Contract expired: ${m.qty} ${m.commodity} → ${NODES[m.destination].name}`,
-        ),
-      ];
+      // Deliveries settle in `arrive`, after the in-transit event is resolved.
       break;
     }
     case "resolve": {
       if (pendingEvent) state = resolveChoice(state, pendingEvent, id!);
       pendingEvent = null;
-      flash = prevFlash; // keep the arrival flash visible after the event clears
+      const a = arrive(state); // settle deliveries against post-event cargo
+      state = a.state;
+      flash = arrivalFlash(a.delivered, a.expired);
       break;
     }
     case "share": {

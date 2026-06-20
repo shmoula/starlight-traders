@@ -128,7 +128,11 @@ export function acceptMission(state: GameState, mission: Mission): GameState {
 }
 
 /** Complete any active missions satisfied by current location + cargo, paying rewards. */
-function settleMissions(state: GameState): { state: GameState; delivered: Mission[]; expired: Mission[] } {
+function settleMissions(state: GameState): {
+  state: GameState;
+  delivered: Mission[];
+  expired: Mission[];
+} {
   let s = state;
   const remaining: Mission[] = [];
   const delivered: Mission[] = [];
@@ -168,15 +172,14 @@ export function checkLoss(state: GameState): GameState {
 
 /**
  * Jump to a destination: spend fuel, advance the day, accrue interest, pay docking,
- * settle deliveries, then return the pending in-transit event for the UI to resolve.
+ * then return the pending in-transit event for the UI to resolve. Deliveries are NOT
+ * settled here — they settle in `arrive`, after the in-transit event resolves, so that
+ * cargo gained in transit (salvage, derelict loot) counts toward a delivery.
  */
-export function jump(
-  state: GameState,
-  to: NodeId,
-): { state: GameState; event: GameEvent | null; delivered: Mission[]; expired: Mission[] } {
-  if (to === state.location) return { state, event: null, delivered: [], expired: [] };
+export function jump(state: GameState, to: NodeId): { state: GameState; event: GameEvent | null } {
+  if (to === state.location) return { state, event: null };
   const cost = fuelCost(state.location, to);
-  if (state.fuel < cost) return { state, event: null, delivered: [], expired: [] };
+  if (state.fuel < cost) return { state, event: null };
 
   let s: GameState = { ...state, fuel: state.fuel - cost, location: to, day: state.day + 1 };
 
@@ -190,11 +193,23 @@ export function jump(
   const fee = dockingFee(to);
   s = withLog({ ...s, credits: s.credits - fee }, `Docked at ${to}, fee ${fee}cr.`);
 
-  const settled = settleMissions(s);
-  s = trackPeak(settled.state);
-
   const event = rollEvent(s.seed, s.day, state.location, to);
-  return { state: s, event, delivered: settled.delivered, expired: settled.expired };
+  return { state: s, event };
+}
+
+/**
+ * Finalize arrival once the in-transit event is resolved: settle deliveries against the
+ * cargo actually in the hold, track peak net worth, then run the loss check (so a delivery
+ * reward can rescue a player who would otherwise be stranded). Returns what settled.
+ */
+export function arrive(state: GameState): {
+  state: GameState;
+  delivered: Mission[];
+  expired: Mission[];
+} {
+  const settled = settleMissions(state);
+  const s = checkLoss(trackPeak(settled.state));
+  return { state: s, delivered: settled.delivered, expired: settled.expired };
 }
 
 /** Apply the consequences of an event choice. Deterministic per seed/day. */
@@ -260,5 +275,7 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
     default:
       break;
   }
-  return checkLoss(trackPeak(s));
+  // Loss/peak are evaluated in `arrive`, after deliveries settle against the
+  // post-event cargo — keep this focused on applying the event's effect.
+  return trackPeak(s);
 }
