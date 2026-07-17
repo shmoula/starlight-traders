@@ -10,6 +10,7 @@ import {
   resolveChoice,
   acceptMission,
   checkLoss,
+  deliver,
   STARTING,
 } from "../../src/engine/game";
 import { getPrice } from "../../src/engine/world";
@@ -80,6 +81,19 @@ describe("arrival settlement reporting", () => {
 
     const r = arrive(afterEvent);
     expect(r.delivered.map((m) => m.id)).toEqual(["p1"]); // now it completes
+  });
+
+  it("settles a delivery via `deliver` when cargo is bought after arriving empty-handed", () => {
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, fuel: 20 }; // no cargo carried
+    s = arrive(jump(s, "kiruna").state).state; // arrives short; mission stays active
+    expect(s.activeMissions.map((m) => m.id)).toEqual(["c1"]);
+
+    s = { ...s, cargo: { ...s.cargo, water: 5 } }; // buy the goods while already docked
+    const s2 = deliver(s);
+    expect(s2.activeMissions).toEqual([]);
+    expect(s2.cargo.water).toBe(0);
   });
 });
 

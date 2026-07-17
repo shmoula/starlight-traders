@@ -132,6 +132,16 @@ export function acceptMission(state: GameState, mission: Mission): GameState {
   );
 }
 
+/**
+ * Settle deliveries against the current location without jumping. Needed when a
+ * mission's destination is already the current station (e.g. cargo bought after
+ * arriving empty-handed) — `jump` no-ops when `to === state.location`, so `arrive`
+ * never runs for that case.
+ */
+export function deliver(state: GameState): GameState {
+  return settleMissions(state).state;
+}
+
 /** Complete any active missions satisfied by current location + cargo, paying rewards. */
 function settleMissions(state: GameState): {
   state: GameState;

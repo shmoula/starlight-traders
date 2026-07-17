@@ -10,6 +10,7 @@ import {
   acceptMission,
   jump,
   arrive,
+  deliver,
   resolveChoice,
   missionsHere,
 } from "./engine/game";
@@ -70,6 +71,9 @@ app.addEventListener("click", async (e) => {
       // Deliveries settle in `arrive`, after the in-transit event is resolved.
       break;
     }
+    case "deliver":
+      state = deliver(state);
+      break;
     case "resolve": {
       if (pendingEvent) state = resolveChoice(state, pendingEvent, id!);
       pendingEvent = null;
