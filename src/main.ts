@@ -9,6 +9,8 @@ import {
   payDebt,
   acceptMission,
   jump,
+  arrive,
+  deliver,
   resolveChoice,
   missionsHere,
 } from "./engine/game";
@@ -21,17 +23,16 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 
 let state: GameState = createGame(dailySeed(new Date()));
 let pendingEvent: GameEvent | null = null;
+// Log length captured just before a jump, so the station screen can surface every
+// entry the jump produced (fee, interest, event outcome, deliveries) as a turn report.
+let turnReport: string[] = [];
+let logMarkBeforeJump = 0;
 
 function paint() {
-  render(app, { state, pendingEvent });
+  render(app, { state, pendingEvent, turnReport });
 }
 
-app.addEventListener("click", async (e) => {
-  const btn = (e.target as HTMLElement).closest("button");
-  if (!btn) return;
-  const act = btn.dataset.act;
-  const id = btn.dataset.id;
-
+function applyAction(act: string | undefined, id: string | undefined) {
   switch (act) {
     case "buy":
       state = buy(state, id as CommodityId, 1);
@@ -54,22 +55,24 @@ app.addEventListener("click", async (e) => {
       break;
     }
     case "jump": {
+      // Mark the log so the eventual turn report captures everything from here on.
+      logMarkBeforeJump = state.log.length;
       const r = jump(state, id as NodeId);
       state = r.state;
       pendingEvent = r.event;
+      // Deliveries settle in `arrive`, after the in-transit event is resolved.
       break;
     }
+    case "deliver":
+      state = deliver(state);
+      break;
     case "resolve": {
       if (pendingEvent) state = resolveChoice(state, pendingEvent, id!);
       pendingEvent = null;
-      break;
-    }
-    case "share": {
-      await copyShare({
-        seed: state.seed,
-        score: scoreFn(state.peakNetWorth, state.day),
-        daysSurvived: state.day,
-      });
+      const a = arrive(state); // settle deliveries against post-event cargo
+      state = a.state;
+      // Surface the whole jump: fee, interest, event outcome, and any deliveries.
+      turnReport = state.log.slice(logMarkBeforeJump);
       break;
     }
     case "restart": {
@@ -77,6 +80,27 @@ app.addEventListener("click", async (e) => {
       pendingEvent = null;
       break;
     }
+  }
+}
+
+app.addEventListener("click", async (e) => {
+  const btn = (e.target as HTMLElement).closest("button");
+  if (!btn) return;
+  if (btn.getAttribute("aria-disabled") === "true") return;
+  const act = btn.dataset.act;
+  const id = btn.dataset.id;
+
+  // The turn report clears on any new action; it is re-populated when a jump settles.
+  turnReport = [];
+
+  if (act === "share") {
+    await copyShare({
+      seed: state.seed,
+      score: scoreFn(state.peakNetWorth, state.day),
+      daysSurvived: state.day,
+    });
+  } else {
+    applyAction(act, id);
   }
   paint();
 });

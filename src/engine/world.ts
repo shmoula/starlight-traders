@@ -78,6 +78,10 @@ const COMMODITY_BY_ID: Record<CommodityId, Commodity> = Object.fromEntries(
   COMMODITIES.map((c) => [c.id, c])
 ) as Record<CommodityId, Commodity>;
 
+export function commodityName(id: CommodityId): string {
+  return COMMODITY_BY_ID[id].name;
+}
+
 /**
  * Deterministic local price for a commodity at a node on a given day.
  * Produced -> discounted; demanded -> premium; plus seeded daily noise.

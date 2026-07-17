@@ -1,6 +1,6 @@
 // src/engine/game.ts
 import { CommodityId, GameEvent, GameState, Mission, NodeId } from "./types";
-import { NODE_IDS, fuelCost, getPrice } from "./world";
+import { NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "./world";
 import {
   REFUEL_PRICE,
   REPAIR_PRICE,
@@ -44,8 +44,11 @@ export function createGame(seed: number): GameState {
   };
 }
 
+// Keep the full run history; the UI decides how many entries to surface. A run is
+// bounded (you eventually lose), so this stays small, and retaining every entry lets
+// the UI capture "what happened this turn" by a stable index rather than a fragile diff.
 function withLog(state: GameState, msg: string): GameState {
-  return { ...state, log: [...state.log, msg].slice(-12) };
+  return { ...state, log: [...state.log, msg] };
 }
 
 function trackPeak(state: GameState): GameState {
@@ -68,7 +71,7 @@ export function buy(state: GameState, id: CommodityId, qty: number): GameState {
     credits: state.credits - cost,
     cargo: { ...state.cargo, [id]: state.cargo[id] + qty },
   };
-  return trackPeak(withLog(next, `Bought ${qty} ${id} for ${cost}cr.`));
+  return trackPeak(withLog(next, `Bought ${qty} ${commodityName(id)} for ${cost}cr.`));
 }
 
 export function sell(state: GameState, id: CommodityId, qty: number): GameState {
@@ -81,7 +84,9 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
     credits: state.credits + proceeds - tax,
     cargo: { ...state.cargo, [id]: state.cargo[id] - qty },
   };
-  return trackPeak(withLog(next, `Sold ${qty} ${id} for ${proceeds}cr (tax ${tax}).`));
+  return trackPeak(
+    withLog(next, `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`)
+  );
 }
 
 export function refuel(state: GameState, units: number): GameState {
@@ -123,14 +128,30 @@ export function acceptMission(state: GameState, mission: Mission): GameState {
   if (state.activeMissions.some((m) => m.id === mission.id)) return state;
   return withLog(
     { ...state, activeMissions: [...state.activeMissions, mission] },
-    `Accepted delivery to ${mission.destination}.`
+    `Accepted delivery to ${NODES[mission.destination].name}.`
   );
 }
 
+/**
+ * Settle deliveries against the current location without jumping. Needed when a
+ * mission's destination is already the current station (e.g. cargo bought after
+ * arriving empty-handed) — `jump` no-ops when `to === state.location`, so `arrive`
+ * never runs for that case.
+ */
+export function deliver(state: GameState): GameState {
+  return settleMissions(state).state;
+}
+
 /** Complete any active missions satisfied by current location + cargo, paying rewards. */
-function settleMissions(state: GameState): GameState {
+function settleMissions(state: GameState): {
+  state: GameState;
+  delivered: Mission[];
+  expired: Mission[];
+} {
   let s = state;
   const remaining: Mission[] = [];
+  const delivered: Mission[] = [];
+  const expired: Mission[] = [];
   for (const m of s.activeMissions) {
     if (m.destination === s.location && s.cargo[m.commodity] >= m.qty && s.day <= m.deadlineDay) {
       s = {
@@ -139,13 +160,15 @@ function settleMissions(state: GameState): GameState {
         credits: s.credits + m.reward,
       };
       s = withLog(s, `Delivery complete: +${m.reward}cr.`);
+      delivered.push(m);
     } else if (s.day > m.deadlineDay) {
-      s = withLog(s, `Delivery to ${m.destination} expired.`);
+      s = withLog(s, `Delivery to ${NODES[m.destination].name} expired.`);
+      expired.push(m);
     } else {
       remaining.push(m);
     }
   }
-  return { ...s, activeMissions: remaining };
+  return { state: { ...s, activeMissions: remaining }, delivered, expired };
 }
 
 export function checkLoss(state: GameState): GameState {
@@ -164,7 +187,9 @@ export function checkLoss(state: GameState): GameState {
 
 /**
  * Jump to a destination: spend fuel, advance the day, accrue interest, pay docking,
- * settle deliveries, then return the pending in-transit event for the UI to resolve.
+ * then return the pending in-transit event for the UI to resolve. Deliveries are NOT
+ * settled here — they settle in `arrive`, after the in-transit event resolves, so that
+ * cargo gained in transit (salvage, derelict loot) counts toward a delivery.
  */
 export function jump(state: GameState, to: NodeId): { state: GameState; event: GameEvent | null } {
   if (to === state.location) return { state, event: null };
@@ -176,18 +201,30 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
   // Interest accrues on a fixed cadence.
   if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
     const interest = loanInterest(s.debt);
-    s = withLog({ ...s, debt: s.debt + interest }, `Loan interest +${interest}cr.`);
+    s = withLog({ ...s, debt: s.debt + interest }, `Loan interest: debt grows ${interest}cr.`);
   }
 
   // Docking fee on arrival.
   const fee = dockingFee(to);
-  s = withLog({ ...s, credits: s.credits - fee }, `Docked at ${to}, fee ${fee}cr.`);
-
-  s = settleMissions(s);
-  s = trackPeak(s);
+  s = withLog({ ...s, credits: s.credits - fee }, `Docked at ${NODES[to].name}, fee ${fee}cr.`);
 
   const event = rollEvent(s.seed, s.day, state.location, to);
   return { state: s, event };
+}
+
+/**
+ * Finalize arrival once the in-transit event is resolved: settle deliveries against the
+ * cargo actually in the hold, track peak net worth, then run the loss check (so a delivery
+ * reward can rescue a player who would otherwise be stranded). Returns what settled.
+ */
+export function arrive(state: GameState): {
+  state: GameState;
+  delivered: Mission[];
+  expired: Mission[];
+} {
+  const settled = settleMissions(state);
+  const s = checkLoss(trackPeak(settled.state));
+  return { state: s, delivered: settled.delivered, expired: settled.expired };
 }
 
 /** Apply the consequences of an event choice. Deterministic per seed/day. */
@@ -211,7 +248,7 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
         const got = Math.min(room, 2 + (s.day % 4));
         s = withLog(
           { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
-          `Salvaged ${got} parts.`
+          `Salvaged ${got} ${commodityName("parts")}.`
         );
       }
       break;
@@ -253,5 +290,7 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
     default:
       break;
   }
-  return checkLoss(trackPeak(s));
+  // Loss/peak are evaluated in `arrive`, after deliveries settle against the
+  // post-event cargo — keep this focused on applying the event's effect.
+  return trackPeak(s);
 }

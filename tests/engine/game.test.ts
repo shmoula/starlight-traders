@@ -6,11 +6,96 @@ import {
   refuel,
   repair,
   jump,
+  arrive,
   resolveChoice,
+  acceptMission,
   checkLoss,
+  deliver,
   STARTING,
 } from "../../src/engine/game";
 import { getPrice } from "../../src/engine/world";
+import { GameEvent, Mission } from "../../src/engine/types";
+
+describe("arrival settlement reporting", () => {
+  const contract: Mission = {
+    id: "c1",
+    commodity: "water",
+    qty: 5,
+    destination: "kiruna",
+    reward: 500,
+    deadlineDay: 99,
+  };
+
+  it("reports delivered contracts and subtracts their cargo", () => {
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, cargo: { ...s.cargo, water: 8 }, fuel: 20 };
+    const r = arrive(jump(s, "kiruna").state);
+    expect(r.delivered.map((m) => m.id)).toEqual(["c1"]);
+    expect(r.expired).toEqual([]);
+    expect(r.state.cargo.water).toBe(3);
+    expect(r.state.activeMissions).toEqual([]);
+  });
+
+  it("reports expired contracts past their deadline", () => {
+    let s = createGame(42);
+    s = acceptMission(s, { ...contract, deadlineDay: 1 });
+    s = { ...s, cargo: { ...s.cargo, water: 8 }, fuel: 20 };
+    const r = arrive(jump(s, "kiruna").state);
+    expect(r.delivered).toEqual([]);
+    expect(r.expired.map((m) => m.id)).toEqual(["c1"]);
+  });
+
+  it("does not report a contract still in progress", () => {
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, fuel: 20 }; // no cargo carried
+    const r = arrive(jump(s, "kiruna").state);
+    expect(r.delivered).toEqual([]);
+    expect(r.expired).toEqual([]);
+    expect(r.state.activeMissions.map((m) => m.id)).toEqual(["c1"]);
+  });
+
+  it("counts in-transit salvage toward a delivery (settles after the event)", () => {
+    const partsContract: Mission = {
+      id: "p1",
+      commodity: "parts",
+      qty: 10,
+      destination: "kiruna",
+      reward: 600,
+      deadlineDay: 99,
+    };
+    let s = createGame(42);
+    s = acceptMission(s, partsContract);
+    s = { ...s, cargo: { ...s.cargo, parts: 8 }, fuel: 20 }; // short by 2
+
+    const j = jump(s, "kiruna"); // arrives at kiruna carrying 8 parts
+    const salvage: GameEvent = {
+      kind: "salvage",
+      title: "",
+      description: "",
+      choices: [{ id: "collect", label: "" }],
+    };
+    const afterEvent = resolveChoice(j.state, salvage, "collect"); // scoops up parts
+    expect(afterEvent.cargo.parts).toBeGreaterThanOrEqual(10);
+
+    const r = arrive(afterEvent);
+    expect(r.delivered.map((m) => m.id)).toEqual(["p1"]); // now it completes
+  });
+
+  it("settles a delivery via `deliver` when cargo is bought after arriving empty-handed", () => {
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, fuel: 20 }; // no cargo carried
+    s = arrive(jump(s, "kiruna").state).state; // arrives short; mission stays active
+    expect(s.activeMissions.map((m) => m.id)).toEqual(["c1"]);
+
+    s = { ...s, cargo: { ...s.cargo, water: 5 } }; // buy the goods while already docked
+    const s2 = deliver(s);
+    expect(s2.activeMissions).toEqual([]);
+    expect(s2.cargo.water).toBe(0);
+  });
+});
 
 describe("createGame", () => {
   it("starts at terra with starting credits, debt, fuel, and full hull", () => {
