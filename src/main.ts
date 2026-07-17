@@ -35,6 +35,7 @@ function paint() {
 app.addEventListener("click", async (e) => {
   const btn = (e.target as HTMLElement).closest("button");
   if (!btn) return;
+  if (btn.getAttribute("aria-disabled") === "true") return;
   const act = btn.dataset.act;
   const id = btn.dataset.id;
 

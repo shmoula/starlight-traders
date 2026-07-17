@@ -89,9 +89,13 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
       const expired = s.day > m.deadlineDay;
       const atDestination = s.location === m.destination;
       const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
+      const jumpHintId = `jump-hint-${m.id}`;
+      const jumpBtn = canReach
+        ? `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver">jump to ${NODES[m.destination].name}</button>`
+        : `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver" aria-disabled="true" aria-describedby="${jumpHintId}">jump to ${NODES[m.destination].name}</button> <span id="${jumpHintId}" class="bad">(not enough fuel to jump)</span>`;
       const readyBtn = atDestination
         ? `<button class="jump-link" data-act="deliver" aria-label="Deliver to ${NODES[m.destination].name}">deliver</button>`
-        : `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver"${canReach ? "" : ` disabled title="Not enough fuel to jump"`}>jump to ${NODES[m.destination].name}</button>`;
+        : jumpBtn;
       const hint = expired
         ? `<span class="bad">✗ deadline passed</span>`
         : ready

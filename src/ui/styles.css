@@ -123,7 +123,8 @@ button:disabled {
 .jump-link:hover:not(:disabled) {
   color: #a7f3cf;
 }
-.jump-link:disabled {
+.jump-link:disabled,
+.jump-link[aria-disabled="true"] {
   text-decoration: none;
   cursor: not-allowed;
 }
