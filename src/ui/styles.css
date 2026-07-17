@@ -32,9 +32,21 @@ table {
   width: 100%;
   border-collapse: collapse;
 }
+th,
 td {
   padding: 4px 6px;
   border-bottom: 1px solid #16203c;
+  text-align: left;
+}
+thead th {
+  color: #8fa4d4;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+/* Row headers carry the commodity name; keep them reading as data, not headings. */
+tbody th {
+  font-weight: normal;
 }
 button {
   background: #2a3c66;

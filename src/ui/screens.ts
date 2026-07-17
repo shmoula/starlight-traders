@@ -22,7 +22,7 @@ export function stationScreen(s: GameState): string {
   const market = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
     return `<tr>
-      <td>${c.name}</td><td>${cr(price)}</td><td>${s.cargo[c.id]}</td>
+      <th scope="row">${c.name}</th><td>${cr(price)}</td><td>${s.cargo[c.id]}</td>
       <td>
         <button data-act="buy" data-id="${c.id}">Buy 1</button>
         <button data-act="sell" data-id="${c.id}">Sell 1</button>
@@ -58,7 +58,17 @@ export function stationScreen(s: GameState): string {
         <span>📈 net ${cr(netWorth(s))}</span>
       </div>
     </header>
-    <section><h2>Market</h2><table>${market}</table></section>
+    <section><h2>Market</h2><table>
+      <thead>
+        <tr>
+          <th scope="col">Commodity</th>
+          <th scope="col">Price</th>
+          <th scope="col">Held</th>
+          <th scope="col">Trade</th>
+        </tr>
+      </thead>
+      <tbody>${market}</tbody>
+    </table></section>
     <section><h2>Contracts</h2><ul>${missions || "<li>None today.</li>"}</ul></section>
     <section class="services">
       <button data-act="refuel">Refuel +5 (${cr(40)})</button>
