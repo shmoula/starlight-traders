@@ -189,7 +189,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
   // Interest accrues on a fixed cadence.
   if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
     const interest = loanInterest(s.debt);
-    s = withLog({ ...s, debt: s.debt + interest }, `Loan interest: debt +${interest}cr.`);
+    s = withLog({ ...s, debt: s.debt + interest }, `Loan interest: debt grows ${interest}cr.`);
   }
 
   // Docking fee on arrival.

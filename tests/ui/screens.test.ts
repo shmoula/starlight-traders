@@ -47,8 +47,8 @@ describe("stationScreen turn report", () => {
     expect(html).toContain('class="tr-line tr-good"');
   });
 
-  it("treats loan interest as a loss despite the +cr sign", () => {
-    const html = stationScreen(createGame(42), ["Loan interest: debt +60cr."]);
+  it("treats loan interest as a loss", () => {
+    const html = stationScreen(createGame(42), ["Loan interest: debt grows 60cr."]);
     expect(html).toContain('class="tr-line tr-bad"');
   });
 });
