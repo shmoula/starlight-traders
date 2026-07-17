@@ -32,16 +32,7 @@ function paint() {
   render(app, { state, pendingEvent, turnReport });
 }
 
-app.addEventListener("click", async (e) => {
-  const btn = (e.target as HTMLElement).closest("button");
-  if (!btn) return;
-  if (btn.getAttribute("aria-disabled") === "true") return;
-  const act = btn.dataset.act;
-  const id = btn.dataset.id;
-
-  // The turn report clears on any new action; it is re-populated when a jump settles.
-  turnReport = [];
-
+function applyAction(act: string | undefined, id: string | undefined) {
   switch (act) {
     case "buy":
       state = buy(state, id as CommodityId, 1);
@@ -84,19 +75,32 @@ app.addEventListener("click", async (e) => {
       turnReport = state.log.slice(logMarkBeforeJump);
       break;
     }
-    case "share": {
-      await copyShare({
-        seed: state.seed,
-        score: scoreFn(state.peakNetWorth, state.day),
-        daysSurvived: state.day,
-      });
-      break;
-    }
     case "restart": {
       state = createGame(dailySeed(new Date()));
       pendingEvent = null;
       break;
     }
+  }
+}
+
+app.addEventListener("click", async (e) => {
+  const btn = (e.target as HTMLElement).closest("button");
+  if (!btn) return;
+  if (btn.getAttribute("aria-disabled") === "true") return;
+  const act = btn.dataset.act;
+  const id = btn.dataset.id;
+
+  // The turn report clears on any new action; it is re-populated when a jump settles.
+  turnReport = [];
+
+  if (act === "share") {
+    await copyShare({
+      seed: state.seed,
+      score: scoreFn(state.peakNetWorth, state.day),
+      daysSurvived: state.day,
+    });
+  } else {
+    applyAction(act, id);
   }
   paint();
 });
