@@ -28,6 +28,7 @@ Every day has a new seed, and the seed is derived from the date — so everyone 
 - TypeScript 5 (no UI framework — direct DOM rendering)
 - Vite 5
 - Vitest 1
+- ESLint + Prettier
 
 ## Getting Started
 
@@ -45,6 +46,10 @@ Open the local dev URL printed by Vite (typically `http://localhost:5173`).
 - `npm run preview` — preview the production build locally
 - `npm test` — run the engine and balance test suite once
 - `npm run test:watch` — run tests in watch mode
+- `npm run test:coverage` — run tests with coverage
+- `npm run lint` — run ESLint
+- `npm run format` — format with Prettier
+- `npm run format:check` — check formatting without writing
 
 ## How to Play
 
