@@ -27,8 +27,8 @@ export function stationScreen(s: GameState, flash: string[] = []): string {
     return `<tr>
       <th scope="row">${c.name}</th><td>${cr(price)}</td><td>${s.cargo[c.id]}</td>
       <td>
-        <button data-act="buy" data-id="${c.id}">Buy 1</button>
-        <button data-act="sell" data-id="${c.id}">Sell 1</button>
+        <button data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}">Buy 1</button>
+        <button data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}">Sell 1</button>
       </td></tr>`;
   }).join("");
 
@@ -37,7 +37,7 @@ export function stationScreen(s: GameState, flash: string[] = []): string {
     .map((m) => {
       const action = acceptedIds.has(m.id)
         ? `<span class="accepted">✓ Accepted</span>`
-        : `<button data-act="accept" data-id="${m.id}">Accept</button>`;
+        : `<button data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${m.commodity} to ${NODES[m.destination].name}">Accept</button>`;
       return `<li>Deliver ${m.qty} ${m.commodity} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
       ${action}</li>`;
     })
