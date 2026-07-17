@@ -14,8 +14,7 @@ import {
   missionsHere,
 } from "./engine/game";
 import { score as scoreFn } from "./engine/economy";
-import { NODES } from "./engine/world";
-import { CommodityId, GameEvent, GameState, Mission, NodeId } from "./engine/types";
+import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
 import { render } from "./ui/render";
 import { copyShare } from "./ui/share";
 
@@ -23,22 +22,13 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 
 let state: GameState = createGame(dailySeed(new Date()));
 let pendingEvent: GameEvent | null = null;
-let flash: string[] = [];
+// Log length captured just before a jump, so the station screen can surface every
+// entry the jump produced (fee, interest, event outcome, deliveries) as a turn report.
+let turnReport: string[] = [];
+let logMarkBeforeJump = 0;
 
 function paint() {
-  render(app, { state, pendingEvent, flash });
-}
-
-function arrivalFlash(delivered: Mission[], expired: Mission[]): string[] {
-  return [
-    ...delivered.map(
-      (m) =>
-        `✓ Contract fulfilled: ${m.qty} ${m.commodity} → ${NODES[m.destination].name} · +${m.reward.toLocaleString()}cr`
-    ),
-    ...expired.map(
-      (m) => `✗ Contract expired: ${m.qty} ${m.commodity} → ${NODES[m.destination].name}`
-    ),
-  ];
+  render(app, { state, pendingEvent, turnReport });
 }
 
 app.addEventListener("click", async (e) => {
@@ -47,8 +37,8 @@ app.addEventListener("click", async (e) => {
   const act = btn.dataset.act;
   const id = btn.dataset.id;
 
-  // Flash clears on any new action; it is re-populated when an arrival settles.
-  flash = [];
+  // The turn report clears on any new action; it is re-populated when a jump settles.
+  turnReport = [];
 
   switch (act) {
     case "buy":
@@ -72,6 +62,8 @@ app.addEventListener("click", async (e) => {
       break;
     }
     case "jump": {
+      // Mark the log so the eventual turn report captures everything from here on.
+      logMarkBeforeJump = state.log.length;
       const r = jump(state, id as NodeId);
       state = r.state;
       pendingEvent = r.event;
@@ -83,7 +75,8 @@ app.addEventListener("click", async (e) => {
       pendingEvent = null;
       const a = arrive(state); // settle deliveries against post-event cargo
       state = a.state;
-      flash = arrivalFlash(a.delivered, a.expired);
+      // Surface the whole jump: fee, interest, event outcome, and any deliveries.
+      turnReport = state.log.slice(logMarkBeforeJump);
       break;
     }
     case "share": {

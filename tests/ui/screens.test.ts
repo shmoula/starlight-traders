@@ -24,3 +24,40 @@ describe("stationScreen accessibility", () => {
     }
   });
 });
+
+describe("stationScreen turn report", () => {
+  it("surfaces the turn report as a live-region banner", () => {
+    const html = stationScreen(createGame(42), ["Docked at verge, fee 18cr."]);
+    expect(html).toContain('class="turn-report"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain("Docked at verge, fee 18cr.");
+  });
+
+  it("omits the banner when nothing happened this turn", () => {
+    const html = stationScreen(createGame(42), []);
+    expect(html).not.toContain("turn-report");
+  });
+
+  it("colors a harmful outcome as bad and a gain as good", () => {
+    const html = stationScreen(createGame(42), [
+      "Derelict was a trap: -20 hull.",
+      "Delivery complete: +860cr.",
+    ]);
+    expect(html).toContain('class="tr-line tr-bad"');
+    expect(html).toContain('class="tr-line tr-good"');
+  });
+
+  it("treats loan interest as a loss despite the +cr sign", () => {
+    const html = stationScreen(createGame(42), ["Loan interest: debt +60cr."]);
+    expect(html).toContain('class="tr-line tr-bad"');
+  });
+});
+
+describe("stationScreen ship's log", () => {
+  it("renders a titled, labelled log section", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain('aria-label="Ship\'s log"');
+    expect(html).toContain("Ship's Log");
+    expect(html).toContain("You launch from Terra Hub");
+  });
+});

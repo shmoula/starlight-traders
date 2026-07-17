@@ -75,12 +75,16 @@ button:disabled {
   font-size: 28px;
   font-weight: 700;
 }
-.log {
-  font-size: 12px;
-  opacity: 0.7;
+.log-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 168px;
+  overflow-y: auto;
+  font-size: 13px;
 }
-.log div {
-  padding: 2px 0;
+.log-line {
+  padding: 1px 0;
 }
 .hint {
   font-size: 12px;
@@ -100,18 +104,45 @@ button:disabled {
   font-size: 13px;
   opacity: 0.85;
 }
-.flash {
-  border: 1px solid #2f6b4a;
-  background: #12351f;
-  color: #b9f5cf;
+/* Turn report: the headline "what just happened" banner after a jump. */
+.turn-report {
+  border: 1px solid #2f5a8a;
+  background: #0f1e38;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   margin: 12px 0;
-  font-weight: 600;
   animation: flash-in 0.35s ease-out;
 }
-.flash div {
-  padding: 1px 0;
+.turn-report__title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8fa4d4;
+}
+.tr-line {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.tr-line.tr-neutral {
+  font-weight: 500;
+}
+.tr-icon {
+  font-weight: 700;
+}
+.tr-good {
+  color: #6ee7a8;
+}
+.tr-bad {
+  color: #ff9b8a;
+}
+.tr-neutral {
+  color: #cdd7f5;
 }
 @keyframes flash-in {
   from {

@@ -17,10 +17,37 @@ export type Action =
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
 
-export function stationScreen(s: GameState, flash: string[] = []): string {
+type Tone = "good" | "bad" | "neutral";
+
+/**
+ * Classify a log line so the UI can color it by outcome. Signals are drawn from the
+ * fixed set of messages the engine emits (see game.ts); anything unrecognized stays
+ * neutral, so a new message never renders as a false win or loss.
+ */
+function toneOf(msg: string): Tone {
+  if (/trap|damage|seized|expired|burned|Bribed|Paid pirates|Loan interest|Stranded/i.test(msg)) {
+    return "bad";
+  }
+  if (/held \d|Salvaged|Delivery complete|Paid down/i.test(msg)) {
+    return "good";
+  }
+  return "neutral";
+}
+
+const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›" };
+
+export function stationScreen(s: GameState, turnReport: string[] = []): string {
   const node = NODES[s.location];
-  const flashBanner = flash.length
-    ? `<div class="flash">${flash.map((f) => `<div>${f}</div>`).join("")}</div>`
+  const report = turnReport.length
+    ? `<div class="turn-report" role="status" aria-live="polite">
+      <h2 class="turn-report__title">Since your last jump</h2>
+      ${turnReport
+        .map((l) => {
+          const t = toneOf(l);
+          return `<div class="tr-line tr-${t}"><span class="tr-icon" aria-hidden="true">${TONE_ICON[t]}</span><span>${l}</span></div>`;
+        })
+        .join("")}
+    </div>`
     : "";
   const market = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
@@ -66,8 +93,12 @@ export function stationScreen(s: GameState, flash: string[] = []): string {
     )
     .join("");
 
+  const logEntries = s.log
+    .slice(-8)
+    .map((l) => `<div class="log-line tr-${toneOf(l)}">${l}</div>`)
+    .join("");
+
   return `
-    ${flashBanner}
     <header>
       <h1>${node.name} · Day ${s.day}</h1>
       <div class="stats">
@@ -79,6 +110,7 @@ export function stationScreen(s: GameState, flash: string[] = []): string {
         <span>📈 net ${cr(netWorth(s))}</span>
       </div>
     </header>
+    ${report}
     <section><h2>Market</h2><table>
       <thead>
         <tr>
@@ -102,10 +134,10 @@ export function stationScreen(s: GameState, flash: string[] = []): string {
       <span class="fee">Docking fee here: ${cr(dockingFee(s.location))}</span>
     </section>
     <section><h2>Navigate</h2><div class="routes">${routes}</div></section>
-    <aside class="log">${s.log
-      .slice(-6)
-      .map((l) => `<div>${l}</div>`)
-      .join("")}</aside>
+    <section class="log" aria-label="Ship's log">
+      <h2>Ship's Log</h2>
+      <div class="log-entries">${logEntries}</div>
+    </section>
   `;
 }
 

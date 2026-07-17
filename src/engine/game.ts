@@ -44,8 +44,11 @@ export function createGame(seed: number): GameState {
   };
 }
 
+// Keep the full run history; the UI decides how many entries to surface. A run is
+// bounded (you eventually lose), so this stays small, and retaining every entry lets
+// the UI capture "what happened this turn" by a stable index rather than a fragile diff.
 function withLog(state: GameState, msg: string): GameState {
-  return { ...state, log: [...state.log, msg].slice(-12) };
+  return { ...state, log: [...state.log, msg] };
 }
 
 function trackPeak(state: GameState): GameState {
@@ -186,7 +189,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
   // Interest accrues on a fixed cadence.
   if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
     const interest = loanInterest(s.debt);
-    s = withLog({ ...s, debt: s.debt + interest }, `Loan interest +${interest}cr.`);
+    s = withLog({ ...s, debt: s.debt + interest }, `Loan interest: debt +${interest}cr.`);
   }
 
   // Docking fee on arrival.
