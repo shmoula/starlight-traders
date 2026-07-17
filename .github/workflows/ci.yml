@@ -32,11 +32,72 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ── TypeScript ──────────────────────────────────────────────────────────
       - name: TypeScript check
         run: npx tsc --noEmit
 
-      - name: Vitest
-        run: npm test
+      # ── Lint & format ───────────────────────────────────────────────────────
+      - name: ESLint
+        run: npm run lint
 
+      - name: Prettier
+        run: npm run format:check
+
+      # ── Tests + Coverage ────────────────────────────────────────────────────
+      - name: Vitest (with coverage)
+        run: npm run test:coverage
+
+      # ── Production build ────────────────────────────────────────────────────
       - name: Production build
         run: npm run build
+
+      # ── Bundle size gate (<256 KB) ──────────────────────────────────────────
+      # Measures the *initial* JS payload only — the entry chunk plus any chunks
+      # index.html preloads. The budget is far above the current ~12 KB bundle;
+      # it exists to catch dependency creep, not to shave bytes.
+      - name: Bundle size gate
+        run: |
+          BUNDLE=0
+          INITIAL_JS=$(grep -oE 'assets/[^"]+\.js' dist/index.html | sort -u || true)
+          if [ -z "$INITIAL_JS" ]; then
+            echo "❌ No initial JS assets found in dist/index.html"
+            exit 1
+          fi
+          while IFS= read -r f; do
+            BUNDLE=$((BUNDLE + $(wc -c < "dist/$f")))
+          done <<< "$INITIAL_JS"
+          echo "Initial JS payload: ${BUNDLE} bytes"
+          if [ "$BUNDLE" -gt 262144 ]; then
+            echo "❌ Initial bundle ${BUNDLE}B exceeds 256 KB limit"
+            exit 1
+          fi
+          echo "✅ Initial bundle ${BUNDLE}B is within limit"
+
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for Lighthouse
+        run: npm run build
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.14.x
+
+      - name: Run Lighthouse CI
+        run: lhci autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}

@@ -1,6 +1,7 @@
 # Build output and generated artifacts
 dist
 coverage
+.lighthouseci
 
 # Managed by npm — reformatting fights the tool that writes it
 package-lock.json
