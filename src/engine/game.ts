@@ -84,7 +84,9 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
     credits: state.credits + proceeds - tax,
     cargo: { ...state.cargo, [id]: state.cargo[id] - qty },
   };
-  return trackPeak(withLog(next, `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`));
+  return trackPeak(
+    withLog(next, `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`)
+  );
 }
 
 export function refuel(state: GameState, units: number): GameState {
