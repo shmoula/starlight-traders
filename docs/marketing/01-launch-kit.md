@@ -9,12 +9,13 @@ Ready-to-paste copy for launch. Edit the bracketed `[LINK]` / `[DATE]` bits befo
 **Name:** Starlight Traders
 **One-liner:** A daily roguelike trade-run where every jump costs you.
 **Tagline options (pick one, A/B the rest):**
+
 - "Buy low. Sell high. Don't get stranded."
 - "Every jump costs you."
 - "A new trade run every day."
 - "The galaxy's most expensive commute."
 
-**Voice:** Dry, spacer-trucker fatalism with a wink. You're a small-time hauler one bad jump from bankruptcy. Never corporate, never hype-y. Lean into the *tension* (debt, fuel, pirates) and the *bragging* (today's score).
+**Voice:** Dry, spacer-trucker fatalism with a wink. You're a small-time hauler one bad jump from bankruptcy. Never corporate, never hype-y. Lean into the _tension_ (debt, fuel, pirates) and the _bragging_ (today's score).
 
 **The hook in one breath:** "It's Wordle's daily-puzzle ritual, but you're a broke space trader trying not to go bankrupt before the loan shark catches up."
 
@@ -70,7 +71,7 @@ Ready-to-paste copy for launch. Edit the bracketed `[LINK]` / `[DATE]` bits befo
 >
 > **Starlight Traders** is a ~10-minute daily run. You're a small hauler with a growing debt.
 > Buy commodities cheap, sell them dear across 5 stations, and survive an economy where
-> *everything* drains your wallet — fuel, docking fees, taxes, repairs, and loan interest
+> _everything_ drains your wallet — fuel, docking fees, taxes, repairs, and loan interest
 > that ticks up whether you trade or not. Go broke or get stranded and the run ends.
 >
 > The hook I'm most proud of: **everyone gets the same seed each day**, so scores are
@@ -81,8 +82,8 @@ Ready-to-paste copy for launch. Edit the bracketed `[LINK]` / `[DATE]` bits befo
 > I'd genuinely love feedback on the economy balance — is the loan pressure too brutal, or
 > just right? Drop your day-1 seed score and roast my numbers.
 
-*(Why this works: STEPPS — Social Currency [score], Triggers [daily], Story, plus a specific
-feedback CTA. Credits the community = no "drive-by promo" backlash.)*
+_(Why this works: STEPPS — Social Currency [score], Triggers [daily], Story, plus a specific
+feedback CTA. Credits the community = no "drive-by promo" backlash.)_
 
 ### r/WebGames
 
@@ -97,7 +98,7 @@ feedback CTA. Credits the community = no "drive-by promo" backlash.)*
 
 **Title:** I shipped a daily trade-roguelike — here's how I stopped players from "turtling" on the safe strategy
 
-**Body:** *(see content calendar — repurpose the loan-interest devlog as the launch-day postmortem, link the game at the end, not the top)*
+**Body:** _(see content calendar — repurpose the loan-interest devlog as the launch-day postmortem, link the game at the end, not the top)_
 
 ---
 
@@ -109,7 +110,7 @@ Same seed for everyone, every day.
 Play free 👉 [LINK]
 🧵
 
-**2/** The whole game is one cruel idea: *every faucet has a bigger sink.*
+**2/** The whole game is one cruel idea: _every faucet has a bigger sink._
 You earn from deliveries, arbitrage, and salvage.
 You bleed from fuel, docking fees, planet taxes, repairs — and loan interest that ticks up on a timer.
 Stand still and you go bankrupt.
@@ -135,15 +136,15 @@ Seed #20260618 — beat my run!
 [LINK]
 ```
 
-*Keep the seed in the card — it's what makes the share an invitation, not just a brag.*
+_Keep the seed in the card — it's what makes the share an invitation, not just a brag._
 
 ---
 
 ## Messaging matrix (by awareness stage)
 
-| Stage | Message |
-|---|---|
-| Unaware | "What if Wordle was about not going bankrupt in space?" |
-| Problem-aware (likes daily games / trade games) | "A daily roguelike trade-run — same seed for everyone." |
-| Solution-aware (comparing) | "Fully fair, no pay-to-win, ~10 min a run, plays in browser." |
-| Ready | "Play today's seed free → [LINK]. Reply with your score." |
+| Stage                                           | Message                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| Unaware                                         | "What if Wordle was about not going bankrupt in space?"       |
+| Problem-aware (likes daily games / trade games) | "A daily roguelike trade-run — same seed for everyone."       |
+| Solution-aware (comparing)                      | "Fully fair, no pay-to-win, ~10 min a run, plays in browser." |
+| Ready                                           | "Play today's seed free → [LINK]. Reply with your score."     |

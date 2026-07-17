@@ -29,7 +29,8 @@ export function rollEvent(seed: number, day: number, from: NodeId, to: NodeId): 
 
 function pirates(): GameEvent {
   return {
-    kind: "pirates", title: "Pirate Ambush",
+    kind: "pirates",
+    title: "Pirate Ambush",
     description: "Raiders demand tribute. Pay them off, or run and risk hull damage.",
     choices: [
       { id: "pay", label: "Pay tribute (lose credits)" },
@@ -39,35 +40,49 @@ function pirates(): GameEvent {
 }
 function salvage(): GameEvent {
   return {
-    kind: "salvage", title: "Salvage Field",
+    kind: "salvage",
+    title: "Salvage Field",
     description: "Debris drifts nearby. Scoop it up for free goods?",
-    choices: [{ id: "collect", label: "Collect salvage" }, { id: "ignore", label: "Stay on course" }],
+    choices: [
+      { id: "collect", label: "Collect salvage" },
+      { id: "ignore", label: "Stay on course" },
+    ],
   };
 }
 function engine(): GameEvent {
   return {
-    kind: "engine", title: "Engine Trouble",
+    kind: "engine",
+    title: "Engine Trouble",
     description: "A coolant leak burns extra fuel before you patch it.",
     choices: [{ id: "ack", label: "Patch it up" }],
   };
 }
 function derelict(): GameEvent {
   return {
-    kind: "derelict", title: "Derelict Hulk",
+    kind: "derelict",
+    title: "Derelict Hulk",
     description: "An abandoned freighter floats silent. Board it? Could be treasure — or a trap.",
-    choices: [{ id: "board", label: "Board it (gamble)" }, { id: "leave", label: "Leave it be" }],
+    choices: [
+      { id: "board", label: "Board it (gamble)" },
+      { id: "leave", label: "Leave it be" },
+    ],
   };
 }
 function customs(): GameEvent {
   return {
-    kind: "customs", title: "Meridian Customs",
+    kind: "customs",
+    title: "Meridian Customs",
     description: "Inspectors scan your hold. Undeclared luxury goods may be seized.",
-    choices: [{ id: "comply", label: "Submit to inspection" }, { id: "bribe", label: "Bribe the inspector" }],
+    choices: [
+      { id: "comply", label: "Submit to inspection" },
+      { id: "bribe", label: "Bribe the inspector" },
+    ],
   };
 }
 function quiet(): GameEvent {
   return {
-    kind: "quiet", title: "Quiet Jump",
+    kind: "quiet",
+    title: "Quiet Jump",
     description: "The void is calm. You arrive without incident.",
     choices: [{ id: "ack", label: "Continue" }],
   };

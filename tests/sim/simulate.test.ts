@@ -14,7 +14,8 @@ describe("balance simulation", () => {
   });
 
   it("greedy arbitrage players reach higher peak net worth than cautious on average", () => {
-    let greedy = 0, cautious = 0;
+    let greedy = 0,
+      cautious = 0;
     for (let seed = 1; seed <= 30; seed++) {
       greedy += runArchetype("greedy", seed, 30).peakNetWorth;
       cautious += runArchetype("cautious", seed, 30).peakNetWorth;

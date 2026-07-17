@@ -13,7 +13,10 @@ export interface SimResult {
 }
 
 /** Pick the destination + commodity that maximizes naive expected margin this turn. */
-function bestTrade(s: GameState, candidates: CommodityId[]): { to: NodeId; id: CommodityId } | null {
+function bestTrade(
+  s: GameState,
+  candidates: CommodityId[]
+): { to: NodeId; id: CommodityId } | null {
   let best: { to: NodeId; id: CommodityId; margin: number } | null = null;
   for (const to of NODE_IDS.filter((n) => n !== s.location)) {
     const f = fuelCost(s.location, to);
@@ -31,7 +34,11 @@ function bestTrade(s: GameState, candidates: CommodityId[]): { to: NodeId; id: C
 export function runArchetype(kind: Archetype, seed: number, maxDays: number): SimResult {
   let s = createGame(seed);
   const candidates: CommodityId[] =
-    kind === "cautious" ? ["water"] : kind === "balanced" ? ["water", "parts"] : ["water", "parts", "luxury"];
+    kind === "cautious"
+      ? ["water"]
+      : kind === "balanced"
+        ? ["water", "parts"]
+        : ["water", "parts", "luxury"];
 
   while (s.status === "playing" && s.day < maxDays) {
     // Top up fuel modestly each turn.
@@ -42,8 +49,9 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
       s = checkLoss(s);
       if (s.status === "lost") break;
       // Cannot act — force a cheap jump to advance and accrue costs.
-      const to = NODE_IDS.filter((n) => n !== s.location)
-        .sort((a, b) => fuelCost(s.location, a) - fuelCost(s.location, b))[0];
+      const to = NODE_IDS.filter((n) => n !== s.location).sort(
+        (a, b) => fuelCost(s.location, a) - fuelCost(s.location, b)
+      )[0];
       const r = jump(s, to);
       if (r.event === null) break;
       s = resolveChoice(r.state, r.event, r.event.choices[0].id);
@@ -66,7 +74,10 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
       break;
     }
     // Cautious pays pirates; greedy flees to save credits. Take first salvage/derelict gamble for greedy.
-    const choice = chooseEventOption(kind, r.event.choices.map((c) => c.id));
+    const choice = chooseEventOption(
+      kind,
+      r.event.choices.map((c) => c.id)
+    );
     s = resolveChoice(r.state, r.event, choice);
 
     // Sell everything we can at the new location.

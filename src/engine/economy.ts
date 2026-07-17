@@ -3,9 +3,9 @@ import { CommodityId, GameState, NodeId } from "./types";
 import { NODES, getPrice } from "./world";
 
 export const BASE_DOCKING_FEE = 25;
-export const REFUEL_PRICE = 8;   // credits per fuel unit
-export const REPAIR_PRICE = 6;   // credits per hull point
-export const LOAN_RATE = 0.04;   // interest fraction applied per accrual
+export const REFUEL_PRICE = 8; // credits per fuel unit
+export const REPAIR_PRICE = 6; // credits per hull point
+export const LOAN_RATE = 0.04; // interest fraction applied per accrual
 
 export function dockingFee(node: NodeId): number {
   return Math.round(BASE_DOCKING_FEE * NODES[node].feeMultiplier);

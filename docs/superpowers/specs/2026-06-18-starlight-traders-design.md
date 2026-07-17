@@ -14,7 +14,7 @@ high while a relentless economy drains your wallet. Every jump costs fuel; every
 costs fees; pirates, taxes, and a ticking loan eat your margins. Run ends when you go
 broke or get stranded. Score = peak net worth × days survived.
 
-It is a faucet/sink economy made *fun*: the sinks aren't chores, they're threats.
+It is a faucet/sink economy made _fun_: the sinks aren't chores, they're threats.
 
 - **Platform:** Single-page browser game (HTML/JS). Instantly shareable via link.
 - **Business model:** Premium, one-time purchase. No pay-to-win — the economy is tuned honestly.
@@ -28,6 +28,7 @@ It is a faucet/sink economy made *fun*: the sinks aren't chores, they're threats
 ### The turn
 
 One **turn = one jump**. At a station you:
+
 1. **Sell** cargo at local prices.
 2. **Buy** cargo and/or accept a delivery contract.
 3. Optionally **repair** hull and **refuel**.
@@ -37,32 +38,32 @@ One **turn = one jump**. At a station you:
 
 ### Faucets (income) — three distinct risk profiles
 
-| Faucet | Risk | Role |
-|---|---|---|
-| **Delivery missions** | Safe, guaranteed payout | Locks cargo space + deadline |
-| **Market arbitrage** | Skill-based | Read price spreads, route accordingly — the core skill expression |
-| **Salvage finds** | High-variance gamble | Great when desperate, a trap when greedy |
+| Faucet                | Risk                    | Role                                                              |
+| --------------------- | ----------------------- | ----------------------------------------------------------------- |
+| **Delivery missions** | Safe, guaranteed payout | Locks cargo space + deadline                                      |
+| **Market arbitrage**  | Skill-based             | Read price spreads, route accordingly — the core skill expression |
+| **Salvage finds**     | High-variance gamble    | Great when desperate, a trap when greedy                          |
 
 ### Sinks (drains) — escalating pressure, not nagging
 
-| Sink | Behavior |
-|---|---|
-| **Fuel** | Scales with jump distance — constant background drain, makes routing a cost/benefit call |
-| **Docking fees** | Flat per station visit — punishes aimless churn |
-| **Planet taxes** | Progressive % on high-value cargo/sales — drains the wealthy (skill's progressive-sink lever) |
-| **Repairs** | Event-driven (pirate damage, engine trouble) — turns a sink into a threat |
+| Sink              | Behavior                                                                                                                   |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **Fuel**          | Scales with jump distance — constant background drain, makes routing a cost/benefit call                                   |
+| **Docking fees**  | Flat per station visit — punishes aimless churn                                                                            |
+| **Planet taxes**  | Progressive % on high-value cargo/sales — drains the wealthy (skill's progressive-sink lever)                              |
+| **Repairs**       | Event-driven (pirate damage, engine trouble) — turns a sink into a threat                                                  |
 | **Loan interest** | Starting debt that **ticks up every few jumps** — a doomsday clock forcing forward momentum, preventing safe-loop turtling |
 
 ### Tuning principle
 
 Net flow is **slightly negative by default**: a passive player slowly bleeds out, so
-profit must be *actively* earned. Validate with a per-run simulation across three
+profit must be _actively_ earned. Validate with a per-run simulation across three
 archetypes (cautious / balanced / greedy) before locking numbers — the game-balancing
 skill's archetype table, applied per-run instead of per-hour.
 
 ### Loss & score
 
-- **Loss:** Can't afford minimum fuel to move *and* can't sell your way out → stranded → run over.
+- **Loss:** Can't afford minimum fuel to move _and_ can't sell your way out → stranded → run over.
 - **Score:** Peak net worth (credits + cargo value − debt) × days survived.
 
 ---
@@ -71,24 +72,24 @@ skill's archetype table, applied per-run instead of per-hour.
 
 ### The 5 nodes (network — routes emerge from connections)
 
-| Node | Character | Cheap here | Pays well for | Danger |
-|---|---|---|---|---|
-| **Terra Hub** (start) | Safe, central, expensive fees | — | — | None |
-| **Kiruna Belt** | Remote ice mines | Water/Ice | — | None |
-| **Vulcan Yards** | Industrial foundry | Machine Parts | Water/Ice | Low |
-| **The Verge** | Lawless free port | — | Luxury (high) | High (pirates) |
-| **Meridian** | Wealthy core world | — | Luxury (highest) | Customs + heavy tax |
+| Node                  | Character                     | Cheap here    | Pays well for    | Danger              |
+| --------------------- | ----------------------------- | ------------- | ---------------- | ------------------- |
+| **Terra Hub** (start) | Safe, central, expensive fees | —             | —                | None                |
+| **Kiruna Belt**       | Remote ice mines              | Water/Ice     | —                | None                |
+| **Vulcan Yards**      | Industrial foundry            | Machine Parts | Water/Ice        | Low                 |
+| **The Verge**         | Lawless free port             | —             | Luxury (high)    | High (pirates)      |
+| **Meridian**          | Wealthy core world            | —             | Luxury (highest) | Customs + heavy tax |
 
 Seeds obvious early arbitrage loops (Kiruna→Vulcan water, Vulcan→Verge parts) plus a
 high-risk luxury run for veterans. Varying distances make fuel a routing puzzle.
 
 ### The 3 commodities (mapped to the three risk tiers)
 
-| Commodity | Value | Volatility | Notes |
-|---|---|---|---|
-| **Water/Ice** | Low | Stable | Thin margin — the safety net |
-| **Machine Parts** | Mid | Mid | Bread-and-butter trade |
-| **Luxury Goods** | High | High | Attracts pirates *and* customs — risk/reward |
+| Commodity         | Value | Volatility | Notes                                        |
+| ----------------- | ----- | ---------- | -------------------------------------------- |
+| **Water/Ice**     | Low   | Stable     | Thin margin — the safety net                 |
+| **Machine Parts** | Mid   | Mid        | Bread-and-butter trade                       |
+| **Luxury Goods**  | High  | High       | Attracts pirates _and_ customs — risk/reward |
 
 Prices = base × seeded daily noise, so each day's map plays differently.
 
@@ -111,7 +112,7 @@ Hull HP + fuel capacity only. **No upgrade tree in MVP** (strong post-launch can
 
 ### The shareability engine
 
-A **daily seed** (deterministic RNG from the date) means everyone plays the *same*
+A **daily seed** (deterministic RNG from the date) means everyone plays the _same_
 map/prices/events that day → comparable scores → leaderboard → "I hit 84k on today's
 seed, beat that" is the organic share hook.
 
@@ -135,14 +136,14 @@ audio beyond minimal SFX · more than 5 nodes.
 
 ### Growth loop (product-inherent virality)
 
-The **daily seed** makes runs *comparable*, unlocking STEPPS share triggers naturally:
+The **daily seed** makes runs _comparable_, unlocking STEPPS share triggers naturally:
 **Social Currency** ("top 3% today"), **Triggers** (daily ritual, like Wordle),
 **Public** (auto-generated end-screen score card + one-click copy with the seed). Loop:
 
 > play today's seed → get score card → post to brag/compare → others click the link →
 > play the same seed → post theirs.
 
-No referral bribes (those attract churners). The share *is* the bragging right.
+No referral bribes (those attract churners). The share _is_ the bragging right.
 
 ### Cold-start strategy
 
@@ -153,23 +154,24 @@ before widening. These players evangelize economy games and give real balance fe
 
 **Build-in-public track (weeks 1–4, during development):** short devlogs on the
 faucet/sink design problems ("how do you stop players turtling on safe trades?") to
-r/gamedev, r/incremental_games, and an X/Bluesky thread. Builds an audience *before*
+r/gamedev, r/incremental_games, and an X/Bluesky thread. Builds an audience _before_
 launch and recruits playtesters.
 
 **Launch track:**
+
 - **T-2 wk:** Playable beta to Discord + r/incremental_games "Feedback Friday." Collect balance data (doubles as playtest data-gathering).
 - **T-0:** Launch on **itch.io** + "Show: I made a daily roguelike trade game" to r/incremental_games and r/WebGames + devlog finale thread. (itch.io over Product Hunt — that's where this audience is.)
 - **T+1 wk:** "Balance patch from your feedback" post — turns players into co-authors, deepening community.
 
 ### Success metrics (defined up front; leading → lagging)
 
-| Metric | Target | Type |
-|---|---|---|
-| Day-1 plays | (set at beta) | Leading |
-| D1 retention | ≥ 35% | Leading (the daily-seed habit is the whole bet) |
-| % of runs shared | track from launch | Leading |
-| Return-next-day rate | track | Leading |
-| Wishlist / email signups for premium | track | Lagging |
+| Metric                               | Target            | Type                                            |
+| ------------------------------------ | ----------------- | ----------------------------------------------- |
+| Day-1 plays                          | (set at beta)     | Leading                                         |
+| D1 retention                         | ≥ 35%             | Leading (the daily-seed habit is the whole bet) |
+| % of runs shared                     | track from launch | Leading                                         |
+| Return-next-day rate                 | track             | Leading                                         |
+| Wishlist / email signups for premium | track             | Lagging                                         |
 
 ---
 

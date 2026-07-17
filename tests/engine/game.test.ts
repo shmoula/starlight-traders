@@ -1,7 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
-  createGame, buy, sell, refuel, repair, jump, resolveChoice,
-  checkLoss, STARTING,
+  createGame,
+  buy,
+  sell,
+  refuel,
+  repair,
+  jump,
+  resolveChoice,
+  checkLoss,
+  STARTING,
 } from "../../src/engine/game";
 import { getPrice } from "../../src/engine/world";
 
@@ -92,7 +99,7 @@ describe("refuel partial fill (soft-lock fix)", () => {
   it("buys as many fuel units as the player can afford instead of rejecting the whole bundle", () => {
     const s = { ...createGame(42), fuel: 0, credits: 24 }; // can afford 3 units @8 = 24
     const s2 = refuel(s, 5);
-    expect(s2.fuel).toBe(3);     // partial fill, not 0
+    expect(s2.fuel).toBe(3); // partial fill, not 0
     expect(s2.credits).toBe(0);
   });
 
@@ -105,7 +112,12 @@ describe("refuel partial fill (soft-lock fix)", () => {
 describe("resolveChoice", () => {
   it("resolving a pirate 'pay' choice reduces credits", () => {
     const s = createGame(42);
-    const evt = { kind: "pirates" as const, title: "", description: "", choices: [{ id: "pay", label: "" }] };
+    const evt = {
+      kind: "pirates" as const,
+      title: "",
+      description: "",
+      choices: [{ id: "pay", label: "" }],
+    };
     const s2 = resolveChoice(s, evt, "pay");
     expect(s2.credits).toBeLessThanOrEqual(s.credits);
   });

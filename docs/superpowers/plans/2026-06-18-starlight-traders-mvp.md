@@ -54,6 +54,7 @@ Engine modules are pure (no DOM, no globals) so each is unit-testable in isolati
 ## Task 1: Project scaffold
 
 **Files:**
+
 - Create: `package.json`, `tsconfig.json`, `vite.config.ts`, `index.html`, `src/main.ts`, `src/ui/styles.css`
 
 - [ ] **Step 1: Create `package.json`**
@@ -136,8 +137,15 @@ app.textContent = "Starlight Traders — booting…";
 - [ ] **Step 6: Create empty `src/ui/styles.css`**
 
 ```css
-:root { color-scheme: dark; }
-body { margin: 0; font-family: system-ui, sans-serif; background: #0b1020; color: #e6ecff; }
+:root {
+  color-scheme: dark;
+}
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #0b1020;
+  color: #e6ecff;
+}
 ```
 
 - [ ] **Step 7: Install and verify dev server boots**
@@ -157,6 +165,7 @@ git commit -m "chore: scaffold Vite + TS + Vitest project"
 ## Task 2: Seeded RNG
 
 **Files:**
+
 - Create: `src/engine/rng.ts`
 - Test: `tests/engine/rng.test.ts`
 
@@ -264,6 +273,7 @@ git commit -m "feat: deterministic seeded RNG and daily seed"
 ## Task 3: Domain types
 
 **Files:**
+
 - Create: `src/engine/types.ts`
 
 No test (type-only module; consumed and validated by later tasks).
@@ -279,18 +289,18 @@ export type NodeId = "terra" | "kiruna" | "vulcan" | "verge" | "meridian";
 export interface Commodity {
   id: CommodityId;
   name: string;
-  basePrice: number;   // median credits per unit
-  volatility: number;  // 0..1 fractional daily swing
+  basePrice: number; // median credits per unit
+  volatility: number; // 0..1 fractional daily swing
 }
 
 export interface StationNode {
   id: NodeId;
   name: string;
-  danger: number;        // 0..1, scales hostile event chance
+  danger: number; // 0..1, scales hostile event chance
   feeMultiplier: number; // multiplies base docking fee
-  taxRate: number;       // fraction taxed on sale proceeds
+  taxRate: number; // fraction taxed on sale proceeds
   produces: CommodityId[]; // commodities cheap here
-  demands: CommodityId[];  // commodities that sell high here
+  demands: CommodityId[]; // commodities that sell high here
 }
 
 export interface Mission {
@@ -320,13 +330,7 @@ export interface GameState {
   log: string[]; // recent player-facing messages, newest last
 }
 
-export type GameEventKind =
-  | "quiet"
-  | "pirates"
-  | "salvage"
-  | "derelict"
-  | "customs"
-  | "engine";
+export type GameEventKind = "quiet" | "pirates" | "salvage" | "derelict" | "customs" | "engine";
 
 export interface GameEvent {
   kind: GameEventKind;
@@ -359,6 +363,7 @@ git commit -m "feat: domain types for game state"
 ## Task 4: World data and price generation
 
 **Files:**
+
 - Create: `src/engine/world.ts`
 - Test: `tests/engine/world.test.ts`
 
@@ -366,9 +371,7 @@ git commit -m "feat: domain types for game state"
 
 ```ts
 import { describe, it, expect } from "vitest";
-import {
-  NODES, COMMODITIES, fuelCost, getPrice, NODE_IDS,
-} from "../../src/engine/world";
+import { NODES, COMMODITIES, fuelCost, getPrice, NODE_IDS } from "../../src/engine/world";
 
 describe("world data", () => {
   it("has exactly 5 nodes and 3 commodities", () => {
@@ -401,7 +404,8 @@ describe("getPrice", () => {
 
   it("is cheaper where produced than where demanded (on average)", () => {
     // Water is produced at kiruna, demanded at vulcan.
-    let cheap = 0, dear = 0;
+    let cheap = 0,
+      dear = 0;
     for (let day = 1; day <= 50; day++) {
       cheap += getPrice(7, day, "kiruna", "water");
       dear += getPrice(7, day, "vulcan", "water");
@@ -437,24 +441,49 @@ export const COMMODITIES: Commodity[] = [
 
 export const NODES: Record<NodeId, StationNode> = {
   terra: {
-    id: "terra", name: "Terra Hub", danger: 0, feeMultiplier: 1.6, taxRate: 0.05,
-    produces: [], demands: [],
+    id: "terra",
+    name: "Terra Hub",
+    danger: 0,
+    feeMultiplier: 1.6,
+    taxRate: 0.05,
+    produces: [],
+    demands: [],
   },
   kiruna: {
-    id: "kiruna", name: "Kiruna Belt", danger: 0, feeMultiplier: 0.6, taxRate: 0.02,
-    produces: ["water"], demands: [],
+    id: "kiruna",
+    name: "Kiruna Belt",
+    danger: 0,
+    feeMultiplier: 0.6,
+    taxRate: 0.02,
+    produces: ["water"],
+    demands: [],
   },
   vulcan: {
-    id: "vulcan", name: "Vulcan Yards", danger: 0.15, feeMultiplier: 0.9, taxRate: 0.04,
-    produces: ["parts"], demands: ["water"],
+    id: "vulcan",
+    name: "Vulcan Yards",
+    danger: 0.15,
+    feeMultiplier: 0.9,
+    taxRate: 0.04,
+    produces: ["parts"],
+    demands: ["water"],
   },
   verge: {
-    id: "verge", name: "The Verge", danger: 0.5, feeMultiplier: 0.7, taxRate: 0,
-    produces: [], demands: ["luxury", "parts"],
+    id: "verge",
+    name: "The Verge",
+    danger: 0.5,
+    feeMultiplier: 0.7,
+    taxRate: 0,
+    produces: [],
+    demands: ["luxury", "parts"],
   },
   meridian: {
-    id: "meridian", name: "Meridian", danger: 0.2, feeMultiplier: 1.8, taxRate: 0.18,
-    produces: [], demands: ["luxury"],
+    id: "meridian",
+    name: "Meridian",
+    danger: 0.2,
+    feeMultiplier: 1.8,
+    taxRate: 0.18,
+    produces: [],
+    demands: ["luxury"],
   },
 };
 
@@ -462,10 +491,10 @@ export const NODE_IDS = Object.keys(NODES) as NodeId[];
 
 // Fuel distance matrix (symmetric). Units = fuel consumed to make the jump.
 const DISTANCE: Record<NodeId, Partial<Record<NodeId, number>>> = {
-  terra:    { kiruna: 4, vulcan: 3, verge: 6, meridian: 5 },
-  kiruna:   { terra: 4, vulcan: 3, verge: 7, meridian: 8 },
-  vulcan:   { terra: 3, kiruna: 3, verge: 4, meridian: 6 },
-  verge:    { terra: 6, kiruna: 7, vulcan: 4, meridian: 5 },
+  terra: { kiruna: 4, vulcan: 3, verge: 6, meridian: 5 },
+  kiruna: { terra: 4, vulcan: 3, verge: 7, meridian: 8 },
+  vulcan: { terra: 3, kiruna: 3, verge: 4, meridian: 6 },
+  verge: { terra: 6, kiruna: 7, vulcan: 4, meridian: 5 },
   meridian: { terra: 5, kiruna: 8, vulcan: 6, verge: 5 },
 };
 
@@ -477,19 +506,19 @@ export function fuelCost(from: NodeId, to: NodeId): number {
 }
 
 const COMMODITY_BY_ID: Record<CommodityId, Commodity> = Object.fromEntries(
-  COMMODITIES.map((c) => [c.id, c]),
+  COMMODITIES.map((c) => [c.id, c])
 ) as Record<CommodityId, Commodity>;
 
 /**
  * Deterministic local price for a commodity at a node on a given day.
  * Produced -> discounted; demanded -> premium; plus seeded daily noise.
  */
-export function getPrice(
-  seed: number, day: number, node: NodeId, commodity: CommodityId,
-): number {
+export function getPrice(seed: number, day: number, node: NodeId, commodity: CommodityId): number {
   const c = COMMODITY_BY_ID[commodity];
   const station = NODES[node];
-  const rng = mulberry32(hashSeed(seed, day, node.length, commodity.length, node.charCodeAt(0), commodity.charCodeAt(0)));
+  const rng = mulberry32(
+    hashSeed(seed, day, node.length, commodity.length, node.charCodeAt(0), commodity.charCodeAt(0))
+  );
   const noise = (rng() * 2 - 1) * c.volatility; // -vol..+vol
   let modifier = 1 + noise;
   if (station.produces.includes(commodity)) modifier *= 0.7;
@@ -516,6 +545,7 @@ git commit -m "feat: world nodes, distances, and seeded price generation"
 ## Task 5: Economy math
 
 **Files:**
+
 - Create: `src/engine/economy.ts`
 - Test: `tests/engine/economy.test.ts`
 
@@ -524,16 +554,34 @@ git commit -m "feat: world nodes, distances, and seeded price generation"
 ```ts
 import { describe, it, expect } from "vitest";
 import {
-  dockingFee, taxOnSale, loanInterest, cargoUsed, netWorth, score, REFUEL_PRICE, REPAIR_PRICE,
+  dockingFee,
+  taxOnSale,
+  loanInterest,
+  cargoUsed,
+  netWorth,
+  score,
+  REFUEL_PRICE,
+  REPAIR_PRICE,
 } from "../../src/engine/economy";
 import { GameState } from "../../src/engine/types";
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
   return {
-    seed: 1, day: 1, credits: 1000, debt: 500, location: "terra",
-    fuel: 10, fuelCapacity: 20, hull: 80, hullMax: 100,
-    cargo: { water: 0, parts: 0, luxury: 0 }, cargoCapacity: 30,
-    activeMissions: [], peakNetWorth: 0, status: "playing", log: [],
+    seed: 1,
+    day: 1,
+    credits: 1000,
+    debt: 500,
+    location: "terra",
+    fuel: 10,
+    fuelCapacity: 20,
+    hull: 80,
+    hullMax: 100,
+    cargo: { water: 0, parts: 0, luxury: 0 },
+    cargoCapacity: 30,
+    activeMissions: [],
+    peakNetWorth: 0,
+    status: "playing",
+    log: [],
     ...overrides,
   };
 }
@@ -583,9 +631,9 @@ import { CommodityId, GameState, NodeId } from "./types";
 import { NODES, getPrice } from "./world";
 
 export const BASE_DOCKING_FEE = 25;
-export const REFUEL_PRICE = 8;   // credits per fuel unit
-export const REPAIR_PRICE = 6;   // credits per hull point
-export const LOAN_RATE = 0.04;   // interest fraction applied per accrual
+export const REFUEL_PRICE = 8; // credits per fuel unit
+export const REPAIR_PRICE = 6; // credits per hull point
+export const LOAN_RATE = 0.04; // interest fraction applied per accrual
 
 export function dockingFee(node: NodeId): number {
   return Math.round(BASE_DOCKING_FEE * NODES[node].feeMultiplier);
@@ -640,6 +688,7 @@ git commit -m "feat: economy math (fees, tax, loan interest, net worth, score)"
 ## Task 6: Mission generation and completion
 
 **Files:**
+
 - Create: `src/engine/missions.ts`
 - Test: `tests/engine/missions.test.ts`
 
@@ -725,6 +774,7 @@ git commit -m "feat: deterministic delivery mission generation"
 ## Task 7: In-transit events
 
 **Files:**
+
 - Create: `src/engine/events.ts`
 - Test: `tests/engine/events.test.ts`
 
@@ -751,7 +801,8 @@ describe("rollEvent", () => {
   });
 
   it("produces more pirate events on high-danger routes than safe ones", () => {
-    let dangerous = 0, safe = 0;
+    let dangerous = 0,
+      safe = 0;
     for (let day = 1; day <= 200; day++) {
       if (rollEvent(2, day, "terra", "verge").kind === "pirates") dangerous++;
       if (rollEvent(2, day, "terra", "kiruna").kind === "pirates") safe++;
@@ -808,7 +859,8 @@ export function rollEvent(seed: number, day: number, from: NodeId, to: NodeId): 
 
 function pirates(): GameEvent {
   return {
-    kind: "pirates", title: "Pirate Ambush",
+    kind: "pirates",
+    title: "Pirate Ambush",
     description: "Raiders demand tribute. Pay them off, or run and risk hull damage.",
     choices: [
       { id: "pay", label: "Pay tribute (lose credits)" },
@@ -818,35 +870,49 @@ function pirates(): GameEvent {
 }
 function salvage(): GameEvent {
   return {
-    kind: "salvage", title: "Salvage Field",
+    kind: "salvage",
+    title: "Salvage Field",
     description: "Debris drifts nearby. Scoop it up for free goods?",
-    choices: [{ id: "collect", label: "Collect salvage" }, { id: "ignore", label: "Stay on course" }],
+    choices: [
+      { id: "collect", label: "Collect salvage" },
+      { id: "ignore", label: "Stay on course" },
+    ],
   };
 }
 function engine(): GameEvent {
   return {
-    kind: "engine", title: "Engine Trouble",
+    kind: "engine",
+    title: "Engine Trouble",
     description: "A coolant leak burns extra fuel before you patch it.",
     choices: [{ id: "ack", label: "Patch it up" }],
   };
 }
 function derelict(): GameEvent {
   return {
-    kind: "derelict", title: "Derelict Hulk",
+    kind: "derelict",
+    title: "Derelict Hulk",
     description: "An abandoned freighter floats silent. Board it? Could be treasure — or a trap.",
-    choices: [{ id: "board", label: "Board it (gamble)" }, { id: "leave", label: "Leave it be" }],
+    choices: [
+      { id: "board", label: "Board it (gamble)" },
+      { id: "leave", label: "Leave it be" },
+    ],
   };
 }
 function customs(): GameEvent {
   return {
-    kind: "customs", title: "Meridian Customs",
+    kind: "customs",
+    title: "Meridian Customs",
     description: "Inspectors scan your hold. Undeclared luxury goods may be seized.",
-    choices: [{ id: "comply", label: "Submit to inspection" }, { id: "bribe", label: "Bribe the inspector" }],
+    choices: [
+      { id: "comply", label: "Submit to inspection" },
+      { id: "bribe", label: "Bribe the inspector" },
+    ],
   };
 }
 function quiet(): GameEvent {
   return {
-    kind: "quiet", title: "Quiet Jump",
+    kind: "quiet",
+    title: "Quiet Jump",
     description: "The void is calm. You arrive without incident.",
     choices: [{ id: "ack", label: "Continue" }],
   };
@@ -870,6 +936,7 @@ git commit -m "feat: danger-weighted in-transit event roller"
 ## Task 8: Game state machine
 
 **Files:**
+
 - Create: `src/engine/game.ts`
 - Test: `tests/engine/game.test.ts`
 
@@ -880,8 +947,16 @@ This task assembles the engine. All state transitions return a **new** `GameStat
 ```ts
 import { describe, it, expect } from "vitest";
 import {
-  createGame, buy, sell, refuel, repair, acceptMission, jump, resolveChoice,
-  checkLoss, STARTING,
+  createGame,
+  buy,
+  sell,
+  refuel,
+  repair,
+  acceptMission,
+  jump,
+  resolveChoice,
+  checkLoss,
+  STARTING,
 } from "../../src/engine/game";
 import { getPrice } from "../../src/engine/world";
 
@@ -971,7 +1046,12 @@ describe("checkLoss", () => {
 describe("resolveChoice", () => {
   it("resolving a pirate 'pay' choice reduces credits", () => {
     const s = createGame(42);
-    const evt = { kind: "pirates" as const, title: "", description: "", choices: [{ id: "pay", label: "" }] };
+    const evt = {
+      kind: "pirates" as const,
+      title: "",
+      description: "",
+      choices: [{ id: "pay", label: "" }],
+    };
     const s2 = resolveChoice(s, evt, "pay");
     expect(s2.credits).toBeLessThanOrEqual(s.credits);
   });
@@ -990,7 +1070,13 @@ Expected: FAIL — cannot find module `game`.
 import { CommodityId, GameEvent, GameState, Mission, NodeId } from "./types";
 import { NODE_IDS, fuelCost, getPrice } from "./world";
 import {
-  REFUEL_PRICE, REPAIR_PRICE, dockingFee, taxOnSale, loanInterest, cargoUsed, netWorth,
+  REFUEL_PRICE,
+  REPAIR_PRICE,
+  dockingFee,
+  taxOnSale,
+  loanInterest,
+  cargoUsed,
+  netWorth,
 } from "./economy";
 import { generateMissions } from "./missions";
 import { rollEvent } from "./events";
@@ -1074,7 +1160,7 @@ export function refuel(state: GameState, units: number): GameState {
   if (cost > state.credits) return state;
   return withLog(
     { ...state, fuel: state.fuel + buyUnits, credits: state.credits - cost },
-    `Refueled ${buyUnits} for ${cost}cr.`,
+    `Refueled ${buyUnits} for ${cost}cr.`
   );
 }
 
@@ -1086,24 +1172,26 @@ export function repair(state: GameState, points: number): GameState {
   if (cost > state.credits) return state;
   return withLog(
     { ...state, hull: state.hull + fix, credits: state.credits - cost },
-    `Repaired ${fix} hull for ${cost}cr.`,
+    `Repaired ${fix} hull for ${cost}cr.`
   );
 }
 
 export function payDebt(state: GameState, amount: number): GameState {
   const pay = Math.min(amount, state.debt, state.credits);
   if (pay <= 0) return state;
-  return trackPeak(withLog(
-    { ...state, debt: state.debt - pay, credits: state.credits - pay },
-    `Paid down ${pay}cr of debt.`,
-  ));
+  return trackPeak(
+    withLog(
+      { ...state, debt: state.debt - pay, credits: state.credits - pay },
+      `Paid down ${pay}cr of debt.`
+    )
+  );
 }
 
 export function acceptMission(state: GameState, mission: Mission): GameState {
   if (state.activeMissions.some((m) => m.id === mission.id)) return state;
   return withLog(
     { ...state, activeMissions: [...state.activeMissions, mission] },
-    `Accepted delivery to ${mission.destination}.`,
+    `Accepted delivery to ${mission.destination}.`
   );
 }
 
@@ -1131,7 +1219,7 @@ function settleMissions(state: GameState): GameState {
 export function checkLoss(state: GameState): GameState {
   if (state.status === "lost") return state;
   const cheapest = Math.min(
-    ...NODE_IDS.filter((n) => n !== state.location).map((n) => fuelCost(state.location, n)),
+    ...NODE_IDS.filter((n) => n !== state.location).map((n) => fuelCost(state.location, n))
   );
   const canJumpNow = state.fuel >= cheapest;
   const fuelShort = Math.max(0, cheapest - state.fuel);
@@ -1189,7 +1277,10 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
       if (choiceId === "collect") {
         const room = s.cargoCapacity - cargoUsed(s.cargo);
         const got = Math.min(room, 2 + (s.day % 4));
-        s = withLog({ ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } }, `Salvaged ${got} parts.`);
+        s = withLog(
+          { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
+          `Salvaged ${got} parts.`
+        );
       }
       break;
     }
@@ -1205,7 +1296,10 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
           s = withLog({ ...s, credits: s.credits + reward }, `Derelict held ${reward}cr!`);
         } else {
           const dmg = 20;
-          s = withLog({ ...s, hull: Math.max(0, s.hull - dmg) }, `Derelict was a trap: -${dmg} hull.`);
+          s = withLog(
+            { ...s, hull: Math.max(0, s.hull - dmg) },
+            `Derelict was a trap: -${dmg} hull.`
+          );
         }
       }
       break;
@@ -1213,7 +1307,10 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
     case "customs": {
       if (choiceId === "comply" && s.cargo.luxury > 0) {
         const seized = s.cargo.luxury;
-        s = withLog({ ...s, cargo: { ...s.cargo, luxury: 0 } }, `Customs seized ${seized} luxury goods.`);
+        s = withLog(
+          { ...s, cargo: { ...s.cargo, luxury: 0 } },
+          `Customs seized ${seized} luxury goods.`
+        );
       } else if (choiceId === "bribe") {
         const bribe = Math.min(s.credits, luxValue());
         s = withLog({ ...s, credits: s.credits - bribe }, `Bribed customs ${bribe}cr.`);
@@ -1250,6 +1347,7 @@ git commit -m "feat: game state machine (trade, jump, events, loss, score)"
 ## Task 9: Balance simulation (validate the faucet/sink tuning)
 
 **Files:**
+
 - Create: `src/sim/simulate.ts`
 - Test: `tests/sim/simulate.test.ts`
 
@@ -1274,7 +1372,8 @@ describe("balance simulation", () => {
   });
 
   it("greedy arbitrage players reach higher peak net worth than cautious on average", () => {
-    let greedy = 0, cautious = 0;
+    let greedy = 0,
+      cautious = 0;
     for (let seed = 1; seed <= 30; seed++) {
       greedy += runArchetype("greedy", seed, 30).peakNetWorth;
       cautious += runArchetype("cautious", seed, 30).peakNetWorth;
@@ -1313,7 +1412,10 @@ export interface SimResult {
 }
 
 /** Pick the destination + commodity that maximizes naive expected margin this turn. */
-function bestTrade(s: GameState, candidates: CommodityId[]): { to: NodeId; id: CommodityId } | null {
+function bestTrade(
+  s: GameState,
+  candidates: CommodityId[]
+): { to: NodeId; id: CommodityId } | null {
   let best: { to: NodeId; id: CommodityId; margin: number } | null = null;
   for (const to of NODE_IDS.filter((n) => n !== s.location)) {
     const f = fuelCost(s.location, to);
@@ -1331,7 +1433,11 @@ function bestTrade(s: GameState, candidates: CommodityId[]): { to: NodeId; id: C
 export function runArchetype(kind: Archetype, seed: number, maxDays: number): SimResult {
   let s = createGame(seed);
   const candidates: CommodityId[] =
-    kind === "cautious" ? ["water"] : kind === "balanced" ? ["water", "parts"] : ["water", "parts", "luxury"];
+    kind === "cautious"
+      ? ["water"]
+      : kind === "balanced"
+        ? ["water", "parts"]
+        : ["water", "parts", "luxury"];
 
   while (s.status === "playing" && s.day < maxDays) {
     // Top up fuel modestly each turn.
@@ -1342,8 +1448,9 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
       s = checkLoss(s);
       if (s.status === "lost") break;
       // Cannot act — force a cheap jump to advance and accrue costs.
-      const to = NODE_IDS.filter((n) => n !== s.location)
-        .sort((a, b) => fuelCost(s.location, a) - fuelCost(s.location, b))[0];
+      const to = NODE_IDS.filter((n) => n !== s.location).sort(
+        (a, b) => fuelCost(s.location, a) - fuelCost(s.location, b)
+      )[0];
       const r = jump(s, to);
       if (r.event === null) break;
       s = resolveChoice(r.state, r.event, r.event.choices[0].id);
@@ -1366,7 +1473,10 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
       break;
     }
     // Cautious pays pirates; greedy flees to save credits. Take first salvage/derelict gamble for greedy.
-    const choice = chooseEventOption(kind, r.event.choices.map((c) => c.id));
+    const choice = chooseEventOption(
+      kind,
+      r.event.choices.map((c) => c.id)
+    );
     s = resolveChoice(r.state, r.event, choice);
 
     // Sell everything we can at the new location.
@@ -1412,6 +1522,7 @@ git commit -m "feat: archetype balance simulation validating faucet/sink tuning"
 ## Task 10: Share card
 
 **Files:**
+
 - Create: `src/ui/share.ts`
 - Test: `tests/engine/share.test.ts`
 
@@ -1488,6 +1599,7 @@ git commit -m "feat: shareable daily-seed score card text"
 ## Task 11: UI render layer
 
 **Files:**
+
 - Create: `src/ui/screens.ts`, `src/ui/render.ts`
 - Modify: `src/ui/styles.css`
 
@@ -1527,16 +1639,22 @@ export function stationScreen(s: GameState): string {
       </td></tr>`;
   }).join("");
 
-  const missions = missionsHere(s).map((m) =>
-    `<li>Deliver ${m.qty} ${m.commodity} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
-      <button data-act="accept" data-id="${m.id}">Accept</button></li>`,
-  ).join("");
+  const missions = missionsHere(s)
+    .map(
+      (m) =>
+        `<li>Deliver ${m.qty} ${m.commodity} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
+      <button data-act="accept" data-id="${m.id}">Accept</button></li>`
+    )
+    .join("");
 
-  const routes = NODE_IDS.filter((n) => n !== s.location).map((n) =>
-    `<button data-act="jump" data-id="${n}" ${s.fuel < fuelCost(s.location, n) ? "disabled" : ""}>
+  const routes = NODE_IDS.filter((n) => n !== s.location)
+    .map(
+      (n) =>
+        `<button data-act="jump" data-id="${n}" ${s.fuel < fuelCost(s.location, n) ? "disabled" : ""}>
       Jump to ${NODES[n].name} (${fuelCost(s.location, n)}⛽, danger ${Math.round(NODES[n].danger * 100)}%)
-    </button>`,
-  ).join("");
+    </button>`
+    )
+    .join("");
 
   return `
     <header>
@@ -1559,14 +1677,17 @@ export function stationScreen(s: GameState): string {
       <span class="fee">Docking fee here: ${cr(dockingFee(s.location))}</span>
     </section>
     <section><h2>Navigate</h2><div class="routes">${routes}</div></section>
-    <aside class="log">${s.log.slice(-6).map((l) => `<div>${l}</div>`).join("")}</aside>
+    <aside class="log">${s.log
+      .slice(-6)
+      .map((l) => `<div>${l}</div>`)
+      .join("")}</aside>
   `;
 }
 
 export function eventScreen(e: GameEvent): string {
-  const choices = e.choices.map((c) =>
-    `<button data-act="resolve" data-id="${c.id}">${c.label}</button>`,
-  ).join("");
+  const choices = e.choices
+    .map((c) => `<button data-act="resolve" data-id="${c.id}">${c.label}</button>`)
+    .join("");
   return `<div class="event-card">
     <h2>${e.title}</h2><p>${e.description}</p><div class="choices">${choices}</div>
   </div>`;
@@ -1611,19 +1732,69 @@ export function render(root: HTMLElement, vm: ViewModel): void {
 - [ ] **Step 3: Append layout styles to `src/ui/styles.css`**
 
 ```css
-#app { max-width: 760px; margin: 0 auto; padding: 16px; }
-header h1 { margin: 0 0 8px; }
-.stats { display: flex; flex-wrap: wrap; gap: 12px; font-size: 14px; opacity: 0.9; }
-section { border: 1px solid #1e2a4a; border-radius: 8px; padding: 12px; margin: 12px 0; }
-table { width: 100%; border-collapse: collapse; }
-td { padding: 4px 6px; border-bottom: 1px solid #16203c; }
-button { background: #2a3c66; color: #e6ecff; border: 0; border-radius: 6px; padding: 6px 10px; margin: 2px; cursor: pointer; }
-button:disabled { opacity: 0.4; cursor: not-allowed; }
-.routes { display: flex; flex-wrap: wrap; gap: 8px; }
-.event-card, .run-end { text-align: center; padding: 40px 20px; }
-.run-end .score { font-size: 28px; font-weight: 700; }
-.log { font-size: 12px; opacity: 0.7; }
-.log div { padding: 2px 0; }
+#app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px;
+}
+header h1 {
+  margin: 0 0 8px;
+}
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+section {
+  border: 1px solid #1e2a4a;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #16203c;
+}
+button {
+  background: #2a3c66;
+  color: #e6ecff;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 2px;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.routes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.event-card,
+.run-end {
+  text-align: center;
+  padding: 40px 20px;
+}
+.run-end .score {
+  font-size: 28px;
+  font-weight: 700;
+}
+.log {
+  font-size: 12px;
+  opacity: 0.7;
+}
+.log div {
+  padding: 2px 0;
+}
 ```
 
 - [ ] **Step 4: Typecheck**
@@ -1643,6 +1814,7 @@ git commit -m "feat: DOM render layer (station/event/run-end screens)"
 ## Task 12: Wire it together in `main.ts`
 
 **Files:**
+
 - Modify: `src/main.ts`
 
 - [ ] **Step 1: Replace `src/main.ts` with the wiring**
@@ -1651,7 +1823,16 @@ git commit -m "feat: DOM render layer (station/event/run-end screens)"
 // src/main.ts
 import { dailySeed } from "./engine/rng";
 import {
-  createGame, buy, sell, refuel, repair, payDebt, acceptMission, jump, resolveChoice, missionsHere,
+  createGame,
+  buy,
+  sell,
+  refuel,
+  repair,
+  payDebt,
+  acceptMission,
+  jump,
+  resolveChoice,
+  missionsHere,
 } from "./engine/game";
 import { score as scoreFn } from "./engine/economy";
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
@@ -1674,11 +1855,21 @@ app.addEventListener("click", async (e) => {
   const id = btn.dataset.id;
 
   switch (act) {
-    case "buy": state = buy(state, id as CommodityId, 1); break;
-    case "sell": state = sell(state, id as CommodityId, 1); break;
-    case "refuel": state = refuel(state, 5); break;
-    case "repair": state = repair(state, 20); break;
-    case "payDebt": state = payDebt(state, 200); break;
+    case "buy":
+      state = buy(state, id as CommodityId, 1);
+      break;
+    case "sell":
+      state = sell(state, id as CommodityId, 1);
+      break;
+    case "refuel":
+      state = refuel(state, 5);
+      break;
+    case "repair":
+      state = repair(state, 20);
+      break;
+    case "payDebt":
+      state = payDebt(state, 200);
+      break;
     case "accept": {
       const m = missionsHere(state).find((x) => x.id === id);
       if (m) state = acceptMission(state, m);
@@ -1696,7 +1887,11 @@ app.addEventListener("click", async (e) => {
       break;
     }
     case "share": {
-      await copyShare({ seed: state.seed, score: scoreFn(state.peakNetWorth, state.day), daysSurvived: state.day });
+      await copyShare({
+        seed: state.seed,
+        score: scoreFn(state.peakNetWorth, state.day),
+        daysSurvived: state.day,
+      });
       break;
     }
     case "restart": {
@@ -1714,6 +1909,7 @@ paint();
 - [ ] **Step 2: Manual browser verification**
 
 Run: `npm run dev`, open the URL. Confirm:
+
 - Station screen shows market, contracts, services, navigate buttons, and the stat bar.
 - Buying water then jumping to Vulcan and selling yields profit.
 - A jump shows an event card; resolving it returns to the station.
@@ -1742,6 +1938,7 @@ git commit -m "feat: wire engine to UI — playable vertical slice"
 ## Task 13: README and itch.io deploy notes
 
 **Files:**
+
 - Create: `README.md`
 
 - [ ] **Step 1: Write `README.md`**
@@ -1753,18 +1950,21 @@ A daily roguelike trade-run. Buy low, sell high, survive a faucet/sink economy
 that constantly drains your wallet. New seed every day — same map for everyone.
 
 ## Develop
+
 - `npm install`
 - `npm run dev` — local dev server
 - `npm test` — run the engine + balance test suite
 - `npm run build` — produce static `dist/` for deploy
 
 ## Deploy (itch.io)
+
 1. `npm run build`
 2. Zip the contents of `dist/` (not the folder itself).
 3. On itch.io: new project → Kind "HTML" → upload zip → check "This file will be played in the browser".
 4. Set viewport to ~800×640, enable fullscreen button.
 
 ## Design
+
 See `docs/superpowers/specs/2026-06-18-starlight-traders-design.md`.
 ```
 
@@ -1780,6 +1980,7 @@ git commit -m "docs: README with dev and itch.io deploy notes"
 ## Self-Review Notes
 
 **Spec coverage check:**
+
 - Core loop (turn = jump, sell/buy/refuel/repair/jump) → Tasks 8, 11, 12 ✓
 - 3 faucets: delivery missions (Task 6, settle in Task 8), arbitrage (pricing Task 4 + buy/sell Task 8), salvage (event in Tasks 7-8) ✓
 - 5 sinks: fuel (Tasks 4, 8), docking fees (Tasks 5, 8), taxes (Tasks 5, 8), repairs (Tasks 5, 7-8), loan interest (Tasks 5, 8) ✓
