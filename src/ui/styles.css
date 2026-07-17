@@ -12,6 +12,16 @@ body {
   margin: 0 auto;
   padding: 16px;
 }
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #0b1020;
+  /* Cancel #app's 16px padding so the pinned bar's background spans full width. */
+  margin: 0 -16px;
+  padding: 0 16px 10px;
+  border-bottom: 1px solid #1e2a4a;
+}
 header h1 {
   margin: 0 0 8px;
 }
@@ -98,6 +108,14 @@ button:disabled {
 .bad {
   color: #ff9b8a;
   font-size: 13px;
+}
+.stat-critical {
+  color: #ff9b8a;
+  font-weight: 700;
+}
+.stat-warn {
+  color: #ffcf8a;
+  font-weight: 600;
 }
 .accepted {
   color: #6ee7a8;

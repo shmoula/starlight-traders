@@ -1,7 +1,7 @@
 // src/ui/screens.ts
 import { GameEvent, GameState } from "../engine/types";
-import { COMMODITIES, NODES, NODE_IDS, fuelCost, getPrice } from "../engine/world";
-import { dockingFee, netWorth } from "../engine/economy";
+import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
+import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { missionsHere } from "../engine/game";
 
 export type Action =
@@ -51,21 +51,32 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
     : "";
   const market = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
+    const cantAfford = price > s.credits;
+    const holdFull = cargoUsed(s.cargo) + 1 > s.cargoCapacity;
+    const buyDisabled = cantAfford || holdFull;
+    const buyTitle = cantAfford ? "Not enough credits" : "Cargo hold full";
+    const sellDisabled = s.cargo[c.id] < 1;
     return `<tr>
       <th scope="row">${c.name}</th><td>${cr(price)}</td><td>${s.cargo[c.id]}</td>
       <td>
-        <button data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}">Buy 1</button>
-        <button data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}">Sell 1</button>
+        <button data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${buyDisabled ? ` disabled title="${buyTitle}"` : ""}>Buy 1</button>
+        <button data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${sellDisabled ? ` disabled title="None in hold"` : ""}>Sell 1</button>
       </td></tr>`;
   }).join("");
+
+  const cheapestJump = Math.min(
+    ...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n))
+  );
+  const fuelClass =
+    s.fuel < cheapestJump ? "stat-critical" : s.fuel < cheapestJump * 2 ? "stat-warn" : "";
 
   const acceptedIds = new Set(s.activeMissions.map((m) => m.id));
   const missions = missionsHere(s)
     .map((m) => {
       const action = acceptedIds.has(m.id)
         ? `<span class="accepted">✓ Accepted</span>`
-        : `<button data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${m.commodity} to ${NODES[m.destination].name}">Accept</button>`;
-      return `<li>Deliver ${m.qty} ${m.commodity} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
+        : `<button data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name}">Accept</button>`;
+      return `<li>Deliver ${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
       ${action}</li>`;
     })
     .join("");
@@ -79,8 +90,8 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
         ? `<span class="bad">✗ deadline passed</span>`
         : ready
           ? `<span class="good">✓ carrying ${have}/${m.qty} — ready, jump to ${NODES[m.destination].name}</span>`
-          : `<span class="bad">✗ carrying ${have}/${m.qty} — buy ${m.qty - have} more ${m.commodity}</span>`;
-      return `<li>${m.qty} ${m.commodity} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${hint}</li>`;
+          : `<span class="bad">✗ carrying ${have}/${m.qty} — buy ${m.qty - have} more ${commodityName(m.commodity)}</span>`;
+      return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${hint}</li>`;
     })
     .join("");
 
@@ -104,7 +115,7 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
       <div class="stats">
         <span>💰 ${cr(s.credits)}</span>
         <span>🏦 debt ${cr(s.debt)}</span>
-        <span>⛽ ${s.fuel}/${s.fuelCapacity}</span>
+        <span${fuelClass ? ` class="${fuelClass}"` : ""}>⛽ ${s.fuel}/${s.fuelCapacity}</span>
         <span>🛡️ ${s.hull}/${s.hullMax}</span>
         <span>📦 ${s.cargo.water + s.cargo.parts + s.cargo.luxury}/${s.cargoCapacity}</span>
         <span>📈 net ${cr(netWorth(s))}</span>
@@ -128,9 +139,27 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
       <ul>${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
     </section>
     <section class="services">
-      <button data-act="refuel">Refuel +5 (${cr(40)})</button>
-      <button data-act="repair">Repair +20 (${cr(120)})</button>
-      <button data-act="payDebt">Pay 200 debt</button>
+      <button data-act="refuel"${
+        s.fuel >= s.fuelCapacity
+          ? ` disabled title="Fuel tank full"`
+          : s.credits < REFUEL_PRICE
+            ? ` disabled title="Not enough credits"`
+            : ""
+      }>Refuel +5 (${cr(40)})</button>
+      <button data-act="repair"${
+        s.hull >= s.hullMax
+          ? ` disabled title="Hull fully repaired"`
+          : s.credits < REPAIR_PRICE
+            ? ` disabled title="Not enough credits"`
+            : ""
+      }>Repair +20 (${cr(120)})</button>
+      <button data-act="payDebt"${
+        s.debt <= 0
+          ? ` disabled title="No debt to pay"`
+          : s.credits <= 0
+            ? ` disabled title="No credits to pay with"`
+            : ""
+      }>Pay 200 debt</button>
       <span class="fee">Docking fee here: ${cr(dockingFee(s.location))}</span>
     </section>
     <section><h2>Navigate</h2><div class="routes">${routes}</div></section>

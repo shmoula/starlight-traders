@@ -1,6 +1,6 @@
 // src/engine/game.ts
 import { CommodityId, GameEvent, GameState, Mission, NodeId } from "./types";
-import { NODE_IDS, fuelCost, getPrice } from "./world";
+import { NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "./world";
 import {
   REFUEL_PRICE,
   REPAIR_PRICE,
@@ -71,7 +71,7 @@ export function buy(state: GameState, id: CommodityId, qty: number): GameState {
     credits: state.credits - cost,
     cargo: { ...state.cargo, [id]: state.cargo[id] + qty },
   };
-  return trackPeak(withLog(next, `Bought ${qty} ${id} for ${cost}cr.`));
+  return trackPeak(withLog(next, `Bought ${qty} ${commodityName(id)} for ${cost}cr.`));
 }
 
 export function sell(state: GameState, id: CommodityId, qty: number): GameState {
@@ -84,7 +84,7 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
     credits: state.credits + proceeds - tax,
     cargo: { ...state.cargo, [id]: state.cargo[id] - qty },
   };
-  return trackPeak(withLog(next, `Sold ${qty} ${id} for ${proceeds}cr (tax ${tax}).`));
+  return trackPeak(withLog(next, `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`));
 }
 
 export function refuel(state: GameState, units: number): GameState {
@@ -126,7 +126,7 @@ export function acceptMission(state: GameState, mission: Mission): GameState {
   if (state.activeMissions.some((m) => m.id === mission.id)) return state;
   return withLog(
     { ...state, activeMissions: [...state.activeMissions, mission] },
-    `Accepted delivery to ${mission.destination}.`
+    `Accepted delivery to ${NODES[mission.destination].name}.`
   );
 }
 
@@ -150,7 +150,7 @@ function settleMissions(state: GameState): {
       s = withLog(s, `Delivery complete: +${m.reward}cr.`);
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {
-      s = withLog(s, `Delivery to ${m.destination} expired.`);
+      s = withLog(s, `Delivery to ${NODES[m.destination].name} expired.`);
       expired.push(m);
     } else {
       remaining.push(m);
@@ -194,7 +194,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
 
   // Docking fee on arrival.
   const fee = dockingFee(to);
-  s = withLog({ ...s, credits: s.credits - fee }, `Docked at ${to}, fee ${fee}cr.`);
+  s = withLog({ ...s, credits: s.credits - fee }, `Docked at ${NODES[to].name}, fee ${fee}cr.`);
 
   const event = rollEvent(s.seed, s.day, state.location, to);
   return { state: s, event };
@@ -236,7 +236,7 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
         const got = Math.min(room, 2 + (s.day % 4));
         s = withLog(
           { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
-          `Salvaged ${got} parts.`
+          `Salvaged ${got} ${commodityName("parts")}.`
         );
       }
       break;

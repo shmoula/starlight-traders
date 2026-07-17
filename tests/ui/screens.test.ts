@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { stationScreen } from "../../src/ui/screens";
 import { createGame, missionsHere } from "../../src/engine/game";
-import { COMMODITIES, NODES } from "../../src/engine/world";
+import { COMMODITIES, NODES, commodityName } from "../../src/engine/world";
 
 describe("stationScreen accessibility", () => {
   it("gives each buy/sell button an accessible name that includes the commodity", () => {
@@ -19,7 +19,7 @@ describe("stationScreen accessibility", () => {
     const html = stationScreen(s);
     for (const m of offered) {
       expect(html).toContain(
-        `aria-label="Accept contract: deliver ${m.qty} ${m.commodity} to ${NODES[m.destination].name}"`
+        `aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name}"`
       );
     }
   });
