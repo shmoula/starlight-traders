@@ -2,7 +2,13 @@
 import { CommodityId, GameEvent, GameState, Mission, NodeId } from "./types";
 import { NODE_IDS, fuelCost, getPrice } from "./world";
 import {
-  REFUEL_PRICE, REPAIR_PRICE, dockingFee, taxOnSale, loanInterest, cargoUsed, netWorth,
+  REFUEL_PRICE,
+  REPAIR_PRICE,
+  dockingFee,
+  taxOnSale,
+  loanInterest,
+  cargoUsed,
+  netWorth,
 } from "./economy";
 import { generateMissions } from "./missions";
 import { rollEvent } from "./events";
@@ -86,7 +92,7 @@ export function refuel(state: GameState, units: number): GameState {
   const cost = buyUnits * REFUEL_PRICE;
   return withLog(
     { ...state, fuel: state.fuel + buyUnits, credits: state.credits - cost },
-    `Refueled ${buyUnits} for ${cost}cr.`,
+    `Refueled ${buyUnits} for ${cost}cr.`
   );
 }
 
@@ -98,24 +104,26 @@ export function repair(state: GameState, points: number): GameState {
   if (cost > state.credits) return state;
   return withLog(
     { ...state, hull: state.hull + fix, credits: state.credits - cost },
-    `Repaired ${fix} hull for ${cost}cr.`,
+    `Repaired ${fix} hull for ${cost}cr.`
   );
 }
 
 export function payDebt(state: GameState, amount: number): GameState {
   const pay = Math.min(amount, state.debt, state.credits);
   if (pay <= 0) return state;
-  return trackPeak(withLog(
-    { ...state, debt: state.debt - pay, credits: state.credits - pay },
-    `Paid down ${pay}cr of debt.`,
-  ));
+  return trackPeak(
+    withLog(
+      { ...state, debt: state.debt - pay, credits: state.credits - pay },
+      `Paid down ${pay}cr of debt.`
+    )
+  );
 }
 
 export function acceptMission(state: GameState, mission: Mission): GameState {
   if (state.activeMissions.some((m) => m.id === mission.id)) return state;
   return withLog(
     { ...state, activeMissions: [...state.activeMissions, mission] },
-    `Accepted delivery to ${mission.destination}.`,
+    `Accepted delivery to ${mission.destination}.`
   );
 }
 
@@ -143,7 +151,7 @@ function settleMissions(state: GameState): GameState {
 export function checkLoss(state: GameState): GameState {
   if (state.status === "lost") return state;
   const cheapest = Math.min(
-    ...NODE_IDS.filter((n) => n !== state.location).map((n) => fuelCost(state.location, n)),
+    ...NODE_IDS.filter((n) => n !== state.location).map((n) => fuelCost(state.location, n))
   );
   const canJumpNow = state.fuel >= cheapest;
   const fuelShort = Math.max(0, cheapest - state.fuel);
@@ -201,7 +209,10 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
       if (choiceId === "collect") {
         const room = s.cargoCapacity - cargoUsed(s.cargo);
         const got = Math.min(room, 2 + (s.day % 4));
-        s = withLog({ ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } }, `Salvaged ${got} parts.`);
+        s = withLog(
+          { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
+          `Salvaged ${got} parts.`
+        );
       }
       break;
     }
@@ -217,7 +228,10 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
           s = withLog({ ...s, credits: s.credits + reward }, `Derelict held ${reward}cr!`);
         } else {
           const dmg = 20;
-          s = withLog({ ...s, hull: Math.max(0, s.hull - dmg) }, `Derelict was a trap: -${dmg} hull.`);
+          s = withLog(
+            { ...s, hull: Math.max(0, s.hull - dmg) },
+            `Derelict was a trap: -${dmg} hull.`
+          );
         }
       }
       break;
@@ -225,7 +239,10 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
     case "customs": {
       if (choiceId === "comply" && s.cargo.luxury > 0) {
         const seized = s.cargo.luxury;
-        s = withLog({ ...s, cargo: { ...s.cargo, luxury: 0 } }, `Customs seized ${seized} luxury goods.`);
+        s = withLog(
+          { ...s, cargo: { ...s.cargo, luxury: 0 } },
+          `Customs seized ${seized} luxury goods.`
+        );
       } else if (choiceId === "bribe") {
         const bribe = Math.min(s.credits, luxValue());
         s = withLog({ ...s, credits: s.credits - bribe }, `Bribed customs ${bribe}cr.`);

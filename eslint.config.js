@@ -31,5 +31,5 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   // Must stay last: turns off stylistic rules that would fight Prettier.
-  prettier,
+  prettier
 );

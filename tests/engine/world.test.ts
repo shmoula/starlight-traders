@@ -1,7 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  COMMODITIES, fuelCost, getPrice, NODE_IDS,
-} from "../../src/engine/world";
+import { COMMODITIES, fuelCost, getPrice, NODE_IDS } from "../../src/engine/world";
 
 describe("world data", () => {
   it("has exactly 5 nodes and 3 commodities", () => {
@@ -34,7 +32,8 @@ describe("getPrice", () => {
 
   it("is cheaper where produced than where demanded (on average)", () => {
     // Water is produced at kiruna, demanded at vulcan.
-    let cheap = 0, dear = 0;
+    let cheap = 0,
+      dear = 0;
     for (let day = 1; day <= 50; day++) {
       cheap += getPrice(7, day, "kiruna", "water");
       dear += getPrice(7, day, "vulcan", "water");

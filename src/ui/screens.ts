@@ -29,16 +29,22 @@ export function stationScreen(s: GameState): string {
       </td></tr>`;
   }).join("");
 
-  const missions = missionsHere(s).map((m) =>
-    `<li>Deliver ${m.qty} ${m.commodity} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
-      <button data-act="accept" data-id="${m.id}">Accept</button></li>`,
-  ).join("");
+  const missions = missionsHere(s)
+    .map(
+      (m) =>
+        `<li>Deliver ${m.qty} ${m.commodity} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
+      <button data-act="accept" data-id="${m.id}">Accept</button></li>`
+    )
+    .join("");
 
-  const routes = NODE_IDS.filter((n) => n !== s.location).map((n) =>
-    `<button data-act="jump" data-id="${n}" ${s.fuel < fuelCost(s.location, n) ? "disabled" : ""}>
+  const routes = NODE_IDS.filter((n) => n !== s.location)
+    .map(
+      (n) =>
+        `<button data-act="jump" data-id="${n}" ${s.fuel < fuelCost(s.location, n) ? "disabled" : ""}>
       Jump to ${NODES[n].name} (${fuelCost(s.location, n)}⛽, danger ${Math.round(NODES[n].danger * 100)}%)
-    </button>`,
-  ).join("");
+    </button>`
+    )
+    .join("");
 
   return `
     <header>
@@ -61,14 +67,17 @@ export function stationScreen(s: GameState): string {
       <span class="fee">Docking fee here: ${cr(dockingFee(s.location))}</span>
     </section>
     <section><h2>Navigate</h2><div class="routes">${routes}</div></section>
-    <aside class="log">${s.log.slice(-6).map((l) => `<div>${l}</div>`).join("")}</aside>
+    <aside class="log">${s.log
+      .slice(-6)
+      .map((l) => `<div>${l}</div>`)
+      .join("")}</aside>
   `;
 }
 
 export function eventScreen(e: GameEvent): string {
-  const choices = e.choices.map((c) =>
-    `<button data-act="resolve" data-id="${c.id}">${c.label}</button>`,
-  ).join("");
+  const choices = e.choices
+    .map((c) => `<button data-act="resolve" data-id="${c.id}">${c.label}</button>`)
+    .join("");
   return `<div class="event-card">
     <h2>${e.title}</h2><p>${e.description}</p><div class="choices">${choices}</div>
   </div>`;

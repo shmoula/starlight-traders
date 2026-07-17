@@ -6,18 +6,18 @@ export type NodeId = "terra" | "kiruna" | "vulcan" | "verge" | "meridian";
 export interface Commodity {
   id: CommodityId;
   name: string;
-  basePrice: number;   // median credits per unit
-  volatility: number;  // 0..1 fractional daily swing
+  basePrice: number; // median credits per unit
+  volatility: number; // 0..1 fractional daily swing
 }
 
 export interface StationNode {
   id: NodeId;
   name: string;
-  danger: number;        // 0..1, scales hostile event chance
+  danger: number; // 0..1, scales hostile event chance
   feeMultiplier: number; // multiplies base docking fee
-  taxRate: number;       // fraction taxed on sale proceeds
+  taxRate: number; // fraction taxed on sale proceeds
   produces: CommodityId[]; // commodities cheap here
-  demands: CommodityId[];  // commodities that sell high here
+  demands: CommodityId[]; // commodities that sell high here
 }
 
 export interface Mission {
@@ -47,13 +47,7 @@ export interface GameState {
   log: string[]; // recent player-facing messages, newest last
 }
 
-export type GameEventKind =
-  | "quiet"
-  | "pirates"
-  | "salvage"
-  | "derelict"
-  | "customs"
-  | "engine";
+export type GameEventKind = "quiet" | "pirates" | "salvage" | "derelict" | "customs" | "engine";
 
 export interface GameEvent {
   kind: GameEventKind;

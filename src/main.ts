@@ -1,7 +1,16 @@
 // src/main.ts
 import { dailySeed } from "./engine/rng";
 import {
-  createGame, buy, sell, refuel, repair, payDebt, acceptMission, jump, resolveChoice, missionsHere,
+  createGame,
+  buy,
+  sell,
+  refuel,
+  repair,
+  payDebt,
+  acceptMission,
+  jump,
+  resolveChoice,
+  missionsHere,
 } from "./engine/game";
 import { score as scoreFn } from "./engine/economy";
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
@@ -24,11 +33,21 @@ app.addEventListener("click", async (e) => {
   const id = btn.dataset.id;
 
   switch (act) {
-    case "buy": state = buy(state, id as CommodityId, 1); break;
-    case "sell": state = sell(state, id as CommodityId, 1); break;
-    case "refuel": state = refuel(state, 5); break;
-    case "repair": state = repair(state, 20); break;
-    case "payDebt": state = payDebt(state, 200); break;
+    case "buy":
+      state = buy(state, id as CommodityId, 1);
+      break;
+    case "sell":
+      state = sell(state, id as CommodityId, 1);
+      break;
+    case "refuel":
+      state = refuel(state, 5);
+      break;
+    case "repair":
+      state = repair(state, 20);
+      break;
+    case "payDebt":
+      state = payDebt(state, 200);
+      break;
     case "accept": {
       const m = missionsHere(state).find((x) => x.id === id);
       if (m) state = acceptMission(state, m);
@@ -46,7 +65,11 @@ app.addEventListener("click", async (e) => {
       break;
     }
     case "share": {
-      await copyShare({ seed: state.seed, score: scoreFn(state.peakNetWorth, state.day), daysSurvived: state.day });
+      await copyShare({
+        seed: state.seed,
+        score: scoreFn(state.peakNetWorth, state.day),
+        daysSurvived: state.day,
+      });
       break;
     }
     case "restart": {

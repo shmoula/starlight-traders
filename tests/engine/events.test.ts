@@ -18,7 +18,8 @@ describe("rollEvent", () => {
   });
 
   it("produces more pirate events on high-danger routes than safe ones", () => {
-    let dangerous = 0, safe = 0;
+    let dangerous = 0,
+      safe = 0;
     for (let day = 1; day <= 200; day++) {
       if (rollEvent(2, day, "terra", "verge").kind === "pirates") dangerous++;
       if (rollEvent(2, day, "terra", "kiruna").kind === "pirates") safe++;
