@@ -86,10 +86,12 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
       const have = s.cargo[m.commodity];
       const ready = have >= m.qty;
       const expired = s.day > m.deadlineDay;
+      const canReach = s.fuel >= fuelCost(s.location, m.destination);
+      const jumpBtn = `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver"${canReach ? "" : ` disabled title="Not enough fuel to jump"`}>jump to ${NODES[m.destination].name}</button>`;
       const hint = expired
         ? `<span class="bad">✗ deadline passed</span>`
         : ready
-          ? `<span class="good">✓ carrying ${have}/${m.qty} — ready, jump to ${NODES[m.destination].name}</span>`
+          ? `<span class="good">✓ carrying ${have}/${m.qty} — ready, ${jumpBtn}</span>`
           : `<span class="bad">✗ carrying ${have}/${m.qty} — buy ${m.qty - have} more ${commodityName(m.commodity)}</span>`;
       return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${hint}</li>`;
     })
