@@ -76,16 +76,20 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
     ${kv("Debt", cr(s.debt), true)}
     ${kv("Net worth", cr(netWorth(s)), true)}
     ${kv("Day", String(s.day))}
-    <div class="st-bar-label"><span class="st-bar-label__name">${fuelIcon()}Fuel</span><span class="st-bar-label__value${fuelClass ? ` ${fuelClass}` : ""}">${s.fuel}/${s.fuelCapacity}</span></div>
-    <div class="st-bar st-bar--segmented ${barMod}" role="meter" aria-label="Fuel" aria-valuenow="${s.fuel}" aria-valuemin="0" aria-valuemax="${s.fuelCapacity}" style="--st-value: ${fuelPct}%; --st-segments: ${s.fuelCapacity}"><div class="st-bar__fill"></div></div>
-    <div class="st-bar-label"><span class="st-bar-label__name">${hullIcon()}Hull</span><span class="st-bar-label__value">${s.hull}/${s.hullMax}</span></div>
-    <div class="st-bar" role="meter" aria-label="Hull" aria-valuenow="${s.hull}" aria-valuemin="0" aria-valuemax="${s.hullMax}" style="--st-value: ${hullPct}%"><div class="st-bar__fill"></div></div>
+    <div class="st-gauge">
+      <div class="st-bar-label"><span class="st-bar-label__name">${fuelIcon()}Fuel</span><span class="st-bar-label__value${fuelClass ? ` ${fuelClass}` : ""}">${s.fuel}/${s.fuelCapacity}</span></div>
+      <div class="st-bar st-bar--segmented ${barMod}" role="meter" aria-label="Fuel" aria-valuenow="${s.fuel}" aria-valuemin="0" aria-valuemax="${s.fuelCapacity}" style="--st-value: ${fuelPct}%; --st-segments: ${s.fuelCapacity}"><div class="st-bar__fill"></div></div>
+    </div>
+    <div class="st-gauge">
+      <div class="st-bar-label"><span class="st-bar-label__name">${hullIcon()}Hull</span><span class="st-bar-label__value">${s.hull}/${s.hullMax}</span></div>
+      <div class="st-bar" role="meter" aria-label="Hull" aria-valuenow="${s.hull}" aria-valuemin="0" aria-valuemax="${s.hullMax}" style="--st-value: ${hullPct}%"><div class="st-bar__fill"></div></div>
+    </div>
     <hr class="st-divider" />
     <div class="st-kv__label">Services</div>
     <div class="svc-row">
-      <button class="st-btn st-btn--ghost st-btn--sm" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
-      <button class="st-btn st-btn--ghost st-btn--sm" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>${hullIcon()}Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
-      <button class="st-btn st-btn--ghost st-btn--sm" data-act="payDebt"${disabledAttr(payDisabled, payTitle)}>Pay 200 debt</button>
+      <button class="st-btn st-btn--ghost" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
+      <button class="st-btn st-btn--ghost" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>${hullIcon()}Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
+      <button class="st-btn st-btn--ghost" data-act="payDebt"${disabledAttr(payDisabled, payTitle)}>Pay 200 debt</button>
     </div>
     <div class="st-kv"><span class="st-kv__label">Docking fee here</span><span class="fee st-kv__value st-kv__value--gold st-num">${cr(dockingFee(s.location))}</span></div>`
   );

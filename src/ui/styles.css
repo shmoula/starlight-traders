@@ -225,10 +225,12 @@ body {
   }
 }
 .svc-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: var(--st-space-2);
   margin: var(--st-space-1) 0 var(--st-space-2);
+}
+.svc-row .st-btn {
+  width: 100%;
 }
 .log-entries {
   display: flex;
