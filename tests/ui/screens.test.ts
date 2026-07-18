@@ -169,8 +169,12 @@ describe("stationScreen navigator and cargo", () => {
     for (const id of ["kiruna", "vulcan", "verge", "meridian"]) {
       expect(html).toContain(`data-act="jump" data-id="${id}"`);
     }
-    expect(html).toContain('aria-label="Jump to Kiruna Belt (4 fuel, danger 0%)"');
-    expect(html).toContain('aria-label="Jump to The Verge (6 fuel, danger 50%)"');
+    // The visible label + meta form the accessible name; an sr-only clarifier
+    // expands the fuel/danger figures for screen readers (kept a substring-suffix
+    // so the visible text still matches the accessible name — WCAG 2.5.3).
+    expect(html).toContain('<span class="st-orb__label">Kiruna Belt</span>');
+    expect(html).toContain('<span class="st-sr-only"> — jump here, 4 fuel, danger 0%</span>');
+    expect(html).toContain('<span class="st-sr-only"> — jump here, 6 fuel, danger 50%</span>');
     // No jump control targets the current station (mission ids may contain node
     // names, so scope the assertion to the jump prefix).
     expect(html).not.toContain('data-act="jump" data-id="terra"');
@@ -178,7 +182,7 @@ describe("stationScreen navigator and cargo", () => {
 
   it("disables orbs the fuel cannot reach", () => {
     const html = stationScreen({ ...createGame(42), fuel: 0 });
-    expect(html).toContain('aria-label="Jump to Kiruna Belt (4 fuel, danger 0%)" disabled');
+    expect(html).toContain('data-act="jump" data-id="kiruna" disabled');
   });
 
   it("shows the hold capacity and a tile per commodity", () => {

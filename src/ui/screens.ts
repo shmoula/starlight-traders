@@ -126,10 +126,11 @@ function navigatorPanel(s: GameState): string {
       const cost = fuelCost(s.location, n);
       const danger = Math.round(NODES[n].danger * 100);
       const disabled = s.fuel < cost;
-      return `<button class="st-orb" data-act="jump" data-id="${n}" aria-label="Jump to ${NODES[n].name} (${cost} fuel, danger ${danger}%)"${disabled ? " disabled" : ""}>
-        <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}"></span>
+      return `<button class="st-orb" data-act="jump" data-id="${n}"${disabled ? " disabled" : ""}>
+        <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
         <span class="st-orb__label">${NODES[n].name}</span>
         <span class="st-orb__meta st-num">${cost}⛽ · ${danger}%</span>
+        <span class="st-sr-only"> — jump here, ${cost} fuel, danger ${danger}%</span>
       </button>`;
     })
     .join("");

@@ -11,10 +11,21 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Load web fonts without blocking first paint: fetch as a non-applied
+         stylesheet, then flip media to 'all' once it arrives. display=swap keeps
+         text visible in the fallback face meanwhile; <noscript> covers no-JS. -->
     <link
       href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&family=Orbitron:wght@500;600;700&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&family=Orbitron:wght@500;600;700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
     <link rel="stylesheet" href="/src/ui/styles.css" />
   </head>
   <body class="st-app-bg">
