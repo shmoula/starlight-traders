@@ -264,20 +264,32 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
 
 export function eventScreen(e: GameEvent): string {
   const choices = e.choices
-    .map((c) => `<button data-act="resolve" data-id="${c.id}">${c.label}</button>`)
+    .map((c) => `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}</button>`)
     .join("");
-  return `<div class="event-card">
-    <h2>${e.title}</h2><p>${e.description}</p><div class="choices">${choices}</div>
+  return `<div class="overlay-stage">
+    <div class="st-glow-wrap">
+      <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
+        <div class="event-card">
+          <h2>${e.title}</h2><p>${e.description}</p><div class="choices">${choices}</div>
+        </div>
+      </div></div>
+    </div>
   </div>`;
 }
 
 export function runEndScreen(s: GameState, score: number): string {
-  return `<div class="run-end">
-    <h1>Run Over</h1>
-    <p>You survived ${s.day} days.</p>
-    <p class="score">Score: ${score.toLocaleString()}</p>
-    <p>Seed #${s.seed}</p>
-    <button data-act="share">Copy score card</button>
-    <button data-act="restart">New run</button>
+  return `<div class="overlay-stage">
+    <div class="st-glow-wrap">
+      <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
+        <div class="run-end">
+          <h1>Run Over</h1>
+          <p>You survived ${s.day} days.</p>
+          <p class="score st-num">Score: ${score.toLocaleString()}</p>
+          <p class="hint">Seed #${s.seed}</p>
+          <button class="st-btn" data-act="share">Copy score card</button>
+          <button class="st-btn st-btn--ghost" data-act="restart">New run</button>
+        </div>
+      </div></div>
+    </div>
   </div>`;
 }

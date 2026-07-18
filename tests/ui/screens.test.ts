@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { stationScreen } from "../../src/ui/screens";
+import { stationScreen, eventScreen, runEndScreen } from "../../src/ui/screens";
 import { createGame, missionsHere } from "../../src/engine/game";
 import { COMMODITIES, NODES, commodityName } from "../../src/engine/world";
-import { Mission } from "../../src/engine/types";
+import { GameEvent, Mission } from "../../src/engine/types";
 
 function withMission(mission: Mission, overrides: Partial<ReturnType<typeof createGame>> = {}) {
   const s = createGame(42);
@@ -205,5 +205,31 @@ describe("stationScreen trade hub", () => {
     const html = stationScreen(createGame(42));
     expect(html.match(/st-market__held/g)?.length).toBe(3);
     expect(html).toContain("×0");
+  });
+});
+
+describe("event and run-end cards", () => {
+  const event: GameEvent = {
+    kind: "pirates",
+    title: "Pirate ambush",
+    description: "A cutter locks on.",
+    choices: [{ id: "flee", label: "Flee" }],
+  };
+
+  it("wraps the event in a chamfered card and keeps resolve hooks", () => {
+    const html = eventScreen(event);
+    expect(html).toContain("st-panel--chamfer");
+    expect(html).toContain('class="event-card"');
+    expect(html).toContain('data-act="resolve" data-id="flee"');
+  });
+
+  it("wraps the run-end in a chamfered card and keeps restart/share hooks", () => {
+    // Score 999 avoids locale-dependent thousands separators from toLocaleString.
+    const html = runEndScreen(createGame(42), 999);
+    expect(html).toContain("st-panel--chamfer");
+    expect(html).toContain('class="run-end"');
+    expect(html).toContain('data-act="share"');
+    expect(html).toContain('data-act="restart"');
+    expect(html).toContain("Score: 999");
   });
 });

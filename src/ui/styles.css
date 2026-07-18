@@ -84,14 +84,45 @@ button:disabled {
   flex-wrap: wrap;
   gap: 8px;
 }
+.overlay-stage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--st-space-5);
+}
+.overlay-stage .st-panel--chamfer {
+  width: 100%;
+  max-width: 480px;
+}
 .event-card,
 .run-end {
   text-align: center;
-  padding: 40px 20px;
+  padding: var(--st-space-6) var(--st-space-5);
+}
+.event-card h2,
+.run-end h1 {
+  margin: 0 0 var(--st-space-3);
+  font-family: var(--st-font-display);
+  font-size: var(--st-text-xl);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--st-text-hi);
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--st-space-2);
+  justify-content: center;
+  margin-top: var(--st-space-4);
 }
 .run-end .score {
-  font-size: 28px;
+  font-size: var(--st-text-2xl);
   font-weight: 700;
+  color: var(--st-accent-currency);
+  text-shadow: var(--st-text-glow-gold);
+}
+.run-end button {
+  margin: var(--st-space-1);
 }
 .hint {
   font-size: 12px;
