@@ -247,13 +247,16 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
     ${screenHead(s)}
     ${statbar(s, fuelClass)}
     <div class="st-shell station-shell">
-      <div class="st-shell__rail rail-left">
-        ${navigatorPanel(s)}
-        ${cargoPanel(s)}
-      </div>
+      <!-- DOM order leads with the stage so single-column mobile reads
+           trade hub → navigator/cargo → logistics/log and keyboard focus
+           follows the visual order. Wider layouts reorder via CSS. -->
       <div class="st-shell__stage">
         ${report}
         ${tradeHubPanel(s, marketRows, missions, active)}
+      </div>
+      <div class="st-shell__rail rail-left">
+        ${navigatorPanel(s)}
+        ${cargoPanel(s)}
       </div>
       <div class="st-shell__rail st-shell__rail--right rail-right">
         ${logisticsPanel(s, fuelClass)}

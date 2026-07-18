@@ -201,11 +201,14 @@ body {
 .st-statbar__chip--gold {
   color: var(--st-accent-currency);
 }
-@media (max-width: 760px) {
-  .station-shell .st-shell__stage {
+/* DOM order is stage → left rail → right rail (see screens.ts) so the
+   single-column mobile layout leads with the trade hub with focus order
+   intact. From tablet up, restore the left → stage → right arrangement. */
+@media (min-width: 761px) {
+  .station-shell .rail-left {
     order: 1;
   }
-  .station-shell .rail-left {
+  .station-shell .st-shell__stage {
     order: 2;
   }
   .station-shell .rail-right {
