@@ -30,60 +30,6 @@ body {
   max-width: 1440px;
   margin: 0 auto;
 }
-header h1 {
-  margin: 0 0 8px;
-}
-.stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 14px;
-  opacity: 0.9;
-}
-section {
-  border: 1px solid #1e2a4a;
-  border-radius: 8px;
-  padding: 12px;
-  margin: 12px 0;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-th,
-td {
-  padding: 4px 6px;
-  border-bottom: 1px solid #16203c;
-  text-align: left;
-}
-thead th {
-  color: #8fa4d4;
-  font-size: 0.85em;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-/* Row headers carry the commodity name; keep them reading as data, not headings. */
-tbody th {
-  font-weight: normal;
-}
-button {
-  background: #2a3c66;
-  color: #e6ecff;
-  border: 0;
-  border-radius: 6px;
-  padding: 6px 10px;
-  margin: 2px;
-  cursor: pointer;
-}
-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.routes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 .overlay-stage {
   min-height: 100vh;
   display: grid;
@@ -124,20 +70,20 @@ button:disabled {
 .run-end button {
   margin: var(--st-space-1);
 }
+/* Legacy contract classes — names are load-bearing (tests/markup), values tokenized. */
 .hint {
-  font-size: 12px;
-  opacity: 0.6;
-  margin: 0 0 8px;
+  font-size: var(--st-text-xs);
+  color: var(--st-text-dim);
+  margin: 0 0 var(--st-space-2);
 }
 .good {
-  color: #6ee7a8;
-  font-size: 13px;
+  color: var(--st-positive);
+  font-size: var(--st-text-sm);
 }
 .bad {
-  color: #ff9b8a;
-  font-size: 13px;
+  color: var(--st-negative);
+  font-size: var(--st-text-sm);
 }
-/* Inline "jump to X" action inside the ready hint — reads as a link, not a chunky button. */
 .jump-link {
   background: none;
   border: 0;
@@ -149,27 +95,33 @@ button:disabled {
   cursor: pointer;
 }
 .jump-link:hover:not(:disabled) {
-  color: #a7f3cf;
+  color: var(--st-cyan-bright);
 }
 .jump-link:disabled,
 .jump-link[aria-disabled="true"] {
   text-decoration: none;
   cursor: not-allowed;
 }
+.jump-link:focus-visible {
+  outline: 2px solid var(--st-focus-ring);
+  outline-offset: 2px;
+}
 .stat-critical {
-  color: #ff9b8a;
+  color: var(--st-negative);
   font-weight: 700;
 }
 .stat-warn {
-  color: #ffcf8a;
+  color: var(--st-gold-bright);
   font-weight: 600;
 }
 .accepted {
-  color: #6ee7a8;
-  font-size: 13px;
+  color: var(--st-positive);
+  font-size: var(--st-text-sm);
   opacity: 0.85;
 }
-/* Turn report: the headline "what just happened" banner after a jump. */
+.fee {
+  color: var(--st-accent-currency);
+}
 /* Turn report — class names are a test-asserted contract; style only. */
 .turn-report {
   margin: 0 0 var(--st-space-4);
