@@ -516,6 +516,30 @@
   width: 18px;
   height: 18px;
 }
+
+/* Inline stat glyph: tracks font-size and currentColor so one icon serves every
+ * mention of a stat (gauge label, action button, jump cost, stat strip). */
+.st-inline-icon {
+  display: inline-flex;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}
+.st-inline-icon > svg {
+  width: 100%;
+  height: 100%;
+}
+/* Group the gauge icon + word so the value still right-aligns via space-between. */
+.st-bar-label__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--st-space-1);
+}
+/* Nudge the glyph off the jump-cost number (this context has no flex gap). */
+.st-orb__meta .st-inline-icon {
+  margin-left: 0.15em;
+}
 .st-icon-box--gold {
   --icon-core: var(--st-gold);
   --icon-dim: var(--st-gold-dim);
@@ -603,10 +627,13 @@
  * Planet art comes in via --orb-art (radial-gradient or image) per system.
  */
 .st-orb-group {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   gap: var(--st-space-4);
+  justify-items: center;
 }
 .st-orb {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -617,6 +644,31 @@
   font: inherit;
   color: var(--st-text-dim);
   cursor: pointer;
+}
+.st-orb__tip {
+  position: absolute;
+  bottom: calc(100% + var(--st-space-1));
+  left: 50%;
+  z-index: var(--st-z-overlay);
+  padding: var(--st-space-1) var(--st-space-2);
+  border-radius: var(--st-radius-sm);
+  background: var(--st-bg-panel-solid);
+  border: 1px solid var(--st-border-panel);
+  box-shadow: var(--st-glow-panel);
+  color: var(--st-text-hi);
+  font-size: var(--st-text-2xs);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  pointer-events: none;
+  transition:
+    opacity var(--st-dur-fast) var(--st-ease),
+    transform var(--st-dur-fast) var(--st-ease);
+}
+.st-orb:hover .st-orb__tip,
+.st-orb:focus-visible .st-orb__tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 .st-orb__sphere {
   width: 44px;

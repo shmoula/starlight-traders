@@ -3,7 +3,7 @@ import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { missionsHere } from "../engine/game";
-import { COMMODITY_ACCENT, ORB_ART, iconBox } from "./art";
+import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
 
@@ -41,8 +41,8 @@ function screenHead(s: GameState): string {
 function statbar(s: GameState, fuelClass: string): string {
   return `<div class="st-statbar" aria-hidden="true">
     <span class="st-statbar__chip st-statbar__chip--gold st-num">${cr(s.credits)}</span>
-    <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">Fuel ${s.fuel}/${s.fuelCapacity}</span>
-    <span class="st-statbar__chip st-num">Hull ${s.hull}/${s.hullMax}</span>
+    <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
+    <span class="st-statbar__chip st-num">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
     <span class="st-statbar__chip st-num">Hold ${cargoUsed(s.cargo)}/${s.cargoCapacity}</span>
   </div>`;
 }
@@ -76,15 +76,15 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
     ${kv("Debt", cr(s.debt), true)}
     ${kv("Net worth", cr(netWorth(s)), true)}
     ${kv("Day", String(s.day))}
-    <div class="st-bar-label"><span>Fuel</span><span class="st-bar-label__value${fuelClass ? ` ${fuelClass}` : ""}">${s.fuel}/${s.fuelCapacity}</span></div>
+    <div class="st-bar-label"><span class="st-bar-label__name">${fuelIcon()}Fuel</span><span class="st-bar-label__value${fuelClass ? ` ${fuelClass}` : ""}">${s.fuel}/${s.fuelCapacity}</span></div>
     <div class="st-bar st-bar--segmented ${barMod}" role="meter" aria-label="Fuel" aria-valuenow="${s.fuel}" aria-valuemin="0" aria-valuemax="${s.fuelCapacity}" style="--st-value: ${fuelPct}%; --st-segments: ${s.fuelCapacity}"><div class="st-bar__fill"></div></div>
-    <div class="st-bar-label"><span>Hull</span><span class="st-bar-label__value">${s.hull}/${s.hullMax}</span></div>
+    <div class="st-bar-label"><span class="st-bar-label__name">${hullIcon()}Hull</span><span class="st-bar-label__value">${s.hull}/${s.hullMax}</span></div>
     <div class="st-bar" role="meter" aria-label="Hull" aria-valuenow="${s.hull}" aria-valuemin="0" aria-valuemax="${s.hullMax}" style="--st-value: ${hullPct}%"><div class="st-bar__fill"></div></div>
     <hr class="st-divider" />
     <div class="st-kv__label">Services</div>
     <div class="svc-row">
-      <button class="st-btn st-btn--ghost st-btn--sm" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
-      <button class="st-btn st-btn--ghost st-btn--sm" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
+      <button class="st-btn st-btn--ghost st-btn--sm" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
+      <button class="st-btn st-btn--ghost st-btn--sm" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>${hullIcon()}Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
       <button class="st-btn st-btn--ghost st-btn--sm" data-act="payDebt"${disabledAttr(payDisabled, payTitle)}>Pay 200 debt</button>
     </div>
     <div class="st-kv"><span class="st-kv__label">Docking fee here</span><span class="fee st-kv__value st-kv__value--gold st-num">${cr(dockingFee(s.location))}</span></div>`
@@ -112,7 +112,8 @@ function navigatorPanel(s: GameState): string {
       return `<button class="st-orb" data-act="jump" data-id="${n}"${disabled ? " disabled" : ""}>
         <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
         <span class="st-orb__label">${NODES[n].name}</span>
-        <span class="st-orb__meta st-num">${cost}⛽ · ${danger}%</span>
+        <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${danger}%</span>
+        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${cost} fuel · ${danger}% danger</span>
         <span class="st-sr-only"> — jump here, ${cost} fuel, danger ${danger}%</span>
       </button>`;
     })

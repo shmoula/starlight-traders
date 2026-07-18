@@ -201,6 +201,9 @@ body {
   font-size: var(--st-text-xs);
 }
 .st-statbar__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--st-space-1);
   font-weight: 600;
   color: var(--st-text-hi);
 }

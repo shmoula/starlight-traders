@@ -22,6 +22,26 @@ export function iconBox(id: CommodityId): string {
   return `<span class="st-icon-box${acc ? ` st-icon-box--${acc}` : ""}" aria-hidden="true">${COMMODITY_ICONS[id]}</span>`;
 }
 
+// Canonical stat glyphs. Each inherits currentColor and sizes to the surrounding
+// text, so one icon reads the same next to a label, in a button, or after a number.
+// Reuse via fuelIcon() / hullIcon() everywhere the stat is mentioned.
+const FUEL_ICON = `${ICON_OPEN}<path d="M4.5 21V5.5A2.5 2.5 0 0 1 7 3h2.5A2.5 2.5 0 0 1 12 5.5V21"/><path d="M3.5 21h9"/><rect x="6" y="6" width="4" height="3" rx="0.5"/><path d="M12 9h2.5a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 0 3 0V8.5L17 6.5"/></svg>`;
+const HULL_ICON = `${ICON_OPEN}<path d="M12 3 19 6.2V11c0 4.5-2.9 7.9-7 9.5-4.1-1.6-7-5-7-9.5V6.2L12 3Z"/></svg>`;
+
+function inlineIcon(svg: string): string {
+  return `<span class="st-inline-icon" aria-hidden="true">${svg}</span>`;
+}
+
+/** Inline fuel glyph sized to the current font; decorative (label text carries meaning). */
+export function fuelIcon(): string {
+  return inlineIcon(FUEL_ICON);
+}
+
+/** Inline hull glyph (shield) sized to the current font; decorative. */
+export function hullIcon(): string {
+  return inlineIcon(HULL_ICON);
+}
+
 /** Planet art per station (decorative layer — exempt from the functional accent rule). */
 export const ORB_ART: Record<NodeId, string> = {
   terra: "radial-gradient(circle at 35% 30%, #7ec8e3, #1d4e6e 55%, #0c2431 82%)",
