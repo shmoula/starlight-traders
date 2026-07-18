@@ -3,6 +3,7 @@ import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { missionsHere } from "../engine/game";
+import { COMMODITY_ACCENT, ORB_ART, iconBox } from "./art";
 
 export type Action =
   | { type: "buy"; id: string; qty: number }
@@ -119,6 +120,38 @@ function logPanel(s: GameState): string {
   );
 }
 
+function navigatorPanel(s: GameState): string {
+  const orbs = NODE_IDS.filter((n) => n !== s.location)
+    .map((n) => {
+      const cost = fuelCost(s.location, n);
+      const danger = Math.round(NODES[n].danger * 100);
+      const disabled = s.fuel < cost;
+      return `<button class="st-orb" data-act="jump" data-id="${n}" aria-label="Jump to ${NODES[n].name} (${cost} fuel, danger ${danger}%)"${disabled ? " disabled" : ""}>
+        <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}"></span>
+        <span class="st-orb__label">${NODES[n].name}</span>
+        <span class="st-orb__meta st-num">${cost}⛽ · ${danger}%</span>
+      </button>`;
+    })
+    .join("");
+  return panel("Navigator", `<div class="st-orb-group">${orbs}</div>`);
+}
+
+function cargoPanel(s: GameState): string {
+  const tiles = COMMODITIES.map((c) => {
+    const qty = s.cargo[c.id];
+    const acc = COMMODITY_ACCENT[c.id];
+    return `<div class="st-tile${acc ? ` st-tile--${acc}` : ""}${qty === 0 ? " cargo-empty" : ""}">
+      ${iconBox(c.id)}
+      <span><span class="st-tile__name">${c.name}</span><span class="st-tile__meta st-num">${qty} units</span></span>
+    </div>`;
+  }).join("");
+  return panel(
+    "Cargo",
+    `<div class="st-kv"><span class="st-kv__label">Hold</span><span class="st-kv__value st-num">${cargoUsed(s.cargo)}/${s.cargoCapacity}</span></div>
+    <div class="cargo-tiles">${tiles}</div>`
+  );
+}
+
 export function stationScreen(s: GameState, turnReport: string[] = []): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
@@ -186,20 +219,14 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
     })
     .join("");
 
-  const routes = NODE_IDS.filter((n) => n !== s.location)
-    .map(
-      (n) =>
-        `<button data-act="jump" data-id="${n}" ${s.fuel < fuelCost(s.location, n) ? "disabled" : ""}>
-      Jump to ${NODES[n].name} (${fuelCost(s.location, n)}⛽, danger ${Math.round(NODES[n].danger * 100)}%)
-    </button>`
-    )
-    .join("");
-
   return `
     ${screenHead(s)}
     ${statbar(s, fuelClass)}
     <div class="st-shell station-shell">
-      <div class="st-shell__rail rail-left"></div>
+      <div class="st-shell__rail rail-left">
+        ${navigatorPanel(s)}
+        ${cargoPanel(s)}
+      </div>
       <div class="st-shell__stage">
         ${report}
         <section><h2>Market</h2><table>
@@ -218,7 +245,6 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
           <p class="hint">Deliveries auto-complete when you arrive carrying the goods.</p>
           <ul>${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
         </section>
-        <section><h2>Navigate</h2><div class="routes">${routes}</div></section>
       </div>
       <div class="st-shell__rail st-shell__rail--right rail-right">
         ${logisticsPanel(s, fuelClass)}

@@ -257,3 +257,27 @@ button:disabled {
     display: none;
   }
 }
+.station-shell .st-orb-group {
+  flex-wrap: wrap;
+  gap: var(--st-space-3) var(--st-space-4);
+}
+.st-orb__meta {
+  font-size: var(--st-text-2xs);
+  color: var(--st-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.st-orb:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.st-tile__name {
+  display: block;
+}
+.cargo-tiles {
+  display: grid;
+  gap: var(--st-space-2);
+  margin-top: var(--st-space-2);
+}
+.cargo-empty {
+  opacity: 0.4;
+}

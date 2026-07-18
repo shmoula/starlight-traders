@@ -162,3 +162,33 @@ describe("stationScreen ship logistics", () => {
     expect(html).toContain('aria-label="Hull" aria-valuenow="100"');
   });
 });
+
+describe("stationScreen navigator and cargo", () => {
+  it("renders one jump orb per non-current station with fuel and danger info", () => {
+    const html = stationScreen(createGame(42)); // starts at terra
+    for (const id of ["kiruna", "vulcan", "verge", "meridian"]) {
+      expect(html).toContain(`data-act="jump" data-id="${id}"`);
+    }
+    expect(html).toContain('aria-label="Jump to Kiruna Belt (4 fuel, danger 0%)"');
+    expect(html).toContain('aria-label="Jump to The Verge (6 fuel, danger 50%)"');
+    // No jump control targets the current station (mission ids may contain node
+    // names, so scope the assertion to the jump prefix).
+    expect(html).not.toContain('data-act="jump" data-id="terra"');
+  });
+
+  it("disables orbs the fuel cannot reach", () => {
+    const html = stationScreen({ ...createGame(42), fuel: 0 });
+    expect(html).toContain('aria-label="Jump to Kiruna Belt (4 fuel, danger 0%)" disabled');
+  });
+
+  it("shows the hold capacity and a tile per commodity", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain(">Hold<");
+    expect(html).toContain(">0/30<");
+    for (const c of COMMODITIES) {
+      expect(html).toContain(c.name);
+    }
+    // all cargo starts empty → every tile is dimmed
+    expect(html.match(/cargo-empty/g)?.length).toBe(3);
+  });
+});
