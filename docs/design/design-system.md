@@ -29,8 +29,8 @@ illusion collapses.
    nothing does — one pulsing alert per screen, at most.
 2. **Color is functional, never decorative.** Every accent is a category:
    - **Cyan** — interactive: navigation, buttons, active states, ship systems (Hull).
-   - **Gold** — currency and value: credits, fees, luxury cargo (Rare Earths).
-   - **Magenta** — consumption and disposal: fuel, Sell actions.
+   - **Gold** — value and energy: credits, fees, luxury cargo (Rare Earths), the fuel bar.
+   - **Magenta** — divestment: Sell actions.
    - **Orange** — hazard: warnings, pirates, critical states.
      A gold button or a magenta heading is a bug.
 3. **Chrome whispers, values speak.** Labels are small, uppercase, letterspaced, dim.
