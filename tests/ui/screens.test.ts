@@ -210,6 +210,18 @@ describe("stationScreen trade hub", () => {
     expect(html.match(/st-market__held/g)?.length).toBe(3);
     expect(html).toContain("×0");
   });
+
+  it("groups each market row and labels its price and held cells for assistive tech", () => {
+    const html = stationScreen(createGame(42));
+    // one screen-reader group per commodity, named after the commodity
+    expect(html.match(/class="st-market__row" role="group"/g)?.length).toBe(COMMODITIES.length);
+    for (const c of COMMODITIES) {
+      expect(html).toContain(`role="group" aria-label="${c.name}"`);
+    }
+    // the bare ×0 / 12cr glyphs get explicit labels so they are not read as noise
+    expect(html).toContain('aria-label="Market price');
+    expect(html).toContain('units held"');
+  });
 });
 
 describe("event and run-end cards", () => {

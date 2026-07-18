@@ -191,11 +191,11 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
     const buyDisabled = cantAfford || holdFull;
     const buyTitle = cantAfford ? "Not enough credits" : "Cargo hold full";
     const sellDisabled = s.cargo[c.id] < 1;
-    return `<div class="st-market__row">
+    return `<div class="st-market__row" role="group" aria-label="${c.name}">
       ${iconBox(c.id)}
       <span class="st-market__name">${c.name}</span>
-      <span class="st-market__prices st-num"><span class="st-market__buy-price">${cr(price)}</span></span>
-      <span class="st-market__held st-num">×${s.cargo[c.id]}</span>
+      <span class="st-market__prices st-num" aria-label="Market price ${price} credits"><span class="st-market__buy-price">${cr(price)}</span></span>
+      <span class="st-market__held st-num" aria-label="${s.cargo[c.id]} units held">×${s.cargo[c.id]}</span>
       <span class="st-market__actions">
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${buyDisabled ? ` disabled title="${buyTitle}"` : ""}>Buy 1</button>
         <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${sellDisabled ? ` disabled title="None in hold"` : ""}>Sell 1</button>
