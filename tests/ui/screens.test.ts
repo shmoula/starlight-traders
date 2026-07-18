@@ -108,3 +108,25 @@ describe("stationScreen ship's log", () => {
     expect(html).toContain("You launch from Terra Hub");
   });
 });
+
+describe("stationScreen cockpit shell", () => {
+  it("renders the statbar chips for credits, fuel, hull, and hold", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain('class="st-statbar"');
+    expect(html).toContain("Fuel 16/20");
+    expect(html).toContain("Hull 100/100");
+    expect(html).toContain("Hold 0/30");
+  });
+
+  it("marks the statbar as presentation-only duplicate of panel data", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain('<div class="st-statbar" aria-hidden="true">');
+  });
+
+  it("lays the screen out as a three-zone shell", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("st-shell station-shell");
+    expect(html).toContain("st-shell__stage");
+    expect(html).toContain("st-shell__rail--right");
+  });
+});

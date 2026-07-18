@@ -1,7 +1,7 @@
 // src/ui/screens.ts
 import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
-import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
+import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee } from "../engine/economy";
 import { missionsHere } from "../engine/game";
 
 export type Action =
@@ -37,8 +37,24 @@ function toneOf(msg: string): Tone {
 
 const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›" };
 
+function screenHead(s: GameState): string {
+  return `<header class="screen-head">
+    <h1 class="st-screen-title">Starlight Traders</h1>
+    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}</p>
+  </header>`;
+}
+
+/** Sticky at-a-glance strip; duplicates logistics values, hence aria-hidden. */
+function statbar(s: GameState, fuelClass: string): string {
+  return `<div class="st-statbar" aria-hidden="true">
+    <span class="st-statbar__chip st-statbar__chip--gold st-num">${cr(s.credits)}</span>
+    <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">Fuel ${s.fuel}/${s.fuelCapacity}</span>
+    <span class="st-statbar__chip st-num">Hull ${s.hull}/${s.hullMax}</span>
+    <span class="st-statbar__chip st-num">Hold ${cargoUsed(s.cargo)}/${s.cargoCapacity}</span>
+  </div>`;
+}
+
 export function stationScreen(s: GameState, turnReport: string[] = []): string {
-  const node = NODES[s.location];
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
       <h2 class="turn-report__title">Since your last jump</h2>
@@ -120,63 +136,60 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
     .join("");
 
   return `
-    <header>
-      <h1>${node.name} · Day ${s.day}</h1>
-      <div class="stats">
-        <span>💰 ${cr(s.credits)}</span>
-        <span>🏦 debt ${cr(s.debt)}</span>
-        <span${fuelClass ? ` class="${fuelClass}"` : ""}>⛽ ${s.fuel}/${s.fuelCapacity}</span>
-        <span>🛡️ ${s.hull}/${s.hullMax}</span>
-        <span>📦 ${s.cargo.water + s.cargo.parts + s.cargo.luxury}/${s.cargoCapacity}</span>
-        <span>📈 net ${cr(netWorth(s))}</span>
+    ${screenHead(s)}
+    ${statbar(s, fuelClass)}
+    <div class="st-shell station-shell">
+      <div class="st-shell__rail rail-left"></div>
+      <div class="st-shell__stage">
+        ${report}
+        <section><h2>Market</h2><table>
+          <thead>
+            <tr>
+              <th scope="col">Commodity</th>
+              <th scope="col">Price</th>
+              <th scope="col">Held</th>
+              <th scope="col">Trade</th>
+            </tr>
+          </thead>
+          <tbody>${market}</tbody>
+        </table></section>
+        <section><h2>Contracts</h2><ul>${missions || "<li>None today.</li>"}</ul></section>
+        <section><h2>Active Contracts</h2>
+          <p class="hint">Deliveries auto-complete when you arrive carrying the goods.</p>
+          <ul>${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
+        </section>
+        <section class="services">
+          <button data-act="refuel"${
+            s.fuel >= s.fuelCapacity
+              ? ` disabled title="Fuel tank full"`
+              : s.credits < REFUEL_PRICE
+                ? ` disabled title="Not enough credits"`
+                : ""
+          }>Refuel +5 (${cr(40)})</button>
+          <button data-act="repair"${
+            s.hull >= s.hullMax
+              ? ` disabled title="Hull fully repaired"`
+              : s.credits < REPAIR_PRICE
+                ? ` disabled title="Not enough credits"`
+                : ""
+          }>Repair +20 (${cr(120)})</button>
+          <button data-act="payDebt"${
+            s.debt <= 0
+              ? ` disabled title="No debt to pay"`
+              : s.credits <= 0
+                ? ` disabled title="No credits to pay with"`
+                : ""
+          }>Pay 200 debt</button>
+          <span class="fee">Docking fee here: ${cr(dockingFee(s.location))}</span>
+        </section>
+        <section><h2>Navigate</h2><div class="routes">${routes}</div></section>
+        <section class="log" aria-label="Ship's log">
+          <h2>Ship's Log</h2>
+          <div class="log-entries">${logEntries}</div>
+        </section>
       </div>
-    </header>
-    ${report}
-    <section><h2>Market</h2><table>
-      <thead>
-        <tr>
-          <th scope="col">Commodity</th>
-          <th scope="col">Price</th>
-          <th scope="col">Held</th>
-          <th scope="col">Trade</th>
-        </tr>
-      </thead>
-      <tbody>${market}</tbody>
-    </table></section>
-    <section><h2>Contracts</h2><ul>${missions || "<li>None today.</li>"}</ul></section>
-    <section><h2>Active Contracts</h2>
-      <p class="hint">Deliveries auto-complete when you arrive carrying the goods.</p>
-      <ul>${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
-    </section>
-    <section class="services">
-      <button data-act="refuel"${
-        s.fuel >= s.fuelCapacity
-          ? ` disabled title="Fuel tank full"`
-          : s.credits < REFUEL_PRICE
-            ? ` disabled title="Not enough credits"`
-            : ""
-      }>Refuel +5 (${cr(40)})</button>
-      <button data-act="repair"${
-        s.hull >= s.hullMax
-          ? ` disabled title="Hull fully repaired"`
-          : s.credits < REPAIR_PRICE
-            ? ` disabled title="Not enough credits"`
-            : ""
-      }>Repair +20 (${cr(120)})</button>
-      <button data-act="payDebt"${
-        s.debt <= 0
-          ? ` disabled title="No debt to pay"`
-          : s.credits <= 0
-            ? ` disabled title="No credits to pay with"`
-            : ""
-      }>Pay 200 debt</button>
-      <span class="fee">Docking fee here: ${cr(dockingFee(s.location))}</span>
-    </section>
-    <section><h2>Navigate</h2><div class="routes">${routes}</div></section>
-    <section class="log" aria-label="Ship's log">
-      <h2>Ship's Log</h2>
-      <div class="log-entries">${logEntries}</div>
-    </section>
+      <div class="st-shell__rail st-shell__rail--right rail-right"></div>
+    </div>
   `;
 }
 
