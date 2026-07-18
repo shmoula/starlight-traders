@@ -434,7 +434,7 @@ The shell collapses in content-priority order:
 
 - `<1100px` — right rail drops below as a two-up row (`st-shell__rail--right` spans full
   width); stage keeps priority.
-- `<760px` — single column: stage → logistics → messages → navigation/cargo; the tab bar
+- `<760px` — single column: stage → navigation/cargo → logistics/messages; the tab bar
   hugs the bottom edge full-width. Touch targets stay ≥ 40px (rows already are; `--sm`
   buttons grow to full row height inside touch layouts).
 
