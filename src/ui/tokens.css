@@ -109,7 +109,7 @@
    */
   --st-font-display: "Orbitron", "Exo 2", ui-sans-serif, system-ui, sans-serif;
   --st-font-body: "Exo 2", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-  --st-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --st-font-mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
 
   --st-text-2xs: 12px; /* tab labels, tick marks — 12px is the legible-text floor */
   --st-text-xs: 12px; /* field labels, panel titles, buttons */
