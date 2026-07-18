@@ -136,37 +136,7 @@ function cargoPanel(s: GameState): string {
   );
 }
 
-function tradeHubPanel(s: GameState, marketRows: string, missions: string, active: string): string {
-  return `<section class="st-panel st-panel--tab">
-    <header class="st-panel__header"><h2 class="st-panel__title">Trade Hub — ${NODES[s.location].name}</h2></header>
-    <div class="st-panel__frame">
-      <div class="st-panel__body st-panel__body--flush">
-        <div class="st-market st-market--held">
-          <div class="st-market__head">Market Commodities</div>
-          ${marketRows}
-        </div>
-        <div class="st-panel__subhead">Contracts</div>
-        <ul class="contract-list">${missions || "<li>None today.</li>"}</ul>
-        <div class="st-panel__subhead">Active Contracts</div>
-        <p class="hint trade-hint">Deliveries auto-complete when you arrive carrying the goods.</p>
-        <ul class="contract-list">${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
-      </div>
-    </div>
-  </section>`;
-}
-
-export function stationScreen(s: GameState, turnReport: string[] = []): string {
-  const report = turnReport.length
-    ? `<div class="turn-report" role="status" aria-live="polite">
-      <h2 class="turn-report__title">Since your last jump</h2>
-      ${turnReport
-        .map((l) => {
-          const t = toneOf(l);
-          return `<div class="tr-line tr-${t}"><span class="tr-icon" aria-hidden="true">${TONE_ICON[t]}</span><span>${l}</span></div>`;
-        })
-        .join("")}
-    </div>`
-    : "";
+function tradeHubPanel(s: GameState): string {
   const marketRows = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
     const cantAfford = price > s.credits;
@@ -185,12 +155,6 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
       </span>
     </div>`;
   }).join("");
-
-  const cheapestJump = Math.min(
-    ...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n))
-  );
-  const fuelClass =
-    s.fuel < cheapestJump ? "stat-critical" : s.fuel < cheapestJump * 2 ? "stat-warn" : "";
 
   const acceptedIds = new Set(s.activeMissions.map((m) => m.id));
   const missions = missionsHere(s)
@@ -226,6 +190,42 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
     })
     .join("");
 
+  return `<section class="st-panel st-panel--tab">
+    <header class="st-panel__header"><h2 class="st-panel__title">Trade Hub — ${NODES[s.location].name}</h2></header>
+    <div class="st-panel__frame">
+      <div class="st-panel__body st-panel__body--flush">
+        <div class="st-market st-market--held">
+          <div class="st-market__head">Market Commodities</div>
+          ${marketRows}
+        </div>
+        <div class="st-panel__subhead">Contracts</div>
+        <ul class="contract-list">${missions || "<li>None today.</li>"}</ul>
+        <div class="st-panel__subhead">Active Contracts</div>
+        <p class="hint trade-hint">Deliveries auto-complete when you arrive carrying the goods.</p>
+        <ul class="contract-list">${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
+      </div>
+    </div>
+  </section>`;
+}
+
+export function stationScreen(s: GameState, turnReport: string[] = []): string {
+  const report = turnReport.length
+    ? `<div class="turn-report" role="status" aria-live="polite">
+      <h2 class="turn-report__title">Since your last jump</h2>
+      ${turnReport
+        .map((l) => {
+          const t = toneOf(l);
+          return `<div class="tr-line tr-${t}"><span class="tr-icon" aria-hidden="true">${TONE_ICON[t]}</span><span>${l}</span></div>`;
+        })
+        .join("")}
+    </div>`
+    : "";
+  const cheapestJump = Math.min(
+    ...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n))
+  );
+  const fuelClass =
+    s.fuel < cheapestJump ? "stat-critical" : s.fuel < cheapestJump * 2 ? "stat-warn" : "";
+
   return `
     ${screenHead(s)}
     ${statbar(s, fuelClass)}
@@ -235,7 +235,7 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
            follows the visual order. Wider layouts reorder via CSS. -->
       <div class="st-shell__stage">
         ${report}
-        ${tradeHubPanel(s, marketRows, missions, active)}
+        ${tradeHubPanel(s)}
       </div>
       <div class="st-shell__rail rail-left">
         ${navigatorPanel(s)}
