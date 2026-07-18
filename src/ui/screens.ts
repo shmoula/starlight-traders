@@ -1,7 +1,7 @@
 // src/ui/screens.ts
 import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
-import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee } from "../engine/economy";
+import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { missionsHere } from "../engine/game";
 
 export type Action =
@@ -52,6 +52,71 @@ function statbar(s: GameState, fuelClass: string): string {
     <span class="st-statbar__chip st-num">Hull ${s.hull}/${s.hullMax}</span>
     <span class="st-statbar__chip st-num">Hold ${cargoUsed(s.cargo)}/${s.cargoCapacity}</span>
   </div>`;
+}
+
+/** Standard HUD module: header strip + padded body. `attrs` lands on the <section>. */
+function panel(title: string, body: string, attrs = ""): string {
+  return `<section class="st-panel"${attrs}>
+    <header class="st-panel__header"><h2 class="st-panel__title">${title}</h2></header>
+    <div class="st-panel__body">${body}</div>
+  </section>`;
+}
+
+function logisticsPanel(s: GameState, fuelClass: string): string {
+  const fuelPct = Math.round((s.fuel / s.fuelCapacity) * 100);
+  const hullPct = Math.round((s.hull / s.hullMax) * 100);
+  const barMod = fuelClass === "stat-critical" ? "st-bar--critical" : "st-bar--gold";
+  const kv = (label: string, value: string, gold = false) =>
+    `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""} st-num">${value}</span></div>`;
+  return panel(
+    "Ship Logistics",
+    `${kv("Credits", cr(s.credits), true)}
+    ${kv("Debt", cr(s.debt), true)}
+    ${kv("Net worth", cr(netWorth(s)), true)}
+    ${kv("Day", String(s.day))}
+    <div class="st-bar-label"><span>Fuel</span><span class="st-bar-label__value${fuelClass ? ` ${fuelClass}` : ""}">${s.fuel}/${s.fuelCapacity}</span></div>
+    <div class="st-bar st-bar--segmented ${barMod}" role="meter" aria-label="Fuel" aria-valuenow="${s.fuel}" aria-valuemin="0" aria-valuemax="${s.fuelCapacity}" style="--st-value: ${fuelPct}%; --st-segments: ${s.fuelCapacity}"><div class="st-bar__fill"></div></div>
+    <div class="st-bar-label"><span>Hull</span><span class="st-bar-label__value">${s.hull}/${s.hullMax}</span></div>
+    <div class="st-bar" role="meter" aria-label="Hull" aria-valuenow="${s.hull}" aria-valuemin="0" aria-valuemax="${s.hullMax}" style="--st-value: ${hullPct}%"><div class="st-bar__fill"></div></div>
+    <hr class="st-divider" />
+    <div class="st-kv__label">Services</div>
+    <div class="svc-row">
+      <button class="st-btn st-btn--ghost st-btn--sm" data-act="refuel"${
+        s.fuel >= s.fuelCapacity
+          ? ` disabled title="Fuel tank full"`
+          : s.credits < REFUEL_PRICE
+            ? ` disabled title="Not enough credits"`
+            : ""
+      }>Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
+      <button class="st-btn st-btn--ghost st-btn--sm" data-act="repair"${
+        s.hull >= s.hullMax
+          ? ` disabled title="Hull fully repaired"`
+          : s.credits < REPAIR_PRICE
+            ? ` disabled title="Not enough credits"`
+            : ""
+      }>Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
+      <button class="st-btn st-btn--ghost st-btn--sm" data-act="payDebt"${
+        s.debt <= 0
+          ? ` disabled title="No debt to pay"`
+          : s.credits <= 0
+            ? ` disabled title="No credits to pay with"`
+            : ""
+      }>Pay 200 debt</button>
+    </div>
+    <div class="st-kv"><span class="st-kv__label">Docking fee here</span><span class="fee st-kv__value st-kv__value--gold st-num">${cr(dockingFee(s.location))}</span></div>`
+  );
+}
+
+function logPanel(s: GameState): string {
+  const logEntries = s.log
+    .slice(-8)
+    .map((l) => `<div class="log-line tr-${toneOf(l)}">${l}</div>`)
+    .join("");
+  return panel(
+    "Ship's Log",
+    `<div class="log-entries">${logEntries}</div>`,
+    ` aria-label="Ship's log"`
+  );
 }
 
 export function stationScreen(s: GameState, turnReport: string[] = []): string {
@@ -130,11 +195,6 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
     )
     .join("");
 
-  const logEntries = s.log
-    .slice(-8)
-    .map((l) => `<div class="log-line tr-${toneOf(l)}">${l}</div>`)
-    .join("");
-
   return `
     ${screenHead(s)}
     ${statbar(s, fuelClass)}
@@ -158,37 +218,12 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
           <p class="hint">Deliveries auto-complete when you arrive carrying the goods.</p>
           <ul>${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
         </section>
-        <section class="services">
-          <button data-act="refuel"${
-            s.fuel >= s.fuelCapacity
-              ? ` disabled title="Fuel tank full"`
-              : s.credits < REFUEL_PRICE
-                ? ` disabled title="Not enough credits"`
-                : ""
-          }>Refuel +5 (${cr(40)})</button>
-          <button data-act="repair"${
-            s.hull >= s.hullMax
-              ? ` disabled title="Hull fully repaired"`
-              : s.credits < REPAIR_PRICE
-                ? ` disabled title="Not enough credits"`
-                : ""
-          }>Repair +20 (${cr(120)})</button>
-          <button data-act="payDebt"${
-            s.debt <= 0
-              ? ` disabled title="No debt to pay"`
-              : s.credits <= 0
-                ? ` disabled title="No credits to pay with"`
-                : ""
-          }>Pay 200 debt</button>
-          <span class="fee">Docking fee here: ${cr(dockingFee(s.location))}</span>
-        </section>
         <section><h2>Navigate</h2><div class="routes">${routes}</div></section>
-        <section class="log" aria-label="Ship's log">
-          <h2>Ship's Log</h2>
-          <div class="log-entries">${logEntries}</div>
-        </section>
       </div>
-      <div class="st-shell__rail st-shell__rail--right rail-right"></div>
+      <div class="st-shell__rail st-shell__rail--right rail-right">
+        ${logisticsPanel(s, fuelClass)}
+        ${logPanel(s)}
+      </div>
     </div>
   `;
 }

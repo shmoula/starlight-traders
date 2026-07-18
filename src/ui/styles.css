@@ -93,17 +93,6 @@ button:disabled {
   font-size: 28px;
   font-weight: 700;
 }
-.log-entries {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  max-height: 168px;
-  overflow-y: auto;
-  font-size: 13px;
-}
-.log-line {
-  padding: 1px 0;
-}
 .hint {
   font-size: 12px;
   opacity: 0.6;
@@ -244,5 +233,27 @@ button:disabled {
   }
   .station-shell .rail-right {
     order: 3;
+  }
+}
+.svc-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--st-space-2);
+  margin: var(--st-space-1) 0 var(--st-space-2);
+}
+.log-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 190px;
+  overflow-y: auto;
+  font-size: var(--st-text-sm);
+}
+.log-line {
+  padding: 1px 0;
+}
+@media (min-width: 1100px) {
+  .st-statbar {
+    display: none;
   }
 }

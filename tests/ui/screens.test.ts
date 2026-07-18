@@ -130,3 +130,35 @@ describe("stationScreen cockpit shell", () => {
     expect(html).toContain("st-shell__rail--right");
   });
 });
+
+describe("stationScreen ship logistics", () => {
+  it("renders the fuel bar segmented per fuel unit with the current value", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain('aria-label="Fuel" aria-valuenow="16"');
+    expect(html).toContain("--st-segments: 20");
+    expect(html).toContain("--st-value: 80%");
+  });
+
+  it("marks the fuel bar critical when below the cheapest jump", () => {
+    const html = stationScreen({ ...createGame(42), fuel: 2 }); // cheapest from terra = 3 (vulcan)
+    expect(html).toContain("st-bar--critical");
+    expect(html).toContain("stat-critical");
+  });
+
+  it("warns when fuel covers fewer than two cheapest jumps", () => {
+    const html = stationScreen({ ...createGame(42), fuel: 5 });
+    expect(html).toContain("stat-warn");
+    expect(html).not.toContain("st-bar--critical");
+  });
+
+  it("keeps the services disabled hints", () => {
+    const html = stationScreen({ ...createGame(42), credits: 0 });
+    expect(html).toContain('data-act="refuel" disabled title="Not enough credits"');
+    expect(html).toContain('data-act="payDebt" disabled title="No credits to pay with"');
+  });
+
+  it("renders a continuous hull meter", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain('aria-label="Hull" aria-valuenow="100"');
+  });
+});
