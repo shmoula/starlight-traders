@@ -192,3 +192,18 @@ describe("stationScreen navigator and cargo", () => {
     expect(html.match(/cargo-empty/g)?.length).toBe(3);
   });
 });
+
+describe("stationScreen trade hub", () => {
+  it("titles the window after the current station", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("Trade Hub — Terra Hub");
+    expect(html).toContain("st-panel--tab");
+    expect(html).toContain("Market Commodities");
+  });
+
+  it("shows the held count per market row", () => {
+    const html = stationScreen(createGame(42));
+    expect(html.match(/st-market__held/g)?.length).toBe(3);
+    expect(html).toContain("×0");
+  });
+});

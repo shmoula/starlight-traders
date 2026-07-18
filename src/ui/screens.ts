@@ -152,6 +152,25 @@ function cargoPanel(s: GameState): string {
   );
 }
 
+function tradeHubPanel(s: GameState, marketRows: string, missions: string, active: string): string {
+  return `<section class="st-panel st-panel--tab">
+    <header class="st-panel__header"><h2 class="st-panel__title">Trade Hub — ${NODES[s.location].name}</h2></header>
+    <div class="st-panel__frame">
+      <div class="st-panel__body st-panel__body--flush">
+        <div class="st-market st-market--held">
+          <div class="st-market__head">Market Commodities</div>
+          ${marketRows}
+        </div>
+        <div class="st-panel__subhead">Contracts</div>
+        <ul class="contract-list">${missions || "<li>None today.</li>"}</ul>
+        <div class="st-panel__subhead">Active Contracts</div>
+        <p class="hint trade-hint">Deliveries auto-complete when you arrive carrying the goods.</p>
+        <ul class="contract-list">${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
+      </div>
+    </div>
+  </section>`;
+}
+
 export function stationScreen(s: GameState, turnReport: string[] = []): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
@@ -164,19 +183,23 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
         .join("")}
     </div>`
     : "";
-  const market = COMMODITIES.map((c) => {
+  const marketRows = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
     const cantAfford = price > s.credits;
     const holdFull = cargoUsed(s.cargo) + 1 > s.cargoCapacity;
     const buyDisabled = cantAfford || holdFull;
     const buyTitle = cantAfford ? "Not enough credits" : "Cargo hold full";
     const sellDisabled = s.cargo[c.id] < 1;
-    return `<tr>
-      <th scope="row">${c.name}</th><td>${cr(price)}</td><td>${s.cargo[c.id]}</td>
-      <td>
-        <button data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${buyDisabled ? ` disabled title="${buyTitle}"` : ""}>Buy 1</button>
-        <button data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${sellDisabled ? ` disabled title="None in hold"` : ""}>Sell 1</button>
-      </td></tr>`;
+    return `<div class="st-market__row">
+      ${iconBox(c.id)}
+      <span class="st-market__name">${c.name}</span>
+      <span class="st-market__prices st-num"><span class="st-market__buy-price">${cr(price)}</span></span>
+      <span class="st-market__held st-num">×${s.cargo[c.id]}</span>
+      <span class="st-market__actions">
+        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${buyDisabled ? ` disabled title="${buyTitle}"` : ""}>Buy 1</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${sellDisabled ? ` disabled title="None in hold"` : ""}>Sell 1</button>
+      </span>
+    </div>`;
   }).join("");
 
   const cheapestJump = Math.min(
@@ -190,7 +213,7 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
     .map((m) => {
       const action = acceptedIds.has(m.id)
         ? `<span class="accepted">✓ Accepted</span>`
-        : `<button data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name}">Accept</button>`;
+        : `<button class="st-btn st-btn--ghost st-btn--sm" data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name}">Accept</button>`;
       return `<li>Deliver ${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
       ${action}</li>`;
     })
@@ -229,22 +252,7 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
       </div>
       <div class="st-shell__stage">
         ${report}
-        <section><h2>Market</h2><table>
-          <thead>
-            <tr>
-              <th scope="col">Commodity</th>
-              <th scope="col">Price</th>
-              <th scope="col">Held</th>
-              <th scope="col">Trade</th>
-            </tr>
-          </thead>
-          <tbody>${market}</tbody>
-        </table></section>
-        <section><h2>Contracts</h2><ul>${missions || "<li>None today.</li>"}</ul></section>
-        <section><h2>Active Contracts</h2>
-          <p class="hint">Deliveries auto-complete when you arrive carrying the goods.</p>
-          <ul>${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
-        </section>
+        ${tradeHubPanel(s, marketRows, missions, active)}
       </div>
       <div class="st-shell__rail st-shell__rail--right rail-right">
         ${logisticsPanel(s, fuelClass)}

@@ -139,28 +139,31 @@ button:disabled {
   opacity: 0.85;
 }
 /* Turn report: the headline "what just happened" banner after a jump. */
+/* Turn report — class names are a test-asserted contract; style only. */
 .turn-report {
-  border: 1px solid #2f5a8a;
-  background: #0f1e38;
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin: 12px 0;
-  animation: flash-in 0.35s ease-out;
+  margin: 0 0 var(--st-space-4);
+  padding: var(--st-space-2) var(--st-space-3);
+  background: linear-gradient(90deg, var(--st-cyan-tint), transparent 130%);
+  border: 1px solid var(--st-cyan-dim);
+  border-left: 3px solid var(--st-cyan);
+  border-radius: var(--st-radius-sm);
+  animation: st-flash-in var(--st-dur-slow) ease-out;
 }
 .turn-report__title {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-family: var(--st-font-display);
+  font-size: var(--st-text-2xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #8fa4d4;
+  letter-spacing: var(--st-track-wide);
+  color: var(--st-text-dim);
 }
 .tr-line {
   display: flex;
-  gap: 8px;
+  gap: var(--st-space-2);
   align-items: baseline;
   padding: 3px 0;
-  font-size: 15px;
+  font-size: var(--st-text-sm);
   font-weight: 600;
 }
 .tr-line.tr-neutral {
@@ -170,23 +173,13 @@ button:disabled {
   font-weight: 700;
 }
 .tr-good {
-  color: #6ee7a8;
+  color: var(--st-positive);
 }
 .tr-bad {
-  color: #ff9b8a;
+  color: var(--st-negative);
 }
 .tr-neutral {
-  color: #cdd7f5;
-}
-@keyframes flash-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  color: var(--st-text);
 }
 
 /* ── Cockpit shell glue ─────────────────────────────────────────────── */
@@ -280,4 +273,29 @@ button:disabled {
 }
 .cargo-empty {
   opacity: 0.4;
+}
+.st-market--held .st-market__row {
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+}
+.st-market__held {
+  font-size: var(--st-text-sm);
+  color: var(--st-text-dim);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.contract-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--st-space-1) 0;
+}
+.contract-list li {
+  padding: var(--st-space-2) var(--st-space-3);
+  font-size: var(--st-text-sm);
+  border-bottom: 1px solid var(--st-border);
+}
+.contract-list li:last-child {
+  border-bottom: 0;
+}
+.trade-hint {
+  margin: var(--st-space-2) var(--st-space-3) 0;
 }
