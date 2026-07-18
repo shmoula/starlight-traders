@@ -18,8 +18,11 @@ import { score as scoreFn } from "./engine/economy";
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
 import { render } from "./ui/render";
 import { copyShare } from "./ui/share";
+import { BACKDROP_SVG } from "./ui/art";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
+// Static decoration, injected once — deliberately outside the paint() cycle.
+document.querySelector<HTMLDivElement>("#backdrop")!.innerHTML = BACKDROP_SVG;
 
 let state: GameState = createGame(dailySeed(new Date()));
 let pendingEvent: GameEvent | null = null;
