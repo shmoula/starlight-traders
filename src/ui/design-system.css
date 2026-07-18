@@ -774,7 +774,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :where([class^="st-"], [class*=" st-"]) {
+  :where([class^="st-"], [class*=" st-"], .turn-report) {
     animation: none !important;
     transition: none !important;
   }
