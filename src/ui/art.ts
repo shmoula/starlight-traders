@@ -4,7 +4,7 @@ import { CommodityId, NodeId } from "../engine/types";
 
 const ICON_OPEN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">`;
 
-export const COMMODITY_ICONS: Record<CommodityId, string> = {
+const COMMODITY_ICONS: Record<CommodityId, string> = {
   water: `${ICON_OPEN}<path d="M12 3.5c3.2 4 5.5 6.9 5.5 9.7a5.5 5.5 0 1 1-11 0C6.5 10.4 8.8 7.5 12 3.5z"/></svg>`,
   parts: `${ICON_OPEN}<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>`,
   luxury: `${ICON_OPEN}<path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5"/><path d="M12 12v9"/></svg>`,
