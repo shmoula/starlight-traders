@@ -192,6 +192,7 @@
     var(--st-chamfer) 100%,
     0 calc(100% - var(--st-chamfer))
   );
+
   padding: 1px;
   background: linear-gradient(
     160deg,
