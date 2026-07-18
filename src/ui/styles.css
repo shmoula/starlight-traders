@@ -32,6 +32,7 @@ body {
 }
 .overlay-stage {
   min-height: 100vh;
+  box-sizing: border-box;
   display: grid;
   place-items: center;
   padding: var(--st-space-5);
