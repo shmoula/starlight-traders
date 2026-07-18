@@ -166,7 +166,13 @@ body {
   color: var(--st-text);
 }
 
-/* ── Cockpit shell glue ─────────────────────────────────────────────── */
+/* ── Cockpit shell glue ─────────────────────────────────────────────────
+ * App-specific layout glue. Rules here are either screen-local (unprefixed,
+ * e.g. .screen-head, .cargo-tiles) or augment a design-system `st-` block with
+ * app-only layout (e.g. .st-orb__meta, .st-market--held) — the base `st-`
+ * components live in design-system.css. `.st-statbar` is the one wholly-local
+ * component that borrows the `st-` namespace because it reads as a HUD peer.
+ */
 .screen-head {
   display: flex;
   align-items: baseline;

@@ -5,19 +5,11 @@ import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../
 import { missionsHere } from "../engine/game";
 import { COMMODITY_ACCENT, ORB_ART, iconBox } from "./art";
 
-export type Action =
-  | { type: "buy"; id: string; qty: number }
-  | { type: "sell"; id: string; qty: number }
-  | { type: "refuel"; units: number }
-  | { type: "repair"; points: number }
-  | { type: "payDebt"; amount: number }
-  | { type: "acceptMission"; missionId: string }
-  | { type: "jump"; to: string }
-  | { type: "deliver" }
-  | { type: "resolve"; choiceId: string }
-  | { type: "restart" };
-
 const cr = (n: number) => `${n.toLocaleString()}cr`;
+
+/** Renders ` disabled title="…"` for a control, or nothing when it is enabled. */
+const disabledAttr = (disabled: boolean, title: string): string =>
+  disabled ? ` disabled title="${title}"` : "";
 
 type Tone = "good" | "bad" | "neutral";
 
@@ -67,6 +59,15 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
   const fuelPct = Math.round((s.fuel / s.fuelCapacity) * 100);
   const hullPct = Math.round((s.hull / s.hullMax) * 100);
   const barMod = fuelClass === "stat-critical" ? "st-bar--critical" : "st-bar--gold";
+  const tankFull = s.fuel >= s.fuelCapacity;
+  const refuelDisabled = tankFull || s.credits < REFUEL_PRICE;
+  const refuelTitle = tankFull ? "Fuel tank full" : "Not enough credits";
+  const hullFull = s.hull >= s.hullMax;
+  const repairDisabled = hullFull || s.credits < REPAIR_PRICE;
+  const repairTitle = hullFull ? "Hull fully repaired" : "Not enough credits";
+  const noDebt = s.debt <= 0;
+  const payDisabled = noDebt || s.credits <= 0;
+  const payTitle = noDebt ? "No debt to pay" : "No credits to pay with";
   const kv = (label: string, value: string, gold = false) =>
     `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""} st-num">${value}</span></div>`;
   return panel(
@@ -82,27 +83,9 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
     <hr class="st-divider" />
     <div class="st-kv__label">Services</div>
     <div class="svc-row">
-      <button class="st-btn st-btn--ghost st-btn--sm" data-act="refuel"${
-        s.fuel >= s.fuelCapacity
-          ? ` disabled title="Fuel tank full"`
-          : s.credits < REFUEL_PRICE
-            ? ` disabled title="Not enough credits"`
-            : ""
-      }>Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
-      <button class="st-btn st-btn--ghost st-btn--sm" data-act="repair"${
-        s.hull >= s.hullMax
-          ? ` disabled title="Hull fully repaired"`
-          : s.credits < REPAIR_PRICE
-            ? ` disabled title="Not enough credits"`
-            : ""
-      }>Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
-      <button class="st-btn st-btn--ghost st-btn--sm" data-act="payDebt"${
-        s.debt <= 0
-          ? ` disabled title="No debt to pay"`
-          : s.credits <= 0
-            ? ` disabled title="No credits to pay with"`
-            : ""
-      }>Pay 200 debt</button>
+      <button class="st-btn st-btn--ghost st-btn--sm" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
+      <button class="st-btn st-btn--ghost st-btn--sm" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
+      <button class="st-btn st-btn--ghost st-btn--sm" data-act="payDebt"${disabledAttr(payDisabled, payTitle)}>Pay 200 debt</button>
     </div>
     <div class="st-kv"><span class="st-kv__label">Docking fee here</span><span class="fee st-kv__value st-kv__value--gold st-num">${cr(dockingFee(s.location))}</span></div>`
   );
@@ -197,8 +180,8 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
       <span class="st-market__prices st-num" aria-label="Market price ${price} credits"><span class="st-market__buy-price">${cr(price)}</span></span>
       <span class="st-market__held st-num" aria-label="${s.cargo[c.id]} units held">×${s.cargo[c.id]}</span>
       <span class="st-market__actions">
-        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${buyDisabled ? ` disabled title="${buyTitle}"` : ""}>Buy 1</button>
-        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${sellDisabled ? ` disabled title="None in hold"` : ""}>Sell 1</button>
+        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
       </span>
     </div>`;
   }).join("");
