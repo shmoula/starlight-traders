@@ -118,6 +118,13 @@ body {
 .nav-warning {
   margin-bottom: var(--st-space-3);
 }
+.credits-negative {
+  color: var(--st-negative);
+  text-shadow: none;
+}
+.st-statbar__chip.credits-negative {
+  color: var(--st-negative);
+}
 .accepted {
   color: var(--st-positive);
   font-size: var(--st-text-sm);

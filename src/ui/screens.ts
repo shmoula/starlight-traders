@@ -50,8 +50,9 @@ function screenHead(s: GameState): string {
 
 /** Sticky at-a-glance strip; duplicates logistics values, hence aria-hidden. */
 function statbar(s: GameState, fuelClass: string): string {
+  const creditsClass = s.credits < 0 ? " credits-negative" : "";
   return `<div class="st-statbar" aria-hidden="true">
-    <span class="st-statbar__chip st-statbar__chip--gold st-num">${cr(s.credits)}</span>
+    <span class="st-statbar__chip st-statbar__chip--gold st-num${creditsClass}">${cr(s.credits)}</span>
     <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
     <span class="st-statbar__chip st-num">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
     <span class="st-statbar__chip st-num">Hold ${cargoUsed(s.cargo)}/${s.cargoCapacity}</span>
@@ -86,11 +87,11 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
   const noDebt = s.debt <= 0;
   const payDisabled = noDebt || s.credits <= 0;
   const payTitle = noDebt ? "No debt to pay" : "No credits to pay with";
-  const kv = (label: string, value: string, gold = false) =>
-    `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""} st-num">${value}</span></div>`;
+  const kv = (label: string, value: string, gold = false, extra = "") =>
+    `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""}${extra ? ` ${extra}` : ""} st-num">${value}</span></div>`;
   return panel(
     "Ship Logistics",
-    `${kv("Credits", cr(s.credits), true)}
+    `${kv("Credits", cr(s.credits), true, s.credits < 0 ? "credits-negative" : "")}
     ${kv("Debt", cr(s.debt), true)}
     ${kv("Net worth", cr(netWorth(s)), true)}
     ${kv("Day", String(s.day))}

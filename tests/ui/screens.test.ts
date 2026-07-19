@@ -296,3 +296,16 @@ describe("event and run-end cards", () => {
     expect(html).toContain("Score: 999");
   });
 });
+
+describe("negative credits warning (B-3)", () => {
+  it("marks negative credits in both the statbar and logistics", () => {
+    const html = stationScreen({ ...createGame(42), credits: -33 });
+    expect(html.match(/credits-negative/g)?.length).toBe(2);
+    expect(html).toContain("-33cr");
+  });
+
+  it("adds no warning at zero or above", () => {
+    const html = stationScreen({ ...createGame(42), credits: 0 });
+    expect(html).not.toContain("credits-negative");
+  });
+});
