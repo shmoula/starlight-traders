@@ -11,6 +11,17 @@ const cr = (n: number) => `${n.toLocaleString()}cr`;
 const disabledAttr = (disabled: boolean, title: string): string =>
   disabled ? ` disabled title="${title}"` : "";
 
+/** Fuel cost of the cheapest jump away from the current location. */
+function cheapestJumpCost(s: GameState): number {
+  return Math.min(...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n)));
+}
+
+/** Statbar/bar warning class shared by the station and event screens. */
+function fuelWarnClass(s: GameState): string {
+  const cheapest = cheapestJumpCost(s);
+  return s.fuel < cheapest ? "stat-critical" : s.fuel < cheapest * 2 ? "stat-warn" : "";
+}
+
 type Tone = "good" | "bad" | "neutral";
 
 /**
@@ -108,21 +119,26 @@ function logPanel(s: GameState): string {
 }
 
 function navigatorPanel(s: GameState): string {
+  const banner =
+    s.fuel < cheapestJumpCost(s)
+      ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Not enough fuel to jump anywhere — refuel below (${REFUEL_PRICE}cr/unit)</div>`
+      : "";
   const orbs = NODE_IDS.filter((n) => n !== s.location)
     .map((n) => {
       const cost = fuelCost(s.location, n);
       const danger = Math.round(NODES[n].danger * 100);
       const disabled = s.fuel < cost;
-      return `<button class="st-orb" data-act="jump" data-id="${n}"${disabled ? " disabled" : ""}>
+      const reason = disabled ? ` — need ${cost}, have ${s.fuel}` : "";
+      return `<button class="st-orb" data-act="jump" data-id="${n}"${disabledAttr(disabled, `Need ${cost}⛽, have ${s.fuel}`)}>
         <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
         <span class="st-orb__label">${NODES[n].name}</span>
         <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${danger}%</span>
-        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${cost} fuel · ${danger}% danger</span>
-        <span class="st-sr-only"> — jump here, ${cost} fuel, danger ${danger}%</span>
+        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${cost} fuel · ${danger}% danger${reason}</span>
+        <span class="st-sr-only"> — jump here, ${cost} fuel, danger ${danger}%${reason}</span>
       </button>`;
     })
     .join("");
-  return panel("Navigator", `<div class="st-orb-group">${orbs}</div>`);
+  return panel("Navigator", `${banner}<div class="st-orb-group">${orbs}</div>`);
 }
 
 function cargoPanel(s: GameState): string {
@@ -225,11 +241,7 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
         .join("")}
     </div>`
     : "";
-  const cheapestJump = Math.min(
-    ...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n))
-  );
-  const fuelClass =
-    s.fuel < cheapestJump ? "stat-critical" : s.fuel < cheapestJump * 2 ? "stat-warn" : "";
+  const fuelClass = fuelWarnClass(s);
 
   return `
     ${screenHead(s)}

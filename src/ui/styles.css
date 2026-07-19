@@ -115,6 +115,9 @@ body {
   color: var(--st-gold-bright);
   font-weight: 600;
 }
+.nav-warning {
+  margin-bottom: var(--st-space-3);
+}
 .accepted {
   color: var(--st-positive);
   font-size: var(--st-text-sm);

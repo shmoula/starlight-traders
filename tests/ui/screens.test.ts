@@ -224,6 +224,26 @@ describe("stationScreen trade hub", () => {
   });
 });
 
+describe("navigator stranding signals (P0-2)", () => {
+  it("explains each unreachable route on its disabled orb", () => {
+    // From terra: vulcan costs 3 (reachable), kiruna costs 4 (not reachable).
+    const html = stationScreen({ ...createGame(42), fuel: 3 });
+    expect(html).toContain('data-act="jump" data-id="kiruna" disabled title="Need 4⛽, have 3"');
+    expect(html).toContain("— need 4, have 3");
+    expect(html).not.toContain('data-act="jump" data-id="vulcan" disabled');
+  });
+
+  it("shows a stranding banner when no jump is reachable", () => {
+    const html = stationScreen({ ...createGame(42), fuel: 2 }); // cheapest from terra costs 3
+    expect(html).toContain("Not enough fuel to jump anywhere — refuel below (8cr/unit)");
+  });
+
+  it("omits the banner while any jump is reachable", () => {
+    const html = stationScreen({ ...createGame(42), fuel: 3 });
+    expect(html).not.toContain("Not enough fuel to jump anywhere");
+  });
+});
+
 describe("event and run-end cards", () => {
   const event: GameEvent = {
     kind: "pirates",
