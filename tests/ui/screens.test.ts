@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { stationScreen, eventScreen, runEndScreen } from "../../src/ui/screens";
-import { createGame, missionsHere } from "../../src/engine/game";
+import { createGame, missionsHere, refuel } from "../../src/engine/game";
 import { COMMODITIES, NODES, commodityName } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
 
@@ -241,6 +241,33 @@ describe("navigator stranding signals (P0-2)", () => {
   it("omits the banner while any jump is reachable", () => {
     const html = stationScreen({ ...createGame(42), fuel: 3 });
     expect(html).not.toContain("Not enough fuel to jump anywhere");
+  });
+});
+
+describe("refuel honesty (B-1)", () => {
+  it("shows the credit-clamped amount and flags it", () => {
+    // room 10, affordable floor(37/8) = 4 → buys 4 for 32cr
+    const html = stationScreen({ ...createGame(42), credits: 37, fuel: 10 });
+    expect(html).toContain("Refuel +4 (32cr) — all you can afford");
+  });
+
+  it("shows the room-clamped amount without the affordability flag", () => {
+    const html = stationScreen({ ...createGame(42), fuel: 18 }); // room 2, credits 800
+    expect(html).toContain("Refuel +2 (16cr)");
+    expect(html).not.toContain("all you can afford");
+  });
+
+  it("keeps the nominal label and disabled reason when nothing can be bought", () => {
+    const html = stationScreen({ ...createGame(42), credits: 0 });
+    expect(html).toContain('data-act="refuel" disabled title="Not enough credits"');
+    expect(html).toContain("Refuel +5 (40cr)");
+  });
+
+  it("matches what the engine actually buys", () => {
+    const s = { ...createGame(42), credits: 37, fuel: 10 };
+    const after = refuel(s, 5);
+    expect(after.fuel - s.fuel).toBe(4);
+    expect(s.credits - after.credits).toBe(32);
   });
 });
 

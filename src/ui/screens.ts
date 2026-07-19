@@ -70,9 +70,16 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
   const fuelPct = Math.round((s.fuel / s.fuelCapacity) * 100);
   const hullPct = Math.round((s.hull / s.hullMax) * 100);
   const barMod = fuelClass === "stat-critical" ? "st-bar--critical" : "st-bar--gold";
-  const tankFull = s.fuel >= s.fuelCapacity;
-  const refuelDisabled = tankFull || s.credits < REFUEL_PRICE;
-  const refuelTitle = tankFull ? "Fuel tank full" : "Not enough credits";
+  // Mirror engine refuel(): it buys min(units, tankRoom, affordable) — the label
+  // must promise exactly what the click delivers (B-1).
+  const tankRoom = s.fuelCapacity - s.fuel;
+  const affordable = Math.floor(s.credits / REFUEL_PRICE);
+  const refuelUnits = Math.min(5, tankRoom, affordable);
+  const refuelDisabled = refuelUnits <= 0;
+  const refuelTitle = tankRoom <= 0 ? "Fuel tank full" : "Not enough credits";
+  const shownUnits = refuelDisabled ? 5 : refuelUnits;
+  const clampedByCredits = !refuelDisabled && affordable < Math.min(5, tankRoom);
+  const refuelLabel = `Refuel +${shownUnits} (${cr(shownUnits * REFUEL_PRICE)})${clampedByCredits ? " — all you can afford" : ""}`;
   const hullFull = s.hull >= s.hullMax;
   const repairDisabled = hullFull || s.credits < REPAIR_PRICE;
   const repairTitle = hullFull ? "Hull fully repaired" : "Not enough credits";
@@ -98,7 +105,7 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
     <hr class="st-divider" />
     <div class="st-kv__label">Services</div>
     <div class="svc-row">
-      <button class="st-btn st-btn--ghost" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
+      <button class="st-btn st-btn--ghost" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}${refuelLabel}</button>
       <button class="st-btn st-btn--ghost" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>${hullIcon()}Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
       <button class="st-btn st-btn--ghost" data-act="payDebt"${disabledAttr(payDisabled, payTitle)}>Pay 200 debt</button>
     </div>
