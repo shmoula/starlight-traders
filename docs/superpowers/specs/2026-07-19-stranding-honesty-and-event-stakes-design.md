@@ -8,8 +8,8 @@ Covers: UIUX **P0-1**, **P0-2** ([BACKLOG.md](../../BACKLOG.md)) plus engagement
 ## Decision summary
 
 The two P0 items share a goal — closing the remaining ways a player loses without
-understanding why — but touch disjoint code, so they ship as **two independent
-bundles** (separate branches/PRs), Bundle 1 first:
+understanding why — but touch disjoint code, so the work is structured as **two
+independent bundles** delivered on **one branch/PR**, Bundle 1 first:
 
 1. **Bundle 1 — Stranding honesty** (P0-2 + B-1 + B-3): S effort, UI-only.
 2. **Bundle 2 — Event stakes** (P0-1): M effort, UI plus a pure engine refactor.
@@ -115,5 +115,6 @@ visible to attentive players. Honesty first; the retune is E1-4's job.
 
 ## Delivery
 
-Two branches/PRs, Bundle 1 first. PR messages follow the user's global
-conventional-commits template.
+One branch/PR containing both bundles as separate, self-contained commits
+(Bundle 1 first, each green on its own so they remain individually revertable).
+The PR message follows the user's global conventional-commits template.
