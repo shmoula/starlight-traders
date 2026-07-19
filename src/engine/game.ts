@@ -12,6 +12,15 @@ import {
 } from "./economy";
 import { generateMissions } from "./missions";
 import { rollEvent } from "./events";
+import {
+  DERELICT_TRAP_DAMAGE,
+  bribeCost,
+  derelictReward,
+  engineBurn,
+  fleeDamage,
+  pirateToll,
+  salvageAmount,
+} from "./preview";
 
 export const STARTING = {
   credits: 800,
@@ -230,22 +239,20 @@ export function arrive(state: GameState): {
 /** Apply the consequences of an event choice. Deterministic per seed/day. */
 export function resolveChoice(state: GameState, event: GameEvent, choiceId: string): GameState {
   let s = state;
-  const luxValue = () => getPrice(s.seed, s.day, s.location, "luxury");
   switch (event.kind) {
     case "pirates": {
       if (choiceId === "pay") {
-        const toll = Math.min(s.credits, 150 + s.day * 10);
+        const toll = pirateToll(s);
         s = withLog({ ...s, credits: s.credits - toll }, `Paid pirates ${toll}cr.`);
       } else {
-        const dmg = 15 + (s.day % 10);
+        const dmg = fleeDamage(s.day);
         s = withLog({ ...s, hull: Math.max(0, s.hull - dmg) }, `Fled — took ${dmg} hull damage.`);
       }
       break;
     }
     case "salvage": {
       if (choiceId === "collect") {
-        const room = s.cargoCapacity - cargoUsed(s.cargo);
-        const got = Math.min(room, 2 + (s.day % 4));
+        const got = salvageAmount(s);
         s = withLog(
           { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
           `Salvaged ${got} ${commodityName("parts")}.`
@@ -254,20 +261,19 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
       break;
     }
     case "engine": {
-      const burn = Math.min(s.fuel, 2);
+      const burn = engineBurn(s);
       s = withLog({ ...s, fuel: s.fuel - burn }, `Engine trouble burned ${burn} fuel.`);
       break;
     }
     case "derelict": {
       if (choiceId === "board") {
         if ((s.day * 7 + s.seed) % 2 === 0) {
-          const reward = 200 + s.day * 8;
+          const reward = derelictReward(s.day);
           s = withLog({ ...s, credits: s.credits + reward }, `Derelict held ${reward}cr!`);
         } else {
-          const dmg = 20;
           s = withLog(
-            { ...s, hull: Math.max(0, s.hull - dmg) },
-            `Derelict was a trap: -${dmg} hull.`
+            { ...s, hull: Math.max(0, s.hull - DERELICT_TRAP_DAMAGE) },
+            `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`
           );
         }
       }
@@ -281,7 +287,7 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
           `Customs seized ${seized} luxury goods.`
         );
       } else if (choiceId === "bribe") {
-        const bribe = Math.min(s.credits, luxValue());
+        const bribe = bribeCost(s);
         s = withLog({ ...s, credits: s.credits - bribe }, `Bribed customs ${bribe}cr.`);
       }
       break;
