@@ -1,0 +1,161 @@
+/*
+ * Starlight Traders — "Astro-Neon" design tokens.
+ *
+ * Single source of truth for color, type, spacing, radii, glow, and motion.
+ * Mirrored for tooling in docs/design/tokens.json — keep the two in sync.
+ * Spec + component blueprints: docs/design/design-system.md
+ *
+ * Consumption: `@import "./tokens.css";` at the top of a stylesheet, or add a
+ * <link> before component CSS. Declarations are :root-only custom properties,
+ * so importing this file changes nothing visually until tokens are referenced.
+ *
+ * Two tiers:
+ *   1. Primitives  (--st-cyan, --st-space-4, ...) — raw values.
+ *   2. Semantic     (--st-accent-interactive, ...) — role-based aliases.
+ * Components should prefer the semantic tier so the functional color mapping
+ * (cyan=interactive, gold=currency, magenta=consumable/sell, orange=alert)
+ * stays enforceable from one place.
+ */
+
+:root {
+  /* ── Backgrounds ─────────────────────────────────────────────────────── */
+  --st-bg-space: #060a0f; /* page gradient bottom — deep space */
+  --st-bg-nebula: #0b1520; /* page gradient top — blue-grey haze */
+  --st-bg-panel: rgba(13, 27, 42, 0.82); /* module fill, translucent over starfield */
+  --st-bg-panel-solid: #0d1b2a; /* opaque fallback / seg-gap color */
+  --st-bg-header-hi: #1b3144; /* panel header gradient top */
+  --st-bg-header-lo: #112233; /* panel header gradient bottom */
+  --st-bg-inset: #081119; /* wells: bar tracks, empty slots */
+  --st-bg-row-alt: rgba(126, 190, 228, 0.04); /* zebra striping in data grids */
+
+  /* ── Neon accents ────────────────────────────────────────────────────────
+   * Each accent ships in four strengths:
+   *   core   — icon fills, bar fills, borders of active elements
+   *   bright — text on dark fills (higher luminance for contrast)
+   *   dim    — resting borders / dividers
+   *   tint   — translucent fills behind text (chips, button hover, tiles)
+   */
+  --st-cyan: #00d9ff;
+  --st-cyan-bright: #8ceeff;
+  --st-cyan-dim: rgba(0, 217, 255, 0.4);
+  --st-cyan-tint: rgba(0, 217, 255, 0.1);
+
+  --st-gold: #ffb84d;
+  --st-gold-bright: #ffd89a;
+  --st-gold-dim: rgba(255, 184, 77, 0.4);
+  --st-gold-tint: rgba(255, 184, 77, 0.1);
+
+  --st-magenta: #ff4d97;
+  --st-magenta-bright: #ff9ac4;
+  --st-magenta-dim: rgba(255, 77, 151, 0.45);
+  --st-magenta-tint: rgba(255, 77, 151, 0.12);
+
+  --st-orange: #ff9838;
+  --st-orange-bright: #ffcf96;
+  --st-orange-dim: rgba(255, 152, 56, 0.5);
+  --st-orange-tint: rgba(255, 152, 56, 0.14);
+
+  /* Support tones — profit/loss deltas only; not part of the four-accent
+   * category mapping, so they never appear on borders or headers. */
+  --st-positive: #57e6a8;
+  --st-negative: #ff6a55;
+
+  /* ── Text ────────────────────────────────────────────────────────────── */
+  --st-text-hi: #eaf6fb; /* primary values, numbers */
+  --st-text: #c2d6e2; /* body copy */
+  --st-text-dim: #8ba5b7; /* labels, captions */
+  --st-text-faint: #5d7789; /* decorative only — below AA on panel fill */
+  --st-text-title: #cfe9f4; /* panel header titles */
+
+  /* ── Borders ─────────────────────────────────────────────────────────── */
+  --st-border: rgba(120, 170, 196, 0.24); /* neutral hairlines, dividers */
+  --st-border-panel: rgba(86, 164, 196, 0.32); /* module outlines, steel-cyan */
+  --st-border-strong: rgba(0, 217, 255, 0.55); /* active/selected outline */
+
+  /* ── Glow recipes (box-shadow values) ────────────────────────────────── */
+  --st-glow-cyan:
+    0 0 2px rgba(0, 217, 255, 0.55), 0 0 10px rgba(0, 217, 255, 0.35),
+    0 0 22px rgba(0, 217, 255, 0.15);
+  --st-glow-gold:
+    0 0 2px rgba(255, 184, 77, 0.55), 0 0 10px rgba(255, 184, 77, 0.35),
+    0 0 22px rgba(255, 184, 77, 0.15);
+  --st-glow-magenta:
+    0 0 2px rgba(255, 77, 151, 0.55), 0 0 10px rgba(255, 77, 151, 0.35),
+    0 0 22px rgba(255, 77, 151, 0.15);
+  --st-glow-orange:
+    0 0 2px rgba(255, 152, 56, 0.55), 0 0 10px rgba(255, 152, 56, 0.35),
+    0 0 22px rgba(255, 152, 56, 0.15);
+  /* Ambient module shadow: faint cyan halo + drop for depth over starfield. */
+  --st-glow-panel:
+    0 0 0 1px rgba(0, 217, 255, 0.05), 0 0 18px rgba(0, 217, 255, 0.07),
+    0 10px 30px rgba(0, 0, 0, 0.45);
+  /* Text glows (text-shadow values). */
+  --st-text-glow-cyan: 0 0 8px rgba(0, 217, 255, 0.5);
+  --st-text-glow-gold: 0 0 8px rgba(255, 184, 77, 0.5);
+
+  /* ── Semantic aliases — the functional color mapping ─────────────────── */
+  --st-accent-interactive: var(--st-cyan); /* nav, buttons, active states, ship systems */
+  --st-accent-currency: var(--st-gold); /* credits, fees, high-value cargo */
+  --st-accent-consumable: var(--st-magenta); /* fuel, sell actions */
+  --st-accent-alert: var(--st-orange); /* warnings, hazards, pirates */
+  --st-focus-ring: var(--st-cyan);
+
+  /* ── Typography ──────────────────────────────────────────────────────────
+   * Display: wide geometric sci-fi face for headers/titles. Body: legible
+   * geometric sans for copy and dense data. Webfonts (Orbitron, Exo 2) are
+   * opt-in per surface — the stacks degrade to system fonts without them.
+   * Numbers use the body face + tabular-nums (see .st-num), not a monospace,
+   * so columns align without the low density of full mono.
+   */
+  --st-font-display: "Orbitron", "Exo 2", ui-sans-serif, system-ui, sans-serif;
+  --st-font-body: "Exo 2", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --st-font-mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+
+  --st-text-2xs: 12px; /* tab labels, tick marks — 12px is the legible-text floor */
+  --st-text-xs: 12px; /* field labels, panel titles, buttons */
+  --st-text-sm: 13px; /* dense body / data rows */
+  --st-text-md: 14px; /* default body */
+  --st-text-lg: 16px; /* emphasized values */
+  --st-text-xl: 20px; /* section headings, big stats */
+  --st-text-2xl: 28px; /* screen title */
+
+  --st-track-tight: 0.04em; /* display text at large sizes */
+  --st-track-label: 0.08em; /* uppercase labels, buttons */
+  --st-track-wide: 0.14em; /* panel header titles */
+
+  --st-leading-tight: 1.2;
+  --st-leading-body: 1.45;
+
+  /* ── Spacing (4px base grid) ─────────────────────────────────────────── */
+  --st-space-1: 4px;
+  --st-space-2: 8px;
+  --st-space-3: 12px;
+  --st-space-4: 16px;
+  --st-space-5: 20px;
+  --st-space-6: 24px;
+  --st-space-7: 32px;
+  --st-space-8: 48px;
+  /* Component rhythm */
+  --st-pad-panel: var(--st-space-3); /* panel body padding */
+  --st-row-h: 40px; /* data grid row height */
+  --st-control-h: 26px; /* compact button/input height */
+
+  /* ── Radii & chamfer ─────────────────────────────────────────────────── */
+  --st-radius-xs: 3px; /* bar tracks, chips */
+  --st-radius-sm: 5px; /* buttons, tiles */
+  --st-radius-md: 8px; /* panels */
+  --st-radius-lg: 12px; /* orbs, large surfaces */
+  --st-chamfer: 14px; /* corner cut + header tab slant run */
+
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  --st-dur-fast: 120ms; /* hovers, presses */
+  --st-dur: 200ms; /* fills, fades */
+  --st-dur-slow: 350ms; /* panel entrances */
+  --st-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  /* ── Z-layers ────────────────────────────────────────────────────────── */
+  --st-z-bg: 0; /* starfield, orbit art */
+  --st-z-hud: 10; /* panels, tab bar */
+  --st-z-overlay: 50; /* modals, event cards */
+  --st-z-toast: 90; /* transient alerts */
+}

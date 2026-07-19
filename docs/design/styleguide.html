@@ -1,0 +1,1372 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Astro-Neon Styleguide — Starlight Traders</title>
+    <!--
+      Living style guide for the Astro-Neon design system.
+      View it through the Vite dev server:  npm run dev  →  http://localhost:5173/docs/design/styleguide.html
+      System CSS is loaded from the real source files — this page has no styles of its
+      own except "sg-" chrome (section headings, swatch grids) that is NOT part of the system.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&family=Orbitron:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/ui/tokens.css" />
+    <link rel="stylesheet" href="/src/ui/design-system.css" />
+    <style>
+      /* ── styleguide chrome only — not part of the design system ── */
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-size: var(--st-text-md);
+        line-height: var(--st-leading-body);
+      }
+      .sg-wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 40px 24px 120px;
+      }
+      .sg-kicker {
+        margin: 0 0 4px;
+        font-size: var(--st-text-xs);
+        font-weight: 600;
+        letter-spacing: var(--st-track-wide);
+        text-transform: uppercase;
+        color: var(--st-text-dim);
+      }
+      .sg-section {
+        margin-top: 56px;
+      }
+      .sg-h {
+        margin: 0 0 4px;
+        font-family: var(--st-font-display);
+        font-size: var(--st-text-xl);
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--st-cyan-bright);
+      }
+      .sg-sub {
+        margin: 0 0 20px;
+        font-size: var(--st-text-sm);
+        color: var(--st-text-dim);
+      }
+      .sg-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+      }
+      .sg-swatch {
+        border: 1px solid var(--st-border);
+        border-radius: var(--st-radius-sm);
+        overflow: hidden;
+        background: var(--st-bg-panel-solid);
+      }
+      .sg-swatch__chip {
+        height: 52px;
+        background: var(--sw);
+      }
+      .sg-swatch__meta {
+        padding: 6px 8px;
+        font-size: var(--st-text-2xs);
+        color: var(--st-text-dim);
+      }
+      .sg-swatch__meta strong {
+        display: block;
+        font-size: var(--st-text-xs);
+        color: var(--st-text);
+        font-weight: 600;
+      }
+      .sg-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: flex-start;
+      }
+      .sg-card {
+        flex: 1 1 320px;
+        max-width: 560px;
+        padding: 16px;
+        border: 1px dashed var(--st-border);
+        border-radius: var(--st-radius-md);
+      }
+      .sg-card > h3 {
+        margin: 0 0 12px;
+        font-size: var(--st-text-xs);
+        font-weight: 600;
+        letter-spacing: var(--st-track-label);
+        text-transform: uppercase;
+        color: var(--st-text-dim);
+      }
+      .sg-caption {
+        margin: 10px 0 0;
+        font-size: var(--st-text-2xs);
+        color: var(--st-text-dim);
+      }
+      .sg-stack > * + * {
+        margin-top: 10px;
+      }
+      .sg-type-row {
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--st-border);
+      }
+      .sg-type-row code {
+        flex: none;
+        width: 190px;
+        font-family: var(--st-font-mono);
+        font-size: var(--st-text-2xs);
+        color: var(--st-text-dim);
+      }
+      .sg-space-demo {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+      }
+      .sg-space-demo i {
+        display: block;
+        background: var(--st-cyan-tint);
+        border: 1px solid var(--st-cyan-dim);
+      }
+      .sg-space-demo span {
+        display: block;
+        margin-top: 4px;
+        font-size: var(--st-text-2xs);
+        color: var(--st-text-dim);
+        text-align: center;
+      }
+      .sg-glow-chip {
+        display: inline-block;
+        width: 120px;
+        padding: 10px 0;
+        border-radius: var(--st-radius-sm);
+        border: 1px solid;
+        text-align: center;
+        font-size: var(--st-text-xs);
+        font-weight: 700;
+        letter-spacing: var(--st-track-label);
+        text-transform: uppercase;
+      }
+      .sg-demo-shell {
+        border: 1px dashed var(--st-border);
+        border-radius: var(--st-radius-md);
+        overflow: hidden;
+      }
+      .sg-shell-note {
+        padding: 8px 16px;
+        border-bottom: 1px dashed var(--st-border);
+        font-size: var(--st-text-2xs);
+        color: var(--st-text-dim);
+      }
+    </style>
+  </head>
+  <body class="st-app-bg">
+    <div class="sg-wrap">
+      <header>
+        <p class="sg-kicker">Starlight Traders · design system v1</p>
+        <h1 class="st-screen-title">Astro-Neon Styleguide</h1>
+        <p class="sg-sub">
+          Rendered from the real source files: <code>src/ui/tokens.css</code> +
+          <code>src/ui/design-system.css</code>. Spec:
+          <code>docs/design/design-system.md</code>
+        </p>
+      </header>
+
+      <!-- ════════════════ TOKENS ════════════════ -->
+      <section class="sg-section">
+        <h2 class="sg-h">01 · Color tokens</h2>
+        <p class="sg-sub">
+          Four neon accents, each in core / bright / dim / tint strengths. Functional mapping: cyan
+          = interactive &amp; ship systems, gold = currency &amp; luxury cargo, magenta =
+          consumables &amp; sell, orange = alerts.
+        </p>
+        <div class="sg-grid">
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #060a0f"></div>
+            <div class="sg-swatch__meta"><strong>bg-space</strong>#060a0f</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #0b1520"></div>
+            <div class="sg-swatch__meta"><strong>bg-nebula</strong>#0b1520</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #0d1b2a"></div>
+            <div class="sg-swatch__meta"><strong>bg-panel</strong>#0d1b2a · 82%</div>
+          </div>
+          <div class="sg-swatch">
+            <div
+              class="sg-swatch__chip"
+              style="--sw: linear-gradient(180deg, #1b3144, #112233)"
+            ></div>
+            <div class="sg-swatch__meta"><strong>header hi→lo</strong>#1b3144 → #112233</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #00d9ff"></div>
+            <div class="sg-swatch__meta"><strong>cyan</strong>#00d9ff</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #8ceeff"></div>
+            <div class="sg-swatch__meta"><strong>cyan-bright</strong>#8ceeff</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #ffb84d"></div>
+            <div class="sg-swatch__meta"><strong>gold</strong>#ffb84d</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #ffd89a"></div>
+            <div class="sg-swatch__meta"><strong>gold-bright</strong>#ffd89a</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #ff4d97"></div>
+            <div class="sg-swatch__meta"><strong>magenta</strong>#ff4d97</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #ff9ac4"></div>
+            <div class="sg-swatch__meta"><strong>magenta-bright</strong>#ff9ac4</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #ff9838"></div>
+            <div class="sg-swatch__meta"><strong>orange (alert)</strong>#ff9838</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #ffcf96"></div>
+            <div class="sg-swatch__meta"><strong>orange-bright</strong>#ffcf96</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #eaf6fb"></div>
+            <div class="sg-swatch__meta"><strong>text-hi</strong>#eaf6fb</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #c2d6e2"></div>
+            <div class="sg-swatch__meta"><strong>text</strong>#c2d6e2</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #8ba5b7"></div>
+            <div class="sg-swatch__meta"><strong>text-dim</strong>#8ba5b7</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #57e6a8"></div>
+            <div class="sg-swatch__meta"><strong>positive</strong>#57e6a8</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: #ff6a55"></div>
+            <div class="sg-swatch__meta"><strong>negative</strong>#ff6a55</div>
+          </div>
+          <div class="sg-swatch">
+            <div class="sg-swatch__chip" style="--sw: rgba(86, 164, 196, 0.32)"></div>
+            <div class="sg-swatch__meta"><strong>border-panel</strong>86,164,196 · 32%</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sg-section">
+        <h2 class="sg-h">02 · Glow recipes</h2>
+        <p class="sg-sub">
+          Three-layer box-shadows: 2px crisp edge, 10px halo, 22px ambient falloff.
+        </p>
+        <div class="sg-row">
+          <span
+            class="sg-glow-chip"
+            style="
+              color: var(--st-cyan-bright);
+              border-color: var(--st-cyan-dim);
+              box-shadow: var(--st-glow-cyan);
+            "
+            >glow-cyan</span
+          >
+          <span
+            class="sg-glow-chip"
+            style="
+              color: var(--st-gold-bright);
+              border-color: var(--st-gold-dim);
+              box-shadow: var(--st-glow-gold);
+            "
+            >glow-gold</span
+          >
+          <span
+            class="sg-glow-chip"
+            style="
+              color: var(--st-magenta-bright);
+              border-color: var(--st-magenta-dim);
+              box-shadow: var(--st-glow-magenta);
+            "
+            >glow-magenta</span
+          >
+          <span
+            class="sg-glow-chip"
+            style="
+              color: var(--st-orange-bright);
+              border-color: var(--st-orange-dim);
+              box-shadow: var(--st-glow-orange);
+            "
+            >glow-orange</span
+          >
+        </div>
+      </section>
+
+      <section class="sg-section">
+        <h2 class="sg-h">03 · Typography</h2>
+        <p class="sg-sub">
+          Orbitron (wide geometric) for display, Exo 2 for body and data with tabular numerals. Both
+          degrade to system sans if the webfonts are skipped.
+        </p>
+        <div class="sg-type-row">
+          <code>display / 2xl 28</code>
+          <span class="st-screen-title">Starlight Traders</span>
+        </div>
+        <div class="sg-type-row">
+          <code>display / xs +track-wide</code>
+          <span
+            style="
+              font-family: var(--st-font-display);
+              font-size: var(--st-text-xs);
+              letter-spacing: var(--st-track-wide);
+              text-transform: uppercase;
+              color: var(--st-text-title);
+            "
+            >Ship Logistics — Panel Title</span
+          >
+        </div>
+        <div class="sg-type-row">
+          <code>body / md 14</code>
+          <span>Deliver 10 tons of water to Cygnus Prime before the loan ticks again.</span>
+        </div>
+        <div class="sg-type-row">
+          <code>body / sm 13 tabular</code>
+          <span class="st-num" style="color: var(--st-text-hi)"
+            >120 CR / 135 CR&nbsp;&nbsp;·&nbsp;&nbsp;12,500 CR&nbsp;&nbsp;·&nbsp;&nbsp;80/100</span
+          >
+        </div>
+        <div class="sg-type-row">
+          <code>label / xs +track-label</code>
+          <span
+            style="
+              font-size: var(--st-text-xs);
+              font-weight: 600;
+              letter-spacing: var(--st-track-label);
+              text-transform: uppercase;
+              color: var(--st-text-dim);
+            "
+            >Market Commodities</span
+          >
+        </div>
+      </section>
+
+      <section class="sg-section">
+        <h2 class="sg-h">04 · Spacing scale</h2>
+        <p class="sg-sub">4px base grid. Panel padding 12, grid row 40, control height 26.</p>
+        <div class="sg-space-demo">
+          <div><i style="width: 4px; height: 4px"></i><span>1·4</span></div>
+          <div><i style="width: 8px; height: 8px"></i><span>2·8</span></div>
+          <div><i style="width: 12px; height: 12px"></i><span>3·12</span></div>
+          <div><i style="width: 16px; height: 16px"></i><span>4·16</span></div>
+          <div><i style="width: 20px; height: 20px"></i><span>5·20</span></div>
+          <div><i style="width: 24px; height: 24px"></i><span>6·24</span></div>
+          <div><i style="width: 32px; height: 32px"></i><span>7·32</span></div>
+          <div><i style="width: 48px; height: 48px"></i><span>8·48</span></div>
+        </div>
+      </section>
+
+      <!-- ════════════════ COMPONENTS ════════════════ -->
+      <section class="sg-section">
+        <h2 class="sg-h">05 · PanelCard</h2>
+        <p class="sg-sub">
+          Default module, tab-header variant (Trade Hub), and chamfered variant with the glow-wrap
+          technique.
+        </p>
+        <div class="sg-row">
+          <div class="sg-card">
+            <h3>Default + controls</h3>
+            <section class="st-panel">
+              <header class="st-panel__header">
+                <h4 class="st-panel__title">Navigator</h4>
+                <div class="st-panel__controls">
+                  <button
+                    class="st-panel__toggle"
+                    type="button"
+                    aria-label="Collapse"
+                    aria-expanded="true"
+                  >
+                    ︿
+                  </button>
+                </div>
+              </header>
+              <div class="st-panel__body">
+                <p style="margin: 0; font-size: var(--st-text-sm)">
+                  Module body — 12px padding, translucent fill over the starfield.
+                </p>
+              </div>
+            </section>
+          </div>
+          <div class="sg-card">
+            <h3>Tab header variant</h3>
+            <section class="st-panel st-panel--tab">
+              <header class="st-panel__header">
+                <h4 class="st-panel__title">Trade Hub — Cygnus Prime</h4>
+              </header>
+              <div class="st-panel__frame">
+                <div class="st-panel__body">
+                  <p style="margin: 0; font-size: var(--st-text-sm)">
+                    Header rides the frame as a slant-edged tab.
+                  </p>
+                </div>
+              </div>
+            </section>
+          </div>
+          <div class="sg-card">
+            <h3>Chamfered + glow-wrap</h3>
+            <div class="st-glow-wrap">
+              <section class="st-panel st-panel--chamfer">
+                <div class="st-panel__inner">
+                  <div class="st-panel__body">
+                    <p style="margin: 0; font-size: var(--st-text-sm)">
+                      Corners cut at 14px; border and halo survive the clip.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sg-section">
+        <h2 class="sg-h">06 · Buttons</h2>
+        <p class="sg-sub">
+          Outline neon controls: buy = cyan, sell = magenta, ghost = utility. Hover fills the tint
+          and lights the glow; focus ring is always cyan.
+        </p>
+        <div class="sg-row" style="align-items: center">
+          <button class="st-btn" type="button">Buy</button>
+          <button class="st-btn st-btn--sell" type="button">Sell</button>
+          <button class="st-btn st-btn--ghost" type="button">Pay All</button>
+          <button class="st-btn st-btn--sm" type="button">Buy</button>
+          <button class="st-btn st-btn--sell st-btn--sm" type="button">Sell</button>
+          <button class="st-btn" type="button" disabled>Buy</button>
+          <button class="st-btn st-btn--sell" type="button" disabled>Sell</button>
+        </div>
+        <p class="sg-caption">Hover / focus / active states are live — try them.</p>
+      </section>
+
+      <section class="sg-section">
+        <h2 class="sg-h">07 · MarketRow + Trade Hub assembly</h2>
+        <p class="sg-sub">
+          Grid: icon · name · buy/sell price pair · actions. Zebra rows, flush panel body, mission
+          subhead strip.
+        </p>
+        <section class="st-panel st-panel--tab" style="max-width: 560px">
+          <header class="st-panel__header">
+            <h4 class="st-panel__title">Trade Hub — Cygnus Prime</h4>
+          </header>
+          <div class="st-panel__frame">
+            <div class="st-panel__body st-panel__body--flush">
+              <div class="st-market">
+                <div class="st-market__head">Market Commodities</div>
+                <div class="st-market__row">
+                  <span class="st-icon-box st-icon-box--gold" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                    >
+                      <path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3z" />
+                      <path d="M4 7.5l8 4.5 8-4.5" />
+                      <path d="M12 12v9" />
+                    </svg>
+                  </span>
+                  <span class="st-market__name">Rare Earths</span>
+                  <span class="st-market__prices">
+                    <span class="st-market__buy-price">120 CR</span>
+                    <span class="st-market__price-sep">/</span>
+                    <span class="st-market__sell-price">135 CR</span>
+                  </span>
+                  <span class="st-market__actions">
+                    <button class="st-btn st-btn--sm" type="button">Buy</button>
+                    <button class="st-btn st-btn--sell st-btn--sm" type="button">Sell</button>
+                  </span>
+                </div>
+                <div class="st-market__row">
+                  <span class="st-icon-box" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                    >
+                      <path
+                        d="M12 3.5c3.2 4 5.5 6.9 5.5 9.7a5.5 5.5 0 1 1-11 0C6.5 10.4 8.8 7.5 12 3.5z"
+                      />
+                    </svg>
+                  </span>
+                  <span class="st-market__name">Water</span>
+                  <span class="st-market__prices">
+                    <span class="st-market__buy-price">10 CR</span>
+                    <span class="st-market__price-sep">/</span>
+                    <span class="st-market__sell-price">12 CR</span>
+                  </span>
+                  <span class="st-market__actions">
+                    <button class="st-btn st-btn--sm" type="button">Buy</button>
+                    <button class="st-btn st-btn--sell st-btn--sm" type="button">Sell</button>
+                  </span>
+                </div>
+                <div class="st-market__row">
+                  <span class="st-icon-box st-icon-box--magenta" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                    >
+                      <path d="M7 3.5h10L20.5 9 12 20.5 3.5 9 7 3.5z" />
+                      <path d="M3.5 9h17" />
+                      <path d="M9.5 9 12 20.5 14.5 9" />
+                      <path d="M7 3.5 9.5 9" />
+                      <path d="M17 3.5 14.5 9" />
+                    </svg>
+                  </span>
+                  <span class="st-market__name">Fuel</span>
+                  <span class="st-market__prices">
+                    <span class="st-market__buy-price">3 CR</span>
+                    <span class="st-market__price-sep">/</span>
+                    <span class="st-market__sell-price">3.5 CR</span>
+                  </span>
+                  <span class="st-market__actions">
+                    <button class="st-btn st-btn--sm" type="button">Buy</button>
+                    <button class="st-btn st-btn--sell st-btn--sm" type="button">Sell</button>
+                  </span>
+                </div>
+              </div>
+              <div class="st-panel__subhead">
+                <span>Current Mission: Cygnus Prime</span>
+                <div class="st-panel__controls">
+                  <button class="st-btn st-btn--ghost st-btn--sm" type="button">Mission Log</button>
+                </div>
+              </div>
+              <div class="st-panel__body">
+                <div class="st-market__row" style="padding: 0">
+                  <span class="st-icon-box" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                    >
+                      <path
+                        d="M12 3.5c3.2 4 5.5 6.9 5.5 9.7a5.5 5.5 0 1 1-11 0C6.5 10.4 8.8 7.5 12 3.5z"
+                      />
+                    </svg>
+                  </span>
+                  <span>
+                    <span class="st-market__name" style="display: block">Deliver Water</span>
+                    <span class="st-kv__label" style="letter-spacing: 0.06em">
+                      Reward: <span class="st-kv__value--gold st-num">500 CR</span>
+                    </span>
+                  </span>
+                  <span class="st-market__prices"
+                    ><span class="st-market__buy-price">10/10 tons</span></span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="sg-section">
+        <h2 class="sg-h">08 · ProgressBar</h2>
+        <p class="sg-sub">
+          One markup, two skins: continuous (Hull) and segmented energy blocks (Fuel), plus warn /
+          critical thresholds. Fill level via <code>--st-value</code>.
+        </p>
+        <div class="sg-row">
+          <div class="sg-card sg-stack">
+            <h3>Continuous — Hull 95%</h3>
+            <div class="st-bar-label">
+              <span>Hull</span><span class="st-bar-label__value">95%</span>
+            </div>
+            <div
+              class="st-bar"
+              role="meter"
+              aria-label="Hull integrity"
+              aria-valuenow="95"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              style="--st-value: 95%"
+            >
+              <div class="st-bar__fill"></div>
+            </div>
+            <h3 style="margin-top: 18px">Critical — Hull 18%</h3>
+            <div
+              class="st-bar st-bar--critical"
+              role="meter"
+              aria-label="Hull integrity"
+              aria-valuenow="18"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              style="--st-value: 18%"
+            >
+              <div class="st-bar__fill"></div>
+            </div>
+          </div>
+          <div class="sg-card sg-stack">
+            <h3>Segmented — Fuel 80% (10 cells)</h3>
+            <div class="st-bar-label">
+              <span>Fuel</span><span class="st-bar-label__value">80%</span>
+            </div>
+            <div
+              class="st-bar st-bar--segmented st-bar--gold"
+              role="meter"
+              aria-label="Fuel"
+              aria-valuenow="80"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              style="--st-value: 80%"
+            >
+              <div class="st-bar__fill"></div>
+            </div>
+            <h3 style="margin-top: 18px">Segmented — 20 cells, 45%</h3>
+            <div
+              class="st-bar st-bar--segmented"
+              role="meter"
+              aria-label="Charge"
+              aria-valuenow="45"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              style="--st-value: 45%; --st-segments: 20"
+            >
+              <div class="st-bar__fill"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sg-section">
+        <h2 class="sg-h">09 · StatusBadge</h2>
+        <p class="sg-sub">Message banners and inline chips; --pulse marks unacknowledged alerts.</p>
+        <div class="sg-card sg-stack" style="max-width: 460px">
+          <div class="st-badge st-badge--alert st-badge--pulse">
+            <svg
+              class="st-badge__icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+            >
+              <path d="M12 4 2.5 20h19L12 4z" />
+              <path d="M12 10v4.5" />
+              <path d="M12 17.5v.01" />
+            </svg>
+            Pirate activity reported: Cygnus orbit
+          </div>
+          <div class="st-badge">
+            <svg
+              class="st-badge__icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+            >
+              <circle cx="12" cy="12" r="8.5" />
+              <path d="M12 11v5" />
+              <path d="M12 7.5v.01" />
+            </svg>
+            Docking clearance granted — Bay 7
+          </div>
+          <div class="st-badge st-badge--success">
+            <svg
+              class="st-badge__icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+            >
+              <path d="m5 12.5 4.5 4.5L19 7.5" />
+            </svg>
+            Contract complete · +500 CR
+          </div>
+          <div class="st-badge st-badge--danger">
+            <svg
+              class="st-badge__icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+            >
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+            Hull breach — repairs required
+          </div>
+        </div>
+      </section>
+
+      <section class="sg-section">
+        <h2 class="sg-h">10 · Supporting patterns</h2>
+        <p class="sg-sub">Key/value lines, cargo tiles, navigator orbs, dock tab bar.</p>
+        <div class="sg-row">
+          <div class="sg-card" style="flex-basis: 260px">
+            <h3>st-kv</h3>
+            <div class="st-kv">
+              <span class="st-kv__label">Credits</span
+              ><span class="st-kv__value st-kv__value--gold">12,500 CR</span>
+            </div>
+            <div class="st-kv">
+              <span class="st-kv__label">Docking fee</span
+              ><span class="st-kv__value st-kv__value--gold">20 CR</span>
+            </div>
+            <div class="st-kv">
+              <span class="st-kv__label">Hull</span
+              ><span class="st-kv__value st-kv__value--cyan">95%</span>
+            </div>
+            <div class="st-kv">
+              <span class="st-kv__label">Taxes</span><span class="st-kv__value">10 CR</span>
+            </div>
+          </div>
+          <div class="sg-card sg-stack" style="flex-basis: 260px">
+            <h3>st-tile (cargo)</h3>
+            <div class="st-tile st-tile--gold">
+              <span class="st-icon-box st-icon-box--gold" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                >
+                  <path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3z" />
+                  <path d="M4 7.5l8 4.5 8-4.5" />
+                  <path d="M12 12v9" />
+                </svg>
+              </span>
+              <span
+                ><span class="st-tile__name" style="display: block">Rare Earths</span
+                ><span class="st-tile__meta">10/10 tons</span></span
+              >
+            </div>
+            <div class="st-tile">
+              <span class="st-icon-box" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                >
+                  <path
+                    d="M12 3.5c3.2 4 5.5 6.9 5.5 9.7a5.5 5.5 0 1 1-11 0C6.5 10.4 8.8 7.5 12 3.5z"
+                  />
+                </svg>
+              </span>
+              <span
+                ><span class="st-tile__name" style="display: block">Water</span
+                ><span class="st-tile__meta">50/50 tons</span></span
+              >
+            </div>
+            <div class="st-tile st-tile--magenta">
+              <span class="st-icon-box st-icon-box--magenta" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                >
+                  <path d="M7 3.5h10L20.5 9 12 20.5 3.5 9 7 3.5z" />
+                  <path d="M3.5 9h17" />
+                  <path d="M9.5 9 12 20.5 14.5 9" />
+                </svg>
+              </span>
+              <span
+                ><span class="st-tile__name" style="display: block">Fuel</span
+                ><span class="st-tile__meta">80/100 units</span></span
+              >
+            </div>
+          </div>
+          <div class="sg-card" style="flex-basis: 280px">
+            <h3>st-orb (navigator)</h3>
+            <div class="st-orb-group">
+              <button class="st-orb" type="button">
+                <span
+                  class="st-orb__sphere"
+                  style="
+                    --orb-art: radial-gradient(
+                      circle at 35% 30%,
+                      #8fa8b8,
+                      #2a3a46 48%,
+                      #101c26 78%
+                    );
+                  "
+                ></span>
+                <span class="st-orb__label">Aethel</span>
+              </button>
+              <button class="st-orb st-orb--active" type="button" aria-pressed="true">
+                <span
+                  class="st-orb__sphere"
+                  style="
+                    --orb-art: radial-gradient(
+                      circle at 35% 30%,
+                      #7adfe8,
+                      #1d6a7a 52%,
+                      #0c2830 80%
+                    );
+                  "
+                ></span>
+                <span class="st-orb__label">Cygnus Prime</span>
+              </button>
+              <button class="st-orb" type="button">
+                <span
+                  class="st-orb__sphere"
+                  style="
+                    --orb-art: radial-gradient(
+                      circle at 35% 30%,
+                      #7ed9a0,
+                      #22664a 52%,
+                      #0e2a20 80%
+                    );
+                  "
+                ></span>
+                <span class="st-orb__label">Terra Nova</span>
+              </button>
+            </div>
+          </div>
+          <div class="sg-card" style="flex-basis: 340px">
+            <h3>st-tabbar</h3>
+            <nav class="st-tabbar" aria-label="Screens">
+              <button class="st-tab st-tab--active" type="button" aria-current="page">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 8.5h14l-3.5-3.5" />
+                  <path d="M20 15.5H6l3.5 3.5" />
+                </svg>
+                Trade
+              </button>
+              <button class="st-tab" type="button">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9L12 3z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+                Station
+              </button>
+              <button class="st-tab" type="button">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="8.5" />
+                  <path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5z" />
+                </svg>
+                Navigation
+              </button>
+              <button class="st-tab" type="button">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                >
+                  <path d="M4 7h16M4 12h16M4 17h16" />
+                  <circle cx="9" cy="7" r="1.8" />
+                  <circle cx="15" cy="12" r="1.8" />
+                  <circle cx="7" cy="17" r="1.8" />
+                </svg>
+                Settings
+              </button>
+            </nav>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════ DASHBOARD ASSEMBLY ════════════════ -->
+      <section class="sg-section">
+        <h2 class="sg-h">11 · HUD shell — dashboard assembly</h2>
+        <p class="sg-sub">
+          The concept layout rebuilt from the pieces above: left rail (navigation + cargo), center
+          stage (trade hub), right rail (logistics + messages), dock tab bar.
+        </p>
+        <div class="sg-demo-shell">
+          <p class="sg-shell-note">
+            st-shell · 260 / flex / 300 grid — collapses to two columns under 1100px, one under
+            760px
+          </p>
+          <div class="st-app-bg" style="position: relative; padding-bottom: 52px">
+            <div class="st-shell">
+              <div class="st-shell__rail">
+                <section class="st-panel">
+                  <header class="st-panel__header">
+                    <h4 class="st-panel__title">Navigator</h4>
+                    <div class="st-panel__controls">
+                      <button
+                        class="st-panel__toggle"
+                        type="button"
+                        aria-label="Collapse"
+                        aria-expanded="true"
+                      >
+                        ︿
+                      </button>
+                    </div>
+                  </header>
+                  <div class="st-panel__body">
+                    <div class="st-orb-group">
+                      <button class="st-orb" type="button">
+                        <span
+                          class="st-orb__sphere"
+                          style="
+                            --orb-art: radial-gradient(
+                              circle at 35% 30%,
+                              #8fa8b8,
+                              #2a3a46 48%,
+                              #101c26 78%
+                            );
+                          "
+                        ></span>
+                        <span class="st-orb__label">Aethel</span>
+                      </button>
+                      <button class="st-orb st-orb--active" type="button" aria-pressed="true">
+                        <span
+                          class="st-orb__sphere"
+                          style="
+                            --orb-art: radial-gradient(
+                              circle at 35% 30%,
+                              #7adfe8,
+                              #1d6a7a 52%,
+                              #0c2830 80%
+                            );
+                          "
+                        ></span>
+                        <span class="st-orb__label">Cygnus Prime</span>
+                      </button>
+                      <button class="st-orb" type="button">
+                        <span
+                          class="st-orb__sphere"
+                          style="
+                            --orb-art: radial-gradient(
+                              circle at 35% 30%,
+                              #7ed9a0,
+                              #22664a 52%,
+                              #0e2a20 80%
+                            );
+                          "
+                        ></span>
+                        <span class="st-orb__label">Terra Nova</span>
+                      </button>
+                    </div>
+                  </div>
+                </section>
+                <section class="st-panel">
+                  <header class="st-panel__header">
+                    <h4 class="st-panel__title">Cargo</h4>
+                  </header>
+                  <div class="st-panel__body sg-stack">
+                    <div class="st-tile st-tile--gold">
+                      <span class="st-icon-box st-icon-box--gold" aria-hidden="true">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                          stroke-linejoin="round"
+                          stroke-linecap="round"
+                        >
+                          <path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3z" />
+                          <path d="M4 7.5l8 4.5 8-4.5" />
+                          <path d="M12 12v9" />
+                        </svg>
+                      </span>
+                      <span
+                        ><span class="st-tile__name" style="display: block">Rare Earths</span
+                        ><span class="st-tile__meta">10/10 tons</span></span
+                      >
+                    </div>
+                    <div class="st-tile">
+                      <span class="st-icon-box" aria-hidden="true">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                          stroke-linejoin="round"
+                          stroke-linecap="round"
+                        >
+                          <path
+                            d="M12 3.5c3.2 4 5.5 6.9 5.5 9.7a5.5 5.5 0 1 1-11 0C6.5 10.4 8.8 7.5 12 3.5z"
+                          />
+                        </svg>
+                      </span>
+                      <span
+                        ><span class="st-tile__name" style="display: block">Water</span
+                        ><span class="st-tile__meta">50/50 tons</span></span
+                      >
+                    </div>
+                    <div class="st-tile st-tile--magenta">
+                      <span class="st-icon-box st-icon-box--magenta" aria-hidden="true">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                          stroke-linejoin="round"
+                          stroke-linecap="round"
+                        >
+                          <path d="M7 3.5h10L20.5 9 12 20.5 3.5 9 7 3.5z" />
+                          <path d="M3.5 9h17" />
+                          <path d="M9.5 9 12 20.5 14.5 9" />
+                        </svg>
+                      </span>
+                      <span
+                        ><span class="st-tile__name" style="display: block">Fuel</span
+                        ><span class="st-tile__meta">80/100 units</span></span
+                      >
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <div class="st-shell__stage">
+                <section
+                  class="st-panel st-panel--tab"
+                  style="max-width: 520px; margin: 120px auto 0"
+                >
+                  <header class="st-panel__header">
+                    <h4 class="st-panel__title">Trade Hub — Cygnus Prime</h4>
+                  </header>
+                  <div class="st-panel__frame">
+                    <div class="st-panel__body st-panel__body--flush">
+                      <div class="st-market">
+                        <div class="st-market__head">Market Commodities</div>
+                        <div class="st-market__row">
+                          <span class="st-icon-box st-icon-box--gold" aria-hidden="true">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.75"
+                              stroke-linejoin="round"
+                              stroke-linecap="round"
+                            >
+                              <path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3z" />
+                              <path d="M4 7.5l8 4.5 8-4.5" />
+                              <path d="M12 12v9" />
+                            </svg>
+                          </span>
+                          <span class="st-market__name">Rare Earths</span>
+                          <span class="st-market__prices">
+                            <span class="st-market__buy-price">120 CR</span>
+                            <span class="st-market__price-sep">/</span>
+                            <span class="st-market__sell-price">135 CR</span>
+                          </span>
+                          <span class="st-market__actions">
+                            <button class="st-btn st-btn--sm" type="button">Buy</button>
+                            <button class="st-btn st-btn--sell st-btn--sm" type="button">
+                              Sell
+                            </button>
+                          </span>
+                        </div>
+                        <div class="st-market__row">
+                          <span class="st-icon-box" aria-hidden="true">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.75"
+                              stroke-linejoin="round"
+                              stroke-linecap="round"
+                            >
+                              <path
+                                d="M12 3.5c3.2 4 5.5 6.9 5.5 9.7a5.5 5.5 0 1 1-11 0C6.5 10.4 8.8 7.5 12 3.5z"
+                              />
+                            </svg>
+                          </span>
+                          <span class="st-market__name">Water</span>
+                          <span class="st-market__prices">
+                            <span class="st-market__buy-price">10 CR</span>
+                            <span class="st-market__price-sep">/</span>
+                            <span class="st-market__sell-price">12 CR</span>
+                          </span>
+                          <span class="st-market__actions">
+                            <button class="st-btn st-btn--sm" type="button">Buy</button>
+                            <button class="st-btn st-btn--sell st-btn--sm" type="button">
+                              Sell
+                            </button>
+                          </span>
+                        </div>
+                        <div class="st-market__row">
+                          <span class="st-icon-box st-icon-box--magenta" aria-hidden="true">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.75"
+                              stroke-linejoin="round"
+                              stroke-linecap="round"
+                            >
+                              <path d="M7 3.5h10L20.5 9 12 20.5 3.5 9 7 3.5z" />
+                              <path d="M3.5 9h17" />
+                              <path d="M9.5 9 12 20.5 14.5 9" />
+                            </svg>
+                          </span>
+                          <span class="st-market__name">Fuel</span>
+                          <span class="st-market__prices">
+                            <span class="st-market__buy-price">3 CR</span>
+                            <span class="st-market__price-sep">/</span>
+                            <span class="st-market__sell-price">3.5 CR</span>
+                          </span>
+                          <span class="st-market__actions">
+                            <button class="st-btn st-btn--sm" type="button">Buy</button>
+                            <button class="st-btn st-btn--sell st-btn--sm" type="button">
+                              Sell
+                            </button>
+                          </span>
+                        </div>
+                      </div>
+                      <div class="st-panel__subhead">
+                        <span>Current Mission: Cygnus Prime</span>
+                        <div class="st-panel__controls">
+                          <button class="st-btn st-btn--ghost st-btn--sm" type="button">
+                            Mission Log
+                          </button>
+                        </div>
+                      </div>
+                      <div class="st-panel__body">
+                        <div class="st-market__row" style="padding: 0">
+                          <span class="st-icon-box" aria-hidden="true">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.75"
+                              stroke-linejoin="round"
+                              stroke-linecap="round"
+                            >
+                              <path
+                                d="M12 3.5c3.2 4 5.5 6.9 5.5 9.7a5.5 5.5 0 1 1-11 0C6.5 10.4 8.8 7.5 12 3.5z"
+                              />
+                            </svg>
+                          </span>
+                          <span>
+                            <span class="st-market__name" style="display: block"
+                              >Deliver Water</span
+                            >
+                            <span class="st-kv__label" style="letter-spacing: 0.06em">
+                              Reward: <span class="st-kv__value--gold st-num">500 CR</span>
+                            </span>
+                          </span>
+                          <span class="st-market__prices"
+                            ><span class="st-market__buy-price">10/10 tons</span></span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <div class="st-shell__rail st-shell__rail--right">
+                <section class="st-panel">
+                  <header class="st-panel__header">
+                    <h4 class="st-panel__title">Ship Logistics</h4>
+                    <div class="st-panel__controls">
+                      <button
+                        class="st-panel__toggle"
+                        type="button"
+                        aria-label="Collapse"
+                        aria-expanded="true"
+                      >
+                        –
+                      </button>
+                    </div>
+                  </header>
+                  <div class="st-panel__body">
+                    <div class="st-kv">
+                      <span class="st-kv__label">Credits</span>
+                      <span class="st-kv__value st-kv__value--gold">12,500 CR</span>
+                    </div>
+                    <div class="st-bar-label" style="margin-top: 8px">
+                      <span>Fuel</span><span class="st-bar-label__value">80%</span>
+                    </div>
+                    <div
+                      class="st-bar st-bar--segmented st-bar--gold"
+                      role="meter"
+                      aria-label="Fuel"
+                      aria-valuenow="80"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      style="--st-value: 80%"
+                    >
+                      <div class="st-bar__fill"></div>
+                    </div>
+                    <div class="st-bar-label" style="margin-top: 10px">
+                      <span>Hull</span><span class="st-bar-label__value">95%</span>
+                    </div>
+                    <div
+                      class="st-bar"
+                      role="meter"
+                      aria-label="Hull"
+                      aria-valuenow="95"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      style="--st-value: 95%"
+                    >
+                      <div class="st-bar__fill"></div>
+                    </div>
+                    <hr class="st-divider" style="margin: 12px 0" />
+                    <div class="st-kv__label" style="margin-bottom: 4px">Daily Expenses</div>
+                    <div class="st-kv">
+                      <span class="st-kv__label">Docking fee</span
+                      ><span class="st-kv__value st-kv__value--gold">20 CR</span>
+                    </div>
+                    <div class="st-kv">
+                      <span class="st-kv__label">Repairs</span
+                      ><span class="st-kv__value st-kv__value--gold">0 CR</span>
+                    </div>
+                    <div class="st-kv">
+                      <span class="st-kv__label">Fuel used</span
+                      ><span class="st-kv__value st-kv__value--gold">15 CR</span>
+                    </div>
+                    <div class="st-kv">
+                      <span class="st-kv__label">Taxes</span
+                      ><span class="st-kv__value st-kv__value--gold">10 CR</span>
+                    </div>
+                    <div style="margin-top: 10px; text-align: right">
+                      <button class="st-btn st-btn--ghost st-btn--sm" type="button">Pay All</button>
+                    </div>
+                  </div>
+                </section>
+                <section class="st-panel">
+                  <header class="st-panel__header">
+                    <h4 class="st-panel__title">Messages</h4>
+                    <div class="st-panel__controls">
+                      <button class="st-panel__toggle" type="button" aria-label="More">⋯</button>
+                    </div>
+                  </header>
+                  <div class="st-panel__body">
+                    <div class="st-badge st-badge--alert st-badge--pulse">
+                      <svg
+                        class="st-badge__icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.75"
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                      >
+                        <path d="M12 4 2.5 20h19L12 4z" />
+                        <path d="M12 10v4.5" />
+                        <path d="M12 17.5v.01" />
+                      </svg>
+                      Pirate activity reported: Cygnus orbit
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <nav
+              class="st-tabbar"
+              aria-label="Screens"
+              style="position: absolute; right: 20px; bottom: 0"
+            >
+              <button class="st-tab st-tab--active" type="button" aria-current="page">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 8.5h14l-3.5-3.5" />
+                  <path d="M20 15.5H6l3.5 3.5" />
+                </svg>
+                Trade
+              </button>
+              <button class="st-tab" type="button">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9L12 3z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+                Station
+              </button>
+              <button class="st-tab" type="button">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="8.5" />
+                  <path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5z" />
+                </svg>
+                Navigation
+              </button>
+              <button class="st-tab" type="button">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                >
+                  <path d="M4 7h16M4 12h16M4 17h16" />
+                  <circle cx="9" cy="7" r="1.8" />
+                  <circle cx="15" cy="12" r="1.8" />
+                  <circle cx="7" cy="17" r="1.8" />
+                </svg>
+                Settings
+              </button>
+            </nav>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

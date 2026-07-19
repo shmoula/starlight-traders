@@ -1,115 +1,90 @@
+@import "./tokens.css";
+@import "./design-system.css";
+
 :root {
   color-scheme: dark;
 }
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #0b1020;
-  color: #e6ecff;
+  min-height: 100vh;
+  font-family: var(--st-font-body);
+  font-size: var(--st-text-md);
+  line-height: var(--st-leading-body);
+  color: var(--st-text);
+  /* Backdrop gradient comes from .st-app-bg on <body>. */
+}
+#backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--st-z-bg);
+  pointer-events: none;
+}
+#backdrop svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 #app {
-  max-width: 760px;
+  position: relative;
+  z-index: var(--st-z-hud);
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 16px;
 }
-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #0b1020;
-  /* Cancel #app's 16px padding so the pinned bar's background spans full width. */
-  margin: 0 -16px;
-  padding: 0 16px 10px;
-  border-bottom: 1px solid #1e2a4a;
+.overlay-stage {
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: var(--st-space-5);
 }
-header h1 {
-  margin: 0 0 8px;
-}
-.stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 14px;
-  opacity: 0.9;
-}
-section {
-  border: 1px solid #1e2a4a;
-  border-radius: 8px;
-  padding: 12px;
-  margin: 12px 0;
-}
-table {
+.overlay-stage .st-panel--chamfer {
   width: 100%;
-  border-collapse: collapse;
-}
-th,
-td {
-  padding: 4px 6px;
-  border-bottom: 1px solid #16203c;
-  text-align: left;
-}
-thead th {
-  color: #8fa4d4;
-  font-size: 0.85em;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-/* Row headers carry the commodity name; keep them reading as data, not headings. */
-tbody th {
-  font-weight: normal;
-}
-button {
-  background: #2a3c66;
-  color: #e6ecff;
-  border: 0;
-  border-radius: 6px;
-  padding: 6px 10px;
-  margin: 2px;
-  cursor: pointer;
-}
-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.routes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  max-width: 480px;
 }
 .event-card,
 .run-end {
   text-align: center;
-  padding: 40px 20px;
+  padding: var(--st-space-6) var(--st-space-5);
+}
+.event-card h2,
+.run-end h1 {
+  margin: 0 0 var(--st-space-3);
+  font-family: var(--st-font-display);
+  font-size: var(--st-text-xl);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--st-text-hi);
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--st-space-2);
+  justify-content: center;
+  margin-top: var(--st-space-4);
 }
 .run-end .score {
-  font-size: 28px;
+  font-size: var(--st-text-2xl);
   font-weight: 700;
+  color: var(--st-accent-currency);
+  text-shadow: var(--st-text-glow-gold);
 }
-.log-entries {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  max-height: 168px;
-  overflow-y: auto;
-  font-size: 13px;
+.run-end button {
+  margin: var(--st-space-1);
 }
-.log-line {
-  padding: 1px 0;
-}
+/* Legacy contract classes — names are load-bearing (tests/markup), values tokenized. */
 .hint {
-  font-size: 12px;
-  opacity: 0.6;
-  margin: 0 0 8px;
+  font-size: var(--st-text-xs);
+  color: var(--st-text-dim);
+  margin: 0 0 var(--st-space-2);
 }
 .good {
-  color: #6ee7a8;
-  font-size: 13px;
+  color: var(--st-positive);
+  font-size: var(--st-text-sm);
 }
 .bad {
-  color: #ff9b8a;
-  font-size: 13px;
+  color: var(--st-negative);
+  font-size: var(--st-text-sm);
 }
-/* Inline "jump to X" action inside the ready hint — reads as a link, not a chunky button. */
 .jump-link {
   background: none;
   border: 0;
@@ -121,49 +96,58 @@ button:disabled {
   cursor: pointer;
 }
 .jump-link:hover:not(:disabled) {
-  color: #a7f3cf;
+  color: var(--st-cyan-bright);
 }
 .jump-link:disabled,
 .jump-link[aria-disabled="true"] {
   text-decoration: none;
   cursor: not-allowed;
 }
+.jump-link:focus-visible {
+  outline: 2px solid var(--st-focus-ring);
+  outline-offset: 2px;
+}
 .stat-critical {
-  color: #ff9b8a;
+  color: var(--st-negative);
   font-weight: 700;
 }
 .stat-warn {
-  color: #ffcf8a;
+  color: var(--st-gold-bright);
   font-weight: 600;
 }
 .accepted {
-  color: #6ee7a8;
-  font-size: 13px;
+  color: var(--st-positive);
+  font-size: var(--st-text-sm);
   opacity: 0.85;
 }
-/* Turn report: the headline "what just happened" banner after a jump. */
+.fee {
+  color: var(--st-accent-currency);
+}
+/* Turn report — class names are a test-asserted contract; style only. */
 .turn-report {
-  border: 1px solid #2f5a8a;
-  background: #0f1e38;
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin: 12px 0;
-  animation: flash-in 0.35s ease-out;
+  margin: 0 0 var(--st-space-4);
+  padding: var(--st-space-2) var(--st-space-3);
+  background: linear-gradient(90deg, var(--st-cyan-tint), transparent 130%);
+  border: 1px solid var(--st-cyan-dim);
+  border-left: 3px solid var(--st-cyan);
+  border-radius: var(--st-radius-sm);
+  animation: st-flash-in var(--st-dur-slow) ease-out;
 }
 .turn-report__title {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-family: var(--st-font-display);
+  font-size: var(--st-text-2xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #8fa4d4;
+  letter-spacing: var(--st-track-wide);
+  color: var(--st-text-dim);
 }
 .tr-line {
   display: flex;
-  gap: 8px;
+  gap: var(--st-space-2);
   align-items: baseline;
   padding: 3px 0;
-  font-size: 15px;
+  font-size: var(--st-text-sm);
   font-weight: 600;
 }
 .tr-line.tr-neutral {
@@ -173,21 +157,143 @@ button:disabled {
   font-weight: 700;
 }
 .tr-good {
-  color: #6ee7a8;
+  color: var(--st-positive);
 }
 .tr-bad {
-  color: #ff9b8a;
+  color: var(--st-negative);
 }
 .tr-neutral {
-  color: #cdd7f5;
+  color: var(--st-text);
 }
-@keyframes flash-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
+
+/* ── Cockpit shell glue ─────────────────────────────────────────────────
+ * App-specific layout glue. Rules here are either screen-local (unprefixed,
+ * e.g. .screen-head, .cargo-tiles) or augment a design-system `st-` block with
+ * app-only layout (e.g. .st-orb__meta, .st-market--held) — the base `st-`
+ * components live in design-system.css. `.st-statbar` is the one wholly-local
+ * component that borrows the `st-` namespace because it reads as a HUD peer.
+ */
+.screen-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--st-space-4);
+  padding: var(--st-space-5) var(--st-space-5) 0;
+}
+.screen-head__sub {
+  margin: 0;
+  font-family: var(--st-font-display);
+  font-size: var(--st-text-sm);
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--st-text-dim);
+}
+.st-statbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--st-z-hud);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--st-space-3);
+  padding: 6px var(--st-space-5);
+  background: var(--st-bg-panel-solid);
+  border-bottom: 1px solid var(--st-border-panel);
+  font-size: var(--st-text-xs);
+}
+.st-statbar__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--st-space-1);
+  font-weight: 600;
+  color: var(--st-text-hi);
+}
+.st-statbar__chip--gold {
+  color: var(--st-accent-currency);
+}
+/* DOM order is stage → left rail → right rail (see screens.ts) so the
+   single-column mobile layout leads with the trade hub with focus order
+   intact. From tablet up, restore the left → stage → right arrangement. */
+@media (min-width: 761px) {
+  .station-shell .rail-left {
+    order: 1;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .station-shell .st-shell__stage {
+    order: 2;
   }
+  .station-shell .rail-right {
+    order: 3;
+  }
+}
+.svc-row {
+  display: grid;
+  gap: var(--st-space-2);
+  margin: var(--st-space-1) 0 var(--st-space-2);
+}
+.svc-row .st-btn {
+  width: 100%;
+}
+.log-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 190px;
+  overflow-y: auto;
+  font-size: var(--st-text-sm);
+}
+.log-line {
+  padding: 1px 0;
+}
+@media (min-width: 1100px) {
+  .st-statbar {
+    display: none;
+  }
+}
+.station-shell .st-orb-group {
+  flex-wrap: wrap;
+  gap: var(--st-space-3) var(--st-space-4);
+}
+.st-orb__meta {
+  font-size: var(--st-text-2xs);
+  color: var(--st-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.st-orb:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.st-tile__name {
+  display: block;
+}
+.cargo-tiles {
+  display: grid;
+  gap: var(--st-space-2);
+  margin-top: var(--st-space-2);
+}
+.cargo-empty {
+  opacity: 0.4;
+}
+.st-market--held .st-market__row {
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+}
+.st-market__held {
+  font-size: var(--st-text-sm);
+  color: var(--st-text-dim);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.contract-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--st-space-1) 0;
+}
+.contract-list li {
+  padding: var(--st-space-2) var(--st-space-3);
+  font-size: var(--st-text-sm);
+  border-bottom: 1px solid var(--st-border);
+}
+.contract-list li:last-child {
+  border-bottom: 0;
+}
+.trade-hint {
+  margin: var(--st-space-2) var(--st-space-3) 0;
 }

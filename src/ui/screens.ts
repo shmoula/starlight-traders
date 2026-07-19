@@ -3,20 +3,13 @@ import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { missionsHere } from "../engine/game";
-
-export type Action =
-  | { type: "buy"; id: string; qty: number }
-  | { type: "sell"; id: string; qty: number }
-  | { type: "refuel"; units: number }
-  | { type: "repair"; points: number }
-  | { type: "payDebt"; amount: number }
-  | { type: "acceptMission"; missionId: string }
-  | { type: "jump"; to: string }
-  | { type: "deliver" }
-  | { type: "resolve"; choiceId: string }
-  | { type: "restart" };
+import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
+
+/** Renders ` disabled title="…"` for a control, or nothing when it is enabled. */
+const disabledAttr = (disabled: boolean, title: string): string =>
+  disabled ? ` disabled title="${title}"` : "";
 
 type Tone = "good" | "bad" | "neutral";
 
@@ -37,46 +30,143 @@ function toneOf(msg: string): Tone {
 
 const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›" };
 
-export function stationScreen(s: GameState, turnReport: string[] = []): string {
-  const node = NODES[s.location];
-  const report = turnReport.length
-    ? `<div class="turn-report" role="status" aria-live="polite">
-      <h2 class="turn-report__title">Since your last jump</h2>
-      ${turnReport
-        .map((l) => {
-          const t = toneOf(l);
-          return `<div class="tr-line tr-${t}"><span class="tr-icon" aria-hidden="true">${TONE_ICON[t]}</span><span>${l}</span></div>`;
-        })
-        .join("")}
-    </div>`
-    : "";
-  const market = COMMODITIES.map((c) => {
+function screenHead(s: GameState): string {
+  return `<header class="screen-head">
+    <h1 class="st-screen-title">Starlight Traders</h1>
+    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}</p>
+  </header>`;
+}
+
+/** Sticky at-a-glance strip; duplicates logistics values, hence aria-hidden. */
+function statbar(s: GameState, fuelClass: string): string {
+  return `<div class="st-statbar" aria-hidden="true">
+    <span class="st-statbar__chip st-statbar__chip--gold st-num">${cr(s.credits)}</span>
+    <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
+    <span class="st-statbar__chip st-num">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
+    <span class="st-statbar__chip st-num">Hold ${cargoUsed(s.cargo)}/${s.cargoCapacity}</span>
+  </div>`;
+}
+
+/** Standard HUD module: header strip + padded body. `attrs` lands on the <section>. */
+function panel(title: string, body: string, attrs = ""): string {
+  return `<section class="st-panel"${attrs}>
+    <header class="st-panel__header"><h2 class="st-panel__title">${title}</h2></header>
+    <div class="st-panel__body">${body}</div>
+  </section>`;
+}
+
+function logisticsPanel(s: GameState, fuelClass: string): string {
+  const fuelPct = Math.round((s.fuel / s.fuelCapacity) * 100);
+  const hullPct = Math.round((s.hull / s.hullMax) * 100);
+  const barMod = fuelClass === "stat-critical" ? "st-bar--critical" : "st-bar--gold";
+  const tankFull = s.fuel >= s.fuelCapacity;
+  const refuelDisabled = tankFull || s.credits < REFUEL_PRICE;
+  const refuelTitle = tankFull ? "Fuel tank full" : "Not enough credits";
+  const hullFull = s.hull >= s.hullMax;
+  const repairDisabled = hullFull || s.credits < REPAIR_PRICE;
+  const repairTitle = hullFull ? "Hull fully repaired" : "Not enough credits";
+  const noDebt = s.debt <= 0;
+  const payDisabled = noDebt || s.credits <= 0;
+  const payTitle = noDebt ? "No debt to pay" : "No credits to pay with";
+  const kv = (label: string, value: string, gold = false) =>
+    `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""} st-num">${value}</span></div>`;
+  return panel(
+    "Ship Logistics",
+    `${kv("Credits", cr(s.credits), true)}
+    ${kv("Debt", cr(s.debt), true)}
+    ${kv("Net worth", cr(netWorth(s)), true)}
+    ${kv("Day", String(s.day))}
+    <div class="st-gauge">
+      <div class="st-bar-label"><span class="st-bar-label__name">${fuelIcon()}Fuel</span><span class="st-bar-label__value${fuelClass ? ` ${fuelClass}` : ""}">${s.fuel}/${s.fuelCapacity}</span></div>
+      <div class="st-bar st-bar--segmented ${barMod}" role="meter" aria-label="Fuel" aria-valuenow="${s.fuel}" aria-valuemin="0" aria-valuemax="${s.fuelCapacity}" style="--st-value: ${fuelPct}%; --st-segments: ${s.fuelCapacity}"><div class="st-bar__fill"></div></div>
+    </div>
+    <div class="st-gauge">
+      <div class="st-bar-label"><span class="st-bar-label__name">${hullIcon()}Hull</span><span class="st-bar-label__value">${s.hull}/${s.hullMax}</span></div>
+      <div class="st-bar" role="meter" aria-label="Hull" aria-valuenow="${s.hull}" aria-valuemin="0" aria-valuemax="${s.hullMax}" style="--st-value: ${hullPct}%"><div class="st-bar__fill"></div></div>
+    </div>
+    <hr class="st-divider" />
+    <div class="st-kv__label">Services</div>
+    <div class="svc-row">
+      <button class="st-btn st-btn--ghost" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
+      <button class="st-btn st-btn--ghost" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>${hullIcon()}Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
+      <button class="st-btn st-btn--ghost" data-act="payDebt"${disabledAttr(payDisabled, payTitle)}>Pay 200 debt</button>
+    </div>
+    <div class="st-kv"><span class="st-kv__label">Docking fee here</span><span class="fee st-kv__value st-kv__value--gold st-num">${cr(dockingFee(s.location))}</span></div>`
+  );
+}
+
+function logPanel(s: GameState): string {
+  const logEntries = s.log
+    .slice(-8)
+    .map((l) => `<div class="log-line tr-${toneOf(l)}">${l}</div>`)
+    .join("");
+  return panel(
+    "Ship's Log",
+    `<div class="log-entries">${logEntries}</div>`,
+    ` aria-label="Ship's log"`
+  );
+}
+
+function navigatorPanel(s: GameState): string {
+  const orbs = NODE_IDS.filter((n) => n !== s.location)
+    .map((n) => {
+      const cost = fuelCost(s.location, n);
+      const danger = Math.round(NODES[n].danger * 100);
+      const disabled = s.fuel < cost;
+      return `<button class="st-orb" data-act="jump" data-id="${n}"${disabled ? " disabled" : ""}>
+        <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
+        <span class="st-orb__label">${NODES[n].name}</span>
+        <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${danger}%</span>
+        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${cost} fuel · ${danger}% danger</span>
+        <span class="st-sr-only"> — jump here, ${cost} fuel, danger ${danger}%</span>
+      </button>`;
+    })
+    .join("");
+  return panel("Navigator", `<div class="st-orb-group">${orbs}</div>`);
+}
+
+function cargoPanel(s: GameState): string {
+  const tiles = COMMODITIES.map((c) => {
+    const qty = s.cargo[c.id];
+    const acc = COMMODITY_ACCENT[c.id];
+    return `<div class="st-tile${acc ? ` st-tile--${acc}` : ""}${qty === 0 ? " cargo-empty" : ""}">
+      ${iconBox(c.id)}
+      <span><span class="st-tile__name">${c.name}</span><span class="st-tile__meta st-num">${qty} units</span></span>
+    </div>`;
+  }).join("");
+  return panel(
+    "Cargo",
+    `<div class="st-kv"><span class="st-kv__label">Hold</span><span class="st-kv__value st-num">${cargoUsed(s.cargo)}/${s.cargoCapacity}</span></div>
+    <div class="cargo-tiles">${tiles}</div>`
+  );
+}
+
+function tradeHubPanel(s: GameState): string {
+  const marketRows = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
     const cantAfford = price > s.credits;
     const holdFull = cargoUsed(s.cargo) + 1 > s.cargoCapacity;
     const buyDisabled = cantAfford || holdFull;
     const buyTitle = cantAfford ? "Not enough credits" : "Cargo hold full";
     const sellDisabled = s.cargo[c.id] < 1;
-    return `<tr>
-      <th scope="row">${c.name}</th><td>${cr(price)}</td><td>${s.cargo[c.id]}</td>
-      <td>
-        <button data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${buyDisabled ? ` disabled title="${buyTitle}"` : ""}>Buy 1</button>
-        <button data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${sellDisabled ? ` disabled title="None in hold"` : ""}>Sell 1</button>
-      </td></tr>`;
+    return `<div class="st-market__row" role="group" aria-label="${c.name}">
+      ${iconBox(c.id)}
+      <span class="st-market__name">${c.name}</span>
+      <span class="st-market__prices st-num" aria-label="Market price ${price} credits"><span class="st-market__buy-price">${cr(price)}</span></span>
+      <span class="st-market__held st-num" aria-label="${s.cargo[c.id]} units held">×${s.cargo[c.id]}</span>
+      <span class="st-market__actions">
+        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
+      </span>
+    </div>`;
   }).join("");
-
-  const cheapestJump = Math.min(
-    ...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n))
-  );
-  const fuelClass =
-    s.fuel < cheapestJump ? "stat-critical" : s.fuel < cheapestJump * 2 ? "stat-warn" : "";
 
   const acceptedIds = new Set(s.activeMissions.map((m) => m.id));
   const missions = missionsHere(s)
     .map((m) => {
       const action = acceptedIds.has(m.id)
         ? `<span class="accepted">✓ Accepted</span>`
-        : `<button data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name}">Accept</button>`;
+        : `<button class="st-btn st-btn--ghost st-btn--sm" data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name}">Accept</button>`;
       return `<li>Deliver ${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
       ${action}</li>`;
     })
@@ -105,97 +195,93 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
     })
     .join("");
 
-  const routes = NODE_IDS.filter((n) => n !== s.location)
-    .map(
-      (n) =>
-        `<button data-act="jump" data-id="${n}" ${s.fuel < fuelCost(s.location, n) ? "disabled" : ""}>
-      Jump to ${NODES[n].name} (${fuelCost(s.location, n)}⛽, danger ${Math.round(NODES[n].danger * 100)}%)
-    </button>`
-    )
-    .join("");
+  return `<section class="st-panel st-panel--tab">
+    <header class="st-panel__header"><h2 class="st-panel__title">Trade Hub — ${NODES[s.location].name}</h2></header>
+    <div class="st-panel__frame">
+      <div class="st-panel__body st-panel__body--flush">
+        <div class="st-market st-market--held">
+          <div class="st-market__head">Market Commodities</div>
+          ${marketRows}
+        </div>
+        <div class="st-panel__subhead">Contracts</div>
+        <ul class="contract-list">${missions || "<li>None today.</li>"}</ul>
+        <div class="st-panel__subhead">Active Contracts</div>
+        <p class="hint trade-hint">Deliveries auto-complete when you arrive carrying the goods.</p>
+        <ul class="contract-list">${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
+      </div>
+    </div>
+  </section>`;
+}
 
-  const logEntries = s.log
-    .slice(-8)
-    .map((l) => `<div class="log-line tr-${toneOf(l)}">${l}</div>`)
-    .join("");
+export function stationScreen(s: GameState, turnReport: string[] = []): string {
+  const report = turnReport.length
+    ? `<div class="turn-report" role="status" aria-live="polite">
+      <h2 class="turn-report__title">Since your last jump</h2>
+      ${turnReport
+        .map((l) => {
+          const t = toneOf(l);
+          return `<div class="tr-line tr-${t}"><span class="tr-icon" aria-hidden="true">${TONE_ICON[t]}</span><span>${l}</span></div>`;
+        })
+        .join("")}
+    </div>`
+    : "";
+  const cheapestJump = Math.min(
+    ...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n))
+  );
+  const fuelClass =
+    s.fuel < cheapestJump ? "stat-critical" : s.fuel < cheapestJump * 2 ? "stat-warn" : "";
 
   return `
-    <header>
-      <h1>${node.name} · Day ${s.day}</h1>
-      <div class="stats">
-        <span>💰 ${cr(s.credits)}</span>
-        <span>🏦 debt ${cr(s.debt)}</span>
-        <span${fuelClass ? ` class="${fuelClass}"` : ""}>⛽ ${s.fuel}/${s.fuelCapacity}</span>
-        <span>🛡️ ${s.hull}/${s.hullMax}</span>
-        <span>📦 ${s.cargo.water + s.cargo.parts + s.cargo.luxury}/${s.cargoCapacity}</span>
-        <span>📈 net ${cr(netWorth(s))}</span>
+    ${screenHead(s)}
+    ${statbar(s, fuelClass)}
+    <div class="st-shell station-shell">
+      <!-- DOM order leads with the stage so single-column mobile reads
+           trade hub → navigator/cargo → logistics/log and keyboard focus
+           follows the visual order. Wider layouts reorder via CSS. -->
+      <div class="st-shell__stage">
+        ${report}
+        ${tradeHubPanel(s)}
       </div>
-    </header>
-    ${report}
-    <section><h2>Market</h2><table>
-      <thead>
-        <tr>
-          <th scope="col">Commodity</th>
-          <th scope="col">Price</th>
-          <th scope="col">Held</th>
-          <th scope="col">Trade</th>
-        </tr>
-      </thead>
-      <tbody>${market}</tbody>
-    </table></section>
-    <section><h2>Contracts</h2><ul>${missions || "<li>None today.</li>"}</ul></section>
-    <section><h2>Active Contracts</h2>
-      <p class="hint">Deliveries auto-complete when you arrive carrying the goods.</p>
-      <ul>${active || "<li>None accepted. Accept a contract, buy its cargo, then jump to the destination.</li>"}</ul>
-    </section>
-    <section class="services">
-      <button data-act="refuel"${
-        s.fuel >= s.fuelCapacity
-          ? ` disabled title="Fuel tank full"`
-          : s.credits < REFUEL_PRICE
-            ? ` disabled title="Not enough credits"`
-            : ""
-      }>Refuel +5 (${cr(40)})</button>
-      <button data-act="repair"${
-        s.hull >= s.hullMax
-          ? ` disabled title="Hull fully repaired"`
-          : s.credits < REPAIR_PRICE
-            ? ` disabled title="Not enough credits"`
-            : ""
-      }>Repair +20 (${cr(120)})</button>
-      <button data-act="payDebt"${
-        s.debt <= 0
-          ? ` disabled title="No debt to pay"`
-          : s.credits <= 0
-            ? ` disabled title="No credits to pay with"`
-            : ""
-      }>Pay 200 debt</button>
-      <span class="fee">Docking fee here: ${cr(dockingFee(s.location))}</span>
-    </section>
-    <section><h2>Navigate</h2><div class="routes">${routes}</div></section>
-    <section class="log" aria-label="Ship's log">
-      <h2>Ship's Log</h2>
-      <div class="log-entries">${logEntries}</div>
-    </section>
+      <div class="st-shell__rail rail-left">
+        ${navigatorPanel(s)}
+        ${cargoPanel(s)}
+      </div>
+      <div class="st-shell__rail st-shell__rail--right rail-right">
+        ${logisticsPanel(s, fuelClass)}
+        ${logPanel(s)}
+      </div>
+    </div>
   `;
 }
 
 export function eventScreen(e: GameEvent): string {
   const choices = e.choices
-    .map((c) => `<button data-act="resolve" data-id="${c.id}">${c.label}</button>`)
+    .map((c) => `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}</button>`)
     .join("");
-  return `<div class="event-card">
-    <h2>${e.title}</h2><p>${e.description}</p><div class="choices">${choices}</div>
+  return `<div class="overlay-stage">
+    <div class="st-glow-wrap">
+      <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
+        <div class="event-card">
+          <h2>${e.title}</h2><p>${e.description}</p><div class="choices">${choices}</div>
+        </div>
+      </div></div>
+    </div>
   </div>`;
 }
 
 export function runEndScreen(s: GameState, score: number): string {
-  return `<div class="run-end">
-    <h1>Run Over</h1>
-    <p>You survived ${s.day} days.</p>
-    <p class="score">Score: ${score.toLocaleString()}</p>
-    <p>Seed #${s.seed}</p>
-    <button data-act="share">Copy score card</button>
-    <button data-act="restart">New run</button>
+  return `<div class="overlay-stage">
+    <div class="st-glow-wrap">
+      <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
+        <div class="run-end">
+          <h1>Run Over</h1>
+          <p>You survived ${s.day} days.</p>
+          <p class="score st-num">Score: ${score.toLocaleString()}</p>
+          <p class="hint">Seed #${s.seed}</p>
+          <button class="st-btn" data-act="share">Copy score card</button>
+          <button class="st-btn st-btn--ghost" data-act="restart">New run</button>
+        </div>
+      </div></div>
+    </div>
   </div>`;
 }

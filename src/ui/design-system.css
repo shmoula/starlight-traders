@@ -1,0 +1,840 @@
+/*
+ * Starlight Traders — "Astro-Neon" component library.
+ *
+ * Requires tokens.css to be loaded first. Every selector is prefixed `st-`
+ * and there are no bare element selectors, so this file is safe to import
+ * next to the legacy styles.css: nothing changes until a class is used.
+ *
+ * Blueprints, anatomy, and usage rules: docs/design/design-system.md
+ * Live rendering of everything here:    docs/design/styleguide.html
+ */
+
+/* ── Page backdrop ───────────────────────────────────────────────────────
+ * Deep-space gradient with two faint nebula pools. Orbit-line / starfield
+ * art belongs on a separate decorative layer (z: --st-z-bg), not here.
+ */
+.st-app-bg {
+  background:
+    radial-gradient(1100px 700px at 75% -10%, rgba(27, 49, 68, 0.8), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(17, 34, 51, 0.55), transparent 60%),
+    linear-gradient(180deg, var(--st-bg-nebula), var(--st-bg-space));
+  color: var(--st-text);
+  font-family: var(--st-font-body);
+}
+
+/* Tabular figures for any run of numbers that must align in columns. */
+.st-num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Visually hidden, still exposed to assistive tech. Use to append screen-reader
+ * context to an element whose visible text must remain the accessible name. */
+.st-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.st-screen-title {
+  margin: 0;
+  font-family: var(--st-font-display);
+  font-size: var(--st-text-2xl);
+  font-weight: 600;
+  letter-spacing: var(--st-track-tight);
+  color: var(--st-text-hi);
+  text-shadow: var(--st-text-glow-cyan);
+}
+
+.st-divider {
+  border: 0;
+  height: 1px;
+  margin: var(--st-space-2) 0;
+  background: var(--st-border);
+}
+
+/* Wrapper that lets a glow survive clip-path (box-shadow gets clipped,
+ * drop-shadow of the clipped silhouette does not). Wrap chamfered panels. */
+.st-glow-wrap {
+  filter: drop-shadow(0 0 12px rgba(0, 217, 255, 0.1)) drop-shadow(0 8px 20px rgba(0, 0, 0, 0.5));
+}
+
+/* ── PanelCard ───────────────────────────────────────────────────────────
+ * The universal HUD module. Variants:
+ *   (default)          bordered, glowing, translucent module
+ *   .st-panel--tab     header is a slant-edged tab riding the body (Trade Hub)
+ *   .st-panel--chamfer corners cut at --st-chamfer; needs .st-panel__inner
+ */
+.st-panel {
+  position: relative;
+  background: var(--st-bg-panel);
+  border: 1px solid var(--st-border-panel);
+  border-radius: var(--st-radius-md);
+  box-shadow: var(--st-glow-panel);
+  overflow: hidden;
+}
+
+/* Opt-in frosted glass. backdrop-filter re-blurs everything behind the panel
+ * on every scroll/animation frame — cheap for one overlay, ruinous when every
+ * HUD module carries it. Reserve for surfaces floating over live content
+ * (event cards, modals); resting HUD panels rely on the translucent fill. */
+.st-panel--glass {
+  backdrop-filter: blur(6px);
+}
+
+.st-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--st-space-2);
+  padding: 6px var(--st-space-3);
+  background: linear-gradient(180deg, var(--st-bg-header-hi), var(--st-bg-header-lo));
+  border-bottom: 1px solid var(--st-border-panel);
+}
+
+.st-panel__title {
+  margin: 0;
+  font-family: var(--st-font-display);
+  font-size: var(--st-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--st-track-wide);
+  text-transform: uppercase;
+  color: var(--st-text-title);
+}
+
+.st-panel__controls {
+  display: flex;
+  gap: var(--st-space-1);
+  margin-left: auto;
+}
+
+.st-panel__toggle {
+  padding: 0 var(--st-space-1);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: var(--st-text-xs);
+  color: var(--st-text-dim);
+  cursor: pointer;
+}
+.st-panel__toggle:hover {
+  color: var(--st-text-hi);
+}
+
+.st-panel__body {
+  padding: var(--st-pad-panel);
+}
+/* Flush body lets data grids run edge-to-edge so zebra rows hit the border. */
+.st-panel__body--flush {
+  padding: 0;
+}
+
+/* Secondary strip inside a panel ("CURRENT MISSION: …"). */
+.st-panel__subhead {
+  display: flex;
+  align-items: center;
+  gap: var(--st-space-2);
+  padding: 5px var(--st-space-3);
+  background: var(--st-bg-header-lo);
+  border-top: 1px solid var(--st-border);
+  border-bottom: 1px solid var(--st-border);
+  font-size: var(--st-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--st-text-dim);
+}
+
+/* Tab variant — the header is a fitted tab with a slanted right edge sitting
+ * on top of the body frame, as on the Trade Hub window. */
+.st-panel--tab {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  overflow: visible;
+}
+.st-panel--tab > .st-panel__header {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-width: 55%;
+  margin-bottom: -1px;
+  padding-right: calc(var(--st-chamfer) + var(--st-space-4));
+  border: 1px solid var(--st-border-panel);
+  border-bottom: 0;
+  clip-path: polygon(0 0, calc(100% - var(--st-chamfer)) 0, 100% 100%, 0 100%);
+}
+.st-panel--tab > .st-panel__frame {
+  background: var(--st-bg-panel);
+  border: 1px solid var(--st-border-panel);
+  border-radius: 0 var(--st-radius-xs) var(--st-radius-md) var(--st-radius-md);
+  box-shadow: var(--st-glow-panel);
+  overflow: hidden;
+}
+
+/* Chamfer variant — corners cut on the tl/br diagonal. A 1px CSS border
+ * cannot follow a clip-path, so the border is a backing layer: the outer
+ * element paints the border color, the inner element paints the fill inset
+ * by 1px under the same clip (which is why __inner is required, and why
+ * this variant uses the solid fill). Wrap in .st-glow-wrap for the halo. */
+.st-panel--chamfer {
+  --st-clip-chamfer: polygon(
+    0 0,
+    calc(100% - var(--st-chamfer)) 0,
+    100% var(--st-chamfer),
+    100% 100%,
+    var(--st-chamfer) 100%,
+    0 calc(100% - var(--st-chamfer))
+  );
+
+  padding: 1px;
+  background: linear-gradient(
+    160deg,
+    rgba(0, 217, 255, 0.45),
+    var(--st-border-panel) 45%,
+    rgba(86, 164, 196, 0.18)
+  );
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  clip-path: var(--st-clip-chamfer);
+}
+.st-panel--chamfer > .st-panel__inner {
+  background: var(--st-bg-panel-solid);
+  clip-path: var(--st-clip-chamfer);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────
+ * Outline-style neon controls. Variants remap the five --btn-* channels:
+ *   --buy   cyan   (acquire / confirm / interactive default)
+ *   --sell  magenta (dispose / spend)
+ *   --ghost neutral steel (utility: PAY ALL, MISSION LOG)
+ */
+.st-btn {
+  --btn-core: var(--st-accent-interactive);
+  --btn-bright: var(--st-cyan-bright);
+  --btn-dim: var(--st-cyan-dim);
+  --btn-tint: var(--st-cyan-tint);
+  --btn-glow: var(--st-glow-cyan);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--st-space-1);
+  height: var(--st-control-h);
+  padding: 0 var(--st-space-3);
+  background: transparent;
+  border: 1px solid var(--btn-dim);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-body);
+  font-size: var(--st-text-xs);
+  font-weight: 700;
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--btn-bright);
+  cursor: pointer;
+  transition:
+    border-color var(--st-dur-fast) var(--st-ease),
+    background-color var(--st-dur-fast) var(--st-ease),
+    box-shadow var(--st-dur-fast) var(--st-ease),
+    color var(--st-dur-fast) var(--st-ease);
+}
+.st-btn:hover:not(:disabled) {
+  background: var(--btn-tint);
+  border-color: var(--btn-core);
+  box-shadow: var(--btn-glow);
+}
+.st-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(1.2);
+}
+.st-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.st-btn--sell {
+  --btn-core: var(--st-accent-consumable);
+  --btn-bright: var(--st-magenta-bright);
+  --btn-dim: var(--st-magenta-dim);
+  --btn-tint: var(--st-magenta-tint);
+  --btn-glow: var(--st-glow-magenta);
+}
+.st-btn--ghost {
+  --btn-core: var(--st-text-dim);
+  --btn-bright: var(--st-text);
+  --btn-dim: var(--st-border);
+  --btn-tint: rgba(126, 190, 228, 0.08);
+  --btn-glow: none;
+}
+.st-btn--sm {
+  height: 22px;
+  padding: 0 var(--st-space-2);
+  font-size: var(--st-text-2xs);
+}
+
+/* ── MarketRow / data grid ───────────────────────────────────────────────
+ * Grid columns: icon | name | price pair | actions. Zebra striping via
+ * nth-child needs rows to be direct siblings; use --flush panel body so
+ * stripes bleed to the panel edge.
+ */
+.st-market {
+  display: flex;
+  flex-direction: column;
+}
+
+.st-market__head {
+  padding: var(--st-space-2) var(--st-space-3) var(--st-space-1);
+  font-size: var(--st-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--st-text-dim);
+  border-bottom: 1px solid var(--st-border);
+}
+
+.st-market__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--st-space-3);
+  min-height: var(--st-row-h);
+  padding: 0 var(--st-space-3);
+}
+.st-market__row:nth-child(even) {
+  background: var(--st-bg-row-alt);
+}
+
+.st-market__name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--st-text-hi);
+}
+
+.st-market__prices {
+  display: flex;
+  align-items: baseline;
+  gap: var(--st-space-1);
+  font-size: var(--st-text-sm);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.st-market__buy-price {
+  color: var(--st-text-hi);
+}
+.st-market__price-sep {
+  color: var(--st-text-faint);
+}
+.st-market__sell-price {
+  color: var(--st-accent-currency);
+}
+
+.st-market__actions {
+  display: flex;
+  gap: var(--st-space-2);
+}
+
+/* ── ProgressBar ─────────────────────────────────────────────────────────
+ * Fill level via inline custom prop: style="--st-value: 80%".
+ * Continuous by default (Hull). Add --segmented (+ optional --st-segments,
+ * default 10) for the energy-block Fuel style: a striped overlay slices the
+ * fill into cells, so both variants share markup.
+ * Color: --cyan default; --gold, --warn (gold), --critical (orange + pulse).
+ */
+.st-bar {
+  --bar-core: var(--st-cyan);
+  --bar-hi: var(--st-cyan-bright);
+  --bar-glow: var(--st-glow-cyan);
+
+  position: relative;
+  height: 16px;
+  padding: 2px;
+  background: var(--st-bg-inset);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-xs);
+  box-sizing: border-box;
+}
+
+.st-bar__fill {
+  width: var(--st-value, 0%);
+  height: 100%;
+  background: linear-gradient(180deg, var(--bar-hi), var(--bar-core) 65%);
+  border-radius: 2px;
+  box-shadow: var(--bar-glow);
+  transition: width var(--st-dur) var(--st-ease);
+}
+
+.st-bar--segmented::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(100% / var(--st-segments, 10) - 2px),
+    var(--st-bg-panel-solid) calc(100% / var(--st-segments, 10) - 2px),
+    var(--st-bg-panel-solid) calc(100% / var(--st-segments, 10))
+  );
+}
+
+.st-bar--gold {
+  --bar-core: var(--st-gold);
+  --bar-hi: var(--st-gold-bright);
+  --bar-glow: var(--st-glow-gold);
+}
+.st-bar--warn {
+  --bar-core: var(--st-gold);
+  --bar-hi: var(--st-gold-bright);
+  --bar-glow: var(--st-glow-gold);
+}
+.st-bar--critical {
+  --bar-core: var(--st-orange);
+  --bar-hi: var(--st-orange-bright);
+  --bar-glow: var(--st-glow-orange);
+}
+.st-bar--critical .st-bar__fill {
+  animation: st-pulse-fade-half 1.4s var(--st-ease) infinite;
+}
+
+/* Label row that usually sits above a bar: "FUEL: 80%". */
+.st-bar-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--st-space-1);
+  font-size: var(--st-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--st-text-dim);
+}
+.st-bar-label__value {
+  font-variant-numeric: tabular-nums;
+  color: var(--st-text-hi);
+}
+
+/* Labeled gauge (bar-label + bar) sharing the st-kv row's vertical rhythm so
+ * gauges sit flush in a list of key/value lines. */
+.st-gauge {
+  padding: 3px 0;
+}
+
+/* ── StatusBadge ─────────────────────────────────────────────────────────
+ * Inline chip or full-width message banner. Variants remap --badge-*:
+ *   --info (cyan, default) | --alert (orange) | --success | --danger
+ * Add --pulse for unacknowledged alerts.
+ */
+.st-badge {
+  --badge-core: var(--st-cyan);
+  --badge-bright: var(--st-cyan-bright);
+  --badge-dim: var(--st-cyan-dim);
+  --badge-tint: var(--st-cyan-tint);
+  --badge-glow: var(--st-glow-cyan);
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--st-space-2);
+  padding: var(--st-space-2) var(--st-space-3);
+  background: linear-gradient(90deg, var(--badge-tint), transparent 130%);
+  border: 1px solid var(--badge-dim);
+  border-left: 3px solid var(--badge-core);
+  border-radius: var(--st-radius-sm);
+  font-size: var(--st-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.35;
+  color: var(--badge-bright);
+}
+.st-badge__icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.st-badge--alert {
+  --badge-core: var(--st-accent-alert);
+  --badge-bright: var(--st-orange-bright);
+  --badge-dim: var(--st-orange-dim);
+  --badge-tint: var(--st-orange-tint);
+  --badge-glow: var(--st-glow-orange);
+}
+.st-badge--success {
+  --badge-core: var(--st-positive);
+  --badge-bright: #a9f2d3;
+  --badge-dim: rgba(87, 230, 168, 0.45);
+  --badge-tint: rgba(87, 230, 168, 0.1);
+  --badge-glow: 0 0 10px rgba(87, 230, 168, 0.3);
+}
+.st-badge--danger {
+  --badge-core: var(--st-negative);
+  --badge-bright: #ffb0a3;
+  --badge-dim: rgba(255, 106, 85, 0.5);
+  --badge-tint: rgba(255, 106, 85, 0.12);
+  --badge-glow: 0 0 10px rgba(255, 106, 85, 0.35);
+}
+/* Pulse = opacity-fading a pseudo-element that carries the glow. Animating
+ * opacity stays on the compositor; animating box-shadow/filter directly
+ * forces a full repaint of the blur region every frame. */
+.st-badge--pulse::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: var(--badge-glow);
+  opacity: 0;
+  pointer-events: none;
+  animation: st-pulse-fade 1.6s var(--st-ease) infinite;
+}
+
+/* ── Icon box ────────────────────────────────────────────────────────────
+ * Bounding box for monoline icons; tint + border follow the category color.
+ * Put a 16–18px stroke SVG inside with stroke="currentColor" fill="none".
+ */
+.st-icon-box {
+  --icon-core: var(--st-cyan);
+  --icon-dim: var(--st-cyan-dim);
+  --icon-tint: var(--st-cyan-tint);
+
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  background: var(--icon-tint);
+  border: 1px solid var(--icon-dim);
+  border-radius: var(--st-radius-sm);
+  color: var(--icon-core);
+}
+.st-icon-box > svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Inline stat glyph: tracks font-size and currentColor so one icon serves every
+ * mention of a stat (gauge label, action button, jump cost, stat strip). */
+.st-inline-icon {
+  display: inline-flex;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}
+.st-inline-icon > svg {
+  width: 100%;
+  height: 100%;
+}
+/* Group the gauge icon + word so the value still right-aligns via space-between. */
+.st-bar-label__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--st-space-1);
+}
+/* Nudge the glyph off the jump-cost number (this context has no flex gap). */
+.st-orb__meta .st-inline-icon {
+  margin-left: 0.15em;
+}
+.st-icon-box--gold {
+  --icon-core: var(--st-gold);
+  --icon-dim: var(--st-gold-dim);
+  --icon-tint: var(--st-gold-tint);
+}
+.st-icon-box--magenta {
+  --icon-core: var(--st-magenta);
+  --icon-dim: var(--st-magenta-dim);
+  --icon-tint: var(--st-magenta-tint);
+}
+.st-icon-box--orange {
+  --icon-core: var(--st-orange);
+  --icon-dim: var(--st-orange-dim);
+  --icon-tint: var(--st-orange-tint);
+}
+
+/* ── Key/value line (Ship Logistics, Daily Expenses) ─────────────────── */
+.st-kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--st-space-3);
+  padding: 3px 0;
+}
+.st-kv__label {
+  font-size: var(--st-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--st-text-dim);
+}
+.st-kv__value {
+  font-size: var(--st-text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--st-text-hi);
+}
+.st-kv__value--gold {
+  color: var(--st-accent-currency);
+  text-shadow: var(--st-text-glow-gold);
+}
+.st-kv__value--cyan {
+  color: var(--st-cyan-bright);
+  text-shadow: var(--st-text-glow-cyan);
+}
+
+/* ── Cargo tile ──────────────────────────────────────────────────────── */
+.st-tile {
+  --tile-core: var(--st-cyan);
+  --tile-dim: var(--st-cyan-dim);
+  --tile-tint: var(--st-cyan-tint);
+
+  display: flex;
+  align-items: center;
+  gap: var(--st-space-2);
+  padding: var(--st-space-2) var(--st-space-2);
+  background: linear-gradient(90deg, var(--tile-tint), transparent 75%);
+  border: 1px solid var(--tile-dim);
+  border-radius: var(--st-radius-sm);
+}
+.st-tile__name {
+  font-size: var(--st-text-xs);
+  font-weight: 700;
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--st-text-hi);
+}
+.st-tile__meta {
+  font-size: var(--st-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--st-text-dim);
+}
+.st-tile--gold {
+  --tile-core: var(--st-gold);
+  --tile-dim: var(--st-gold-dim);
+  --tile-tint: var(--st-gold-tint);
+}
+.st-tile--magenta {
+  --tile-core: var(--st-magenta);
+  --tile-dim: var(--st-magenta-dim);
+  --tile-tint: var(--st-magenta-tint);
+}
+
+/* ── Navigator orb ───────────────────────────────────────────────────────
+ * Planet art comes in via --orb-art (radial-gradient or image) per system.
+ */
+.st-orb-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: var(--st-space-4);
+  justify-items: center;
+}
+.st-orb {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: var(--st-text-dim);
+  cursor: pointer;
+}
+.st-orb__tip {
+  position: absolute;
+  bottom: calc(100% + var(--st-space-1));
+  left: 50%;
+  z-index: var(--st-z-overlay);
+  padding: var(--st-space-1) var(--st-space-2);
+  border-radius: var(--st-radius-sm);
+  background: var(--st-bg-panel-solid);
+  border: 1px solid var(--st-border-panel);
+  box-shadow: var(--st-glow-panel);
+  color: var(--st-text-hi);
+  font-size: var(--st-text-2xs);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  pointer-events: none;
+  transition:
+    opacity var(--st-dur-fast) var(--st-ease),
+    transform var(--st-dur-fast) var(--st-ease);
+}
+.st-orb:hover .st-orb__tip,
+.st-orb:focus-visible .st-orb__tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.st-orb__sphere {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--orb-art, radial-gradient(circle at 35% 30%, #4a6a80, #16242f 72%));
+  border: 1px solid var(--st-border);
+  box-shadow: inset -6px -8px 14px rgba(0, 0, 0, 0.55);
+  transition:
+    box-shadow var(--st-dur-fast) var(--st-ease),
+    border-color var(--st-dur-fast) var(--st-ease);
+}
+.st-orb__label {
+  max-width: 72px;
+  font-size: var(--st-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.25;
+}
+.st-orb:hover .st-orb__sphere {
+  border-color: var(--st-border-strong);
+}
+.st-orb--active {
+  color: var(--st-text-hi);
+}
+.st-orb--active .st-orb__sphere {
+  border-color: var(--st-cyan);
+  box-shadow:
+    inset -6px -8px 14px rgba(0, 0, 0, 0.55),
+    0 0 0 3px rgba(0, 217, 255, 0.16),
+    var(--st-glow-cyan);
+}
+
+/* ── Dock tab bar (TRADE / STATION / NAVIGATION / SETTINGS) ────────────── */
+.st-tabbar {
+  display: inline-flex;
+  background: var(--st-bg-panel);
+  border: 1px solid var(--st-border-panel);
+  border-radius: var(--st-radius-md) var(--st-radius-md) 0 0;
+  box-shadow: var(--st-glow-panel);
+  overflow: hidden;
+}
+.st-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--st-space-1);
+  min-width: 76px;
+  padding: var(--st-space-2) var(--st-space-4) 7px;
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--st-border);
+  font-family: var(--st-font-body);
+  font-size: var(--st-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--st-text-dim);
+  cursor: pointer;
+  transition: color var(--st-dur-fast) var(--st-ease);
+}
+.st-tab:first-child {
+  border-left: 0;
+}
+.st-tab > svg {
+  width: 16px;
+  height: 16px;
+}
+.st-tab:hover {
+  color: var(--st-text-hi);
+}
+.st-tab--active {
+  background: var(--st-cyan-tint);
+  box-shadow: inset 0 2px 0 var(--st-cyan);
+  color: var(--st-cyan-bright);
+  text-shadow: var(--st-text-glow-cyan);
+}
+
+/* ── HUD shell — the dashboard grid every screen reuses ────────────────── */
+.st-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: var(--st-space-4);
+  padding: var(--st-space-5);
+}
+.st-shell__rail {
+  display: grid;
+  align-content: start;
+  gap: var(--st-space-4);
+}
+.st-shell__stage {
+  position: relative;
+  min-height: 420px;
+}
+@media (max-width: 1100px) {
+  .st-shell {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  .st-shell__rail--right {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .st-shell {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--st-space-3);
+  }
+  .st-shell__rail--right {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Shared states & motion ────────────────────────────────────────────── */
+.st-btn:focus-visible,
+.st-tab:focus-visible,
+.st-orb:focus-visible,
+.st-panel__toggle:focus-visible {
+  outline: 2px solid var(--st-focus-ring);
+  outline-offset: 2px;
+}
+
+@keyframes st-flash-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes st-pulse-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes st-pulse-fade-half {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.st-flash-in {
+  animation: st-flash-in var(--st-dur-slow) ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([class^="st-"], [class*=" st-"], .turn-report) {
+    animation: none !important;
+    transition: none !important;
+  }
+}
