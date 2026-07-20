@@ -270,10 +270,10 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
 function resolveEngine(s: GameState): GameState {
   const burn = engineBurn(s);
   const strain = engineHullStrain(s);
-  const msg =
-    strain > 0
-      ? `Engine trouble burned ${burn} fuel and overheated the hull for ${strain}.`
-      : `Engine trouble burned ${burn} fuel.`;
+  const clauses: string[] = [];
+  if (burn > 0) clauses.push(`burned ${burn} fuel`);
+  if (strain > 0) clauses.push(`overheated the hull for ${strain}`);
+  const msg = `Engine trouble ${clauses.join(" and ")}.`;
   return withLog({ ...s, fuel: s.fuel - burn, hull: Math.max(0, s.hull - strain) }, msg);
 }
 
