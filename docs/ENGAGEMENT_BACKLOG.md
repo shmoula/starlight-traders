@@ -129,7 +129,7 @@ design, retention, and meaning_; where they touch UI/UX items they cross-referen
 | B-1 | **Fixed —** Refuel button lies when clamped: label "+5 (40cr)" but buys `min(units, room, affordable)` — observed "Refueled 4 for 32cr" at 37cr. The hidden partial refuel is a stranding lifeline nobody is told about (game.ts:92). Extends **UIUX P0-2**. Label now computes the clamped amount, so the button reads "Refuel +4 (32cr) — all you can afford" before the click. | Label shows what will actually happen ("Refuel +4 (32cr) — all you can afford").                                            |   S    |
 | B-2 | Event hash uses `charCodeAt(0)` of station ids — `vulcan`/`verge` alias to 'v', collapsing event variety between them (events.ts:11).                                                                                                                                                                                                                                             | Hash full ids (e.g. `hashSeed(seed, day, ...from].charCodeAt(1)…` or a station index).                                      |   S    |
 | B-3 | **Fixed —** Credits go negative via docking fees with no comment (−10cr, −33cr observed; game.ts:209). Negative credits are now styled as a warning state; not clamped — the value renders in the warning color in both the statbar chip and the logistics Credits row instead of being clamped to 0.                                                                             | Either clamp at 0 with a "waived, the Syndicate notes it" log line, or style negative credits as an explicit warning state. |   S    |
-| B-4 | Rapid buy/sell clicks are swallowed by the full-DOM re-render — 28 of 30 clicks lost in testing. Root cause documented as **UIUX P1-1** (qty buttons + DOM patching); recorded here as evidence of severity.                                                                                                                                                                      | Prioritize UIUX P1-1.                                                                                                       |   —    |
+| B-4 | Rapid buy/sell clicks are swallowed by the full-DOM re-render — 28 of 30 clicks lost in testing. Root cause documented as **UIUX P1-1** (qty buttons + DOM patching); recorded here as evidence of severity.                                                                                                                                                                      | **Resolved behaviorally (2026-07-20)** by UIUX P1-1's ×5/Max/All + shortfall buttons — rapid clicking is no longer required. Root cause (full-DOM re-render) stays open as the P1-1 stretch. |   —    |
 | B-5 | README claims "Luxury attracts both pirates and customs" — no such cargo modifier exists in the engine (rollEvent reads only destination danger).                                                                                                                                                                                                                                 | Either implement it (fits E1-5 heat) or fix the README.                                                                     |   S    |
 
 ## 4. Top-3 detailed specs
@@ -197,15 +197,19 @@ not an oracle.
 
 ## 5. Quick wins (≤2h each)
 
-1. **E0-2 score cap** (if shipped before E0-1): clamp the day bonus at day 12 — one
-   line in economy.ts:42 + test updates. Stops the grind-leaderboard before it exists.
-2. **Goal line + day identity**: intro log line becomes "The Syndicate staked your
-   ship — 1,500cr, compounding. Score = your peak fortune. Everyone flies today's
-   sky."; header gains "Starlight · Jul 19". Extends UIUX P2-4's visible-score idea.
-3. **Cause-of-death line** on the end screen from the existing loss log ("Stranded at
-   Vulcan Yards — out of fuel, out of credits."). Foundation for E1-3.
-4. **Share card date + URL**: replace "Seed #1482862887" with "Starlight · Jul 19" and
-   append the game URL. (Full v2 card is E1-2.)
+1. **Folded into E0-1/E0-2 — E0-2 score cap** (if shipped before E0-1): clamp the day
+   bonus at day 12 — one line in economy.ts:42 + test updates. Stops the
+   grind-leaderboard before it exists. Deliberately not shipped as a stopgap so score
+   semantics change once, not twice (2026-07-20 prioritization).
+2. **Shipped (2026-07-20) — Goal line + day identity**: intro log line becomes "The
+   Syndicate staked your ship — 1,500cr, compounding. Score = your peak fortune.
+   Everyone flies today's sky."; header gains "Starlight · Jul 19". Extends UIUX
+   P2-4's visible-score idea.
+3. **Shipped (2026-07-20) — Cause-of-death line** on the end screen from the existing
+   loss log ("Stranded at Vulcan Yards — out of fuel, out of credits."). Foundation
+   for E1-3.
+4. **Shipped (2026-07-20) — Share card date + URL**: replace "Seed #1482862887" with
+   "Starlight · Jul 19" and append the game URL. (Full v2 card is E1-2.)
 
 ## 6. Suggested iteration order
 
