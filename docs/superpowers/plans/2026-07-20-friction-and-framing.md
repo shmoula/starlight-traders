@@ -13,6 +13,7 @@
 **Branch:** create `feat/friction-and-framing` off `master` before Task 1 (worktree optional via superpowers:using-git-worktrees).
 
 **Commands** (from repo root):
+
 - Tests: `npm test` (vitest run) — suite currently green at 78 tests.
 - Single file: `npx vitest run tests/ui/screens.test.ts`
 - Lint / format / typecheck+build: `npm run lint` / `npm run format:check` / `npm run build`
@@ -21,25 +22,26 @@
 
 ## File map
 
-| File | Change |
-| :-- | :-- |
-| `src/ui/share.ts` | `GAME_URL` constant, `formatDateLabel`, `ShareData.seed` → `dateLabel` |
-| `src/engine/game.ts` | intro log copy (line 52), stranding message (line 192) |
-| `src/ui/screens.ts` | dated `screenHead`, `runEndScreen` cause line, market qty buttons, contract shortfall shortcut |
-| `src/ui/render.ts` | `ViewModel.dateLabel`, pass to `stationScreen` |
-| `src/main.ts` | `bootDate`, share call site, `data-qty` plumbing |
-| `src/ui/design-system.css` | `.st-market__actions` wrap (line 342) |
-| `src/ui/styles.css` | `.run-end__cause` style |
-| `tests/engine/share.test.ts` | rewritten for new card |
-| `tests/engine/game.test.ts` | intro copy + stranding message tests |
-| `tests/ui/screens.test.ts` | date header, cause line, qty buttons, shortfall shortcut; 2 updated assertions |
-| `docs/ENGAGEMENT_BACKLOG.md`, `docs/BACKLOG.md` | bookkeeping |
+| File                                            | Change                                                                                         |
+| :---------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| `src/ui/share.ts`                               | `GAME_URL` constant, `formatDateLabel`, `ShareData.seed` → `dateLabel`                         |
+| `src/engine/game.ts`                            | intro log copy (line 52), stranding message (line 192)                                         |
+| `src/ui/screens.ts`                             | dated `screenHead`, `runEndScreen` cause line, market qty buttons, contract shortfall shortcut |
+| `src/ui/render.ts`                              | `ViewModel.dateLabel`, pass to `stationScreen`                                                 |
+| `src/main.ts`                                   | `bootDate`, share call site, `data-qty` plumbing                                               |
+| `src/ui/design-system.css`                      | `.st-market__actions` wrap (line 342)                                                          |
+| `src/ui/styles.css`                             | `.run-end__cause` style                                                                        |
+| `tests/engine/share.test.ts`                    | rewritten for new card                                                                         |
+| `tests/engine/game.test.ts`                     | intro copy + stranding message tests                                                           |
+| `tests/ui/screens.test.ts`                      | date header, cause line, qty buttons, shortfall shortcut; 2 updated assertions                 |
+| `docs/ENGAGEMENT_BACKLOG.md`, `docs/BACKLOG.md` | bookkeeping                                                                                    |
 
 ---
 
 ### Task 1: Share card date + URL (quick win 4)
 
 **Files:**
+
 - Modify: `src/ui/share.ts`
 - Modify: `src/main.ts:27` (boot date), `src/main.ts:81-85` (restart), `src/main.ts:99-104` (share call)
 - Test: `tests/engine/share.test.ts`
@@ -161,11 +163,11 @@ In `applyAction`, update the restart case (lines 81–85):
 In the click listener, update the share call (lines 100–104):
 
 ```ts
-    await copyShare({
-      dateLabel: formatDateLabel(bootDate),
-      score: scoreFn(state.peakNetWorth, state.day),
-      daysSurvived: state.day,
-    });
+await copyShare({
+  dateLabel: formatDateLabel(bootDate),
+  score: scoreFn(state.peakNetWorth, state.day),
+  daysSurvived: state.day,
+});
 ```
 
 - [ ] **Step 5: Run tests and typecheck**
@@ -185,6 +187,7 @@ git commit -m "feat(ui): share card names the date and links the game, drops raw
 ### Task 2: Goal-line intro copy (quick win 2a)
 
 **Files:**
+
 - Modify: `src/engine/game.ts:52`
 - Test: `tests/engine/game.test.ts`, `tests/ui/screens.test.ts:108` (existing assertion)
 
@@ -207,13 +210,13 @@ describe("createGame goal line", () => {
 In `tests/ui/screens.test.ts` line 108, the "renders a titled, labelled log section" test asserts the old copy. Change:
 
 ```ts
-    expect(html).toContain("You launch from Terra Hub");
+expect(html).toContain("You launch from Terra Hub");
 ```
 
 to:
 
 ```ts
-    expect(html).toContain("The Syndicate staked your ship");
+expect(html).toContain("The Syndicate staked your ship");
 ```
 
 - [ ] **Step 3: Run to verify failure**
@@ -255,6 +258,7 @@ git commit -m "feat(engine): intro log states the stake, the score goal, and the
 ### Task 3: Stranding cause message (quick win 3a — engine half)
 
 **Files:**
+
 - Modify: `src/engine/game.ts:192` (`checkLoss`)
 - Test: `tests/engine/game.test.ts:171-181` (existing `checkLoss` describe)
 
@@ -263,20 +267,20 @@ git commit -m "feat(engine): intro log states the stake, the score goal, and the
 In `tests/engine/game.test.ts`, add to the existing `describe("checkLoss", ...)` block:
 
 ```ts
-  it("names the station and cause in the stranding log line", () => {
-    const s = {
-      ...createGame(42),
-      location: "vulcan" as const,
-      fuel: 0,
-      credits: 0,
-      cargo: { water: 0, parts: 0, luxury: 0 },
-    };
-    const lost = checkLoss(s);
-    expect(lost.status).toBe("lost");
-    expect(lost.log[lost.log.length - 1]).toBe(
-      "Stranded at Vulcan Yards — out of fuel, out of credits."
-    );
-  });
+it("names the station and cause in the stranding log line", () => {
+  const s = {
+    ...createGame(42),
+    location: "vulcan" as const,
+    fuel: 0,
+    credits: 0,
+    cargo: { water: 0, parts: 0, luxury: 0 },
+  };
+  const lost = checkLoss(s);
+  expect(lost.status).toBe("lost");
+  expect(lost.log[lost.log.length - 1]).toBe(
+    "Stranded at Vulcan Yards — out of fuel, out of credits."
+  );
+});
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -289,16 +293,16 @@ Expected: FAIL — message is still "Stranded and broke. The run ends here."
 In `src/engine/game.ts` `checkLoss` (line 192), replace:
 
 ```ts
-    return withLog({ ...state, status: "lost" }, "Stranded and broke. The run ends here.");
+return withLog({ ...state, status: "lost" }, "Stranded and broke. The run ends here.");
 ```
 
 with:
 
 ```ts
-    return withLog(
-      { ...state, status: "lost" },
-      `Stranded at ${NODES[state.location].name} — out of fuel, out of credits.`
-    );
+return withLog(
+  { ...state, status: "lost" },
+  `Stranded at ${NODES[state.location].name} — out of fuel, out of credits.`
+);
 ```
 
 (`NODES` is already imported in game.ts.)
@@ -319,6 +323,7 @@ git commit -m "feat(engine): stranding log names the station and the cause of de
 ### Task 4: Dated header (quick win 2b)
 
 **Files:**
+
 - Modify: `src/ui/screens.ts:45-50` (`screenHead`), `src/ui/screens.ts:250` (`stationScreen` signature)
 - Modify: `src/ui/render.ts`
 - Modify: `src/main.ts:34-36` (`paint`)
@@ -386,7 +391,7 @@ export interface ViewModel {
 ```
 
 ```ts
-    root.innerHTML = stationScreen(vm.state, vm.turnReport, vm.dateLabel);
+root.innerHTML = stationScreen(vm.state, vm.turnReport, vm.dateLabel);
 ```
 
 In `src/main.ts`, update `paint` (lines 34–36):
@@ -414,6 +419,7 @@ git commit -m "feat(ui): header names the calendar day of the shared seed"
 ### Task 5: End-screen cause line (quick win 3b — UI half)
 
 **Files:**
+
 - Modify: `src/ui/screens.ts:309-324` (`runEndScreen`)
 - Modify: `src/ui/styles.css` (append near the existing `.run-end` rules — grep `.run-end`)
 - Test: `tests/ui/screens.test.ts`
@@ -502,6 +508,7 @@ git commit -m "feat(ui): end screen names the cause of death"
 ### Task 6: ×5 / Max market buttons (P1-1 core)
 
 **Files:**
+
 - Modify: `src/ui/screens.ts:178-196` (`tradeHubPanel` market rows), imports at `src/ui/screens.ts:4`
 - Modify: `src/main.ts:38-46` (`applyAction` qty), `src/main.ts:89-109` (click handler)
 - Modify: `src/ui/design-system.css:342` (`.st-market__actions`)
@@ -569,39 +576,46 @@ Expected: FAIL — no `data-qty` attributes rendered.
 In `src/ui/screens.ts`, add `taxOnSale` to the economy import (line 4):
 
 ```ts
-import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth, taxOnSale } from "../engine/economy";
+import {
+  REFUEL_PRICE,
+  REPAIR_PRICE,
+  cargoUsed,
+  dockingFee,
+  netWorth,
+  taxOnSale,
+} from "../engine/economy";
 ```
 
 Replace the `marketRows` map body in `tradeHubPanel` (lines 179–196) with:
 
 ```ts
-  const marketRows = COMMODITIES.map((c) => {
-    const price = getPrice(s.seed, s.day, s.location, c.id);
-    const held = s.cargo[c.id];
-    const room = s.cargoCapacity - cargoUsed(s.cargo);
-    const cantAfford = price > s.credits;
-    const holdFull = room < 1;
-    const buyDisabled = cantAfford || holdFull;
-    const buyTitle = cantAfford ? "Not enough credits" : "Cargo hold full";
-    // Exact clamped quantities: the button promises precisely what the engine
-    // will do, so an enabled click never silently no-ops (B-1 precedent).
-    const maxBuy = Math.max(0, Math.min(Math.floor(s.credits / price), room));
-    const buy5Disabled = maxBuy < 5;
-    const buy5Title = buyDisabled ? buyTitle : `Can only manage ${maxBuy} — use Max`;
-    const maxBuyAttrs = buyDisabled
-      ? disabledAttr(true, buyTitle)
-      : ` title="Buy ${maxBuy} for ${cr(maxBuy * price)}"`;
-    const sellNet = (n: number): number => {
-      const gross = n * price;
-      return gross - taxOnSale(s.location, gross);
-    };
-    const sellDisabled = held < 1;
-    const sell5Disabled = held < 5;
-    const sell5Title = sellDisabled ? "None in hold" : `Only ${held} in hold — use All`;
-    const sellAllAttrs = sellDisabled
-      ? disabledAttr(true, "None in hold")
-      : ` title="Sell ${held} for ${cr(sellNet(held))}"`;
-    return `<div class="st-market__row" role="group" aria-label="${c.name}">
+const marketRows = COMMODITIES.map((c) => {
+  const price = getPrice(s.seed, s.day, s.location, c.id);
+  const held = s.cargo[c.id];
+  const room = s.cargoCapacity - cargoUsed(s.cargo);
+  const cantAfford = price > s.credits;
+  const holdFull = room < 1;
+  const buyDisabled = cantAfford || holdFull;
+  const buyTitle = cantAfford ? "Not enough credits" : "Cargo hold full";
+  // Exact clamped quantities: the button promises precisely what the engine
+  // will do, so an enabled click never silently no-ops (B-1 precedent).
+  const maxBuy = Math.max(0, Math.min(Math.floor(s.credits / price), room));
+  const buy5Disabled = maxBuy < 5;
+  const buy5Title = buyDisabled ? buyTitle : `Can only manage ${maxBuy} — use Max`;
+  const maxBuyAttrs = buyDisabled
+    ? disabledAttr(true, buyTitle)
+    : ` title="Buy ${maxBuy} for ${cr(maxBuy * price)}"`;
+  const sellNet = (n: number): number => {
+    const gross = n * price;
+    return gross - taxOnSale(s.location, gross);
+  };
+  const sellDisabled = held < 1;
+  const sell5Disabled = held < 5;
+  const sell5Title = sellDisabled ? "None in hold" : `Only ${held} in hold — use All`;
+  const sellAllAttrs = sellDisabled
+    ? disabledAttr(true, "None in hold")
+    : ` title="Sell ${held} for ${cr(sellNet(held))}"`;
+  return `<div class="st-market__row" role="group" aria-label="${c.name}">
       ${iconBox(c.id)}
       <span class="st-market__name">${c.name}</span>
       <span class="st-market__prices st-num" aria-label="Market price ${price} credits"><span class="st-market__buy-price">${cr(price)}</span></span>
@@ -615,7 +629,7 @@ Replace the `marketRows` map body in `tradeHubPanel` (lines 179–196) with:
         <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="${held}" aria-label="Sell all ${held} ${c.name} for ${cr(sellNet(held))}"${sellAllAttrs}>All${held > 0 ? ` ×${held}` : ""}</button>
       </span>
     </div>`;
-  }).join("");
+}).join("");
 ```
 
 (Behavior notes: `holdFull` is the existing `cargoUsed + 1 > capacity` check restated as `room < 1`; `maxBuy` mirrors the engine's `buy` validation one-for-one — price, credits, hold room. Sell tooltips show net-of-tax proceeds so Meridian's 18% never surprises.)
@@ -638,13 +652,13 @@ function applyAction(act: string | undefined, id: string | undefined, qty: numbe
 In the click listener, parse the quantity and pass it (the `applyAction(act, id)` call becomes):
 
 ```ts
-  // data-qty carries the exact clamped quantity computed by the renderer;
-  // absent/garbage values fall back to 1 (Number("") → 0, Number("x") → NaN).
-  const qty = Math.max(1, Math.floor(Number(btn.dataset.qty ?? "1")) || 1);
+// data-qty carries the exact clamped quantity computed by the renderer;
+// absent/garbage values fall back to 1 (Number("") → 0, Number("x") → NaN).
+const qty = Math.max(1, Math.floor(Number(btn.dataset.qty ?? "1")) || 1);
 ```
 
 ```ts
-    applyAction(act, id, qty);
+applyAction(act, id, qty);
 ```
 
 - [ ] **Step 5: Let the actions cell wrap**
@@ -677,6 +691,7 @@ git commit -m "feat(ui): ×5/Max/All trade buttons with exact clamped quantities
 ### Task 7: Contract shortfall shortcut (P1-1 contract half)
 
 **Files:**
+
 - Modify: `src/ui/screens.ts:209-230` (`tradeHubPanel` active-missions map)
 - Test: `tests/ui/screens.test.ts`
 
@@ -737,40 +752,44 @@ In `src/ui/screens.ts`, inside the `active` missions map (lines 209–230), the 
 Add the shortfall computation after the existing `jumpHintId` declaration and replace that branch. The full updated map body:
 
 ```ts
-  const active = s.activeMissions
-    .map((m) => {
-      const have = s.cargo[m.commodity];
-      const ready = have >= m.qty;
-      const expired = s.day > m.deadlineDay;
-      const atDestination = s.location === m.destination;
-      const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
-      const jumpHintId = `jump-hint-${m.id}`;
-      // Shortfall shortcut: buys the full missing amount at the local price, or
-      // is disabled with a reason — never a silent partial (B-1 precedent).
-      const shortfall = m.qty - have;
-      const unitPrice = getPrice(s.seed, s.day, s.location, m.commodity);
-      const shortfallCost = shortfall * unitPrice;
-      const roomLeft = s.cargoCapacity - cargoUsed(s.cargo);
-      const shortfallBlocked =
-        shortfallCost > s.credits ? "not enough credits" : shortfall > roomLeft ? "not enough hold space" : "";
-      const buyHintId = `buy-hint-${m.id}`;
-      const shortfallBtn = shortfallBlocked
-        ? `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}" aria-disabled="true" aria-describedby="${buyHintId}">buy ${shortfall} for ${cr(shortfallCost)}</button> <span id="${buyHintId}" class="bad">(${shortfallBlocked})</span>`
-        : `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}">buy ${shortfall} for ${cr(shortfallCost)}</button>`;
-      const jumpBtn = canReach
-        ? `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver">jump to ${NODES[m.destination].name}</button>`
-        : `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver" aria-disabled="true" aria-describedby="${jumpHintId}">jump to ${NODES[m.destination].name}</button> <span id="${jumpHintId}" class="bad">(not enough fuel to jump)</span>`;
-      const readyBtn = atDestination
-        ? `<button class="jump-link" data-act="deliver" aria-label="Deliver to ${NODES[m.destination].name}">deliver</button>`
-        : jumpBtn;
-      const hint = expired
-        ? `<span class="bad">✗ deadline passed</span>`
-        : ready
-          ? `<span class="good">✓ carrying ${have}/${m.qty} — ready, ${readyBtn}</span>`
-          : `<span class="bad">✗ carrying ${have}/${m.qty} — ${shortfallBtn}</span>`;
-      return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${hint}</li>`;
-    })
-    .join("");
+const active = s.activeMissions
+  .map((m) => {
+    const have = s.cargo[m.commodity];
+    const ready = have >= m.qty;
+    const expired = s.day > m.deadlineDay;
+    const atDestination = s.location === m.destination;
+    const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
+    const jumpHintId = `jump-hint-${m.id}`;
+    // Shortfall shortcut: buys the full missing amount at the local price, or
+    // is disabled with a reason — never a silent partial (B-1 precedent).
+    const shortfall = m.qty - have;
+    const unitPrice = getPrice(s.seed, s.day, s.location, m.commodity);
+    const shortfallCost = shortfall * unitPrice;
+    const roomLeft = s.cargoCapacity - cargoUsed(s.cargo);
+    const shortfallBlocked =
+      shortfallCost > s.credits
+        ? "not enough credits"
+        : shortfall > roomLeft
+          ? "not enough hold space"
+          : "";
+    const buyHintId = `buy-hint-${m.id}`;
+    const shortfallBtn = shortfallBlocked
+      ? `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}" aria-disabled="true" aria-describedby="${buyHintId}">buy ${shortfall} for ${cr(shortfallCost)}</button> <span id="${buyHintId}" class="bad">(${shortfallBlocked})</span>`
+      : `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}">buy ${shortfall} for ${cr(shortfallCost)}</button>`;
+    const jumpBtn = canReach
+      ? `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver">jump to ${NODES[m.destination].name}</button>`
+      : `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver" aria-disabled="true" aria-describedby="${jumpHintId}">jump to ${NODES[m.destination].name}</button> <span id="${jumpHintId}" class="bad">(not enough fuel to jump)</span>`;
+    const readyBtn = atDestination
+      ? `<button class="jump-link" data-act="deliver" aria-label="Deliver to ${NODES[m.destination].name}">deliver</button>`
+      : jumpBtn;
+    const hint = expired
+      ? `<span class="bad">✗ deadline passed</span>`
+      : ready
+        ? `<span class="good">✓ carrying ${have}/${m.qty} — ready, ${readyBtn}</span>`
+        : `<span class="bad">✗ carrying ${have}/${m.qty} — ${shortfallBtn}</span>`;
+    return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${hint}</li>`;
+  })
+  .join("");
 ```
 
 (`getPrice` and `cargoUsed` are already imported in screens.ts. The expired and ready branches are unchanged, so the shortcut can never appear on an expired or fulfilled contract.)
@@ -791,6 +810,7 @@ git commit -m "feat(ui): one-click shortfall buy on active contract cards (P1-1)
 ### Task 8: Backlog bookkeeping
 
 **Files:**
+
 - Modify: `docs/ENGAGEMENT_BACKLOG.md` (§5 quick wins, B-4 row)
 - Modify: `docs/BACKLOG.md` (P1-1 row)
 

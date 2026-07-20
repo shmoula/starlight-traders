@@ -87,7 +87,7 @@ the UI still needs the same math for honest labels).
 **Market rows** (`tradeHubPanel`, screens.ts:178) gain quantity buttons:
 
 - Buy side: **Buy 1 / ×5 / Max ×N** where `N = min(⌊credits/price⌋,
-  cargoCapacity − cargoUsed)`.
+cargoCapacity − cargoUsed)`.
 - Sell side: **Sell 1 / ×5 / All ×N** where `N = units held`.
 - ×5 is disabled with a reason tooltip when fewer than 5 are possible; Max/All
   covers the remainder. Max/All labels show the actual computed count; exact
