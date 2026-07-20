@@ -17,14 +17,15 @@ import {
 import { score as scoreFn } from "./engine/economy";
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
 import { render } from "./ui/render";
-import { copyShare } from "./ui/share";
+import { copyShare, formatDateLabel } from "./ui/share";
 import { BACKDROP_SVG } from "./ui/art";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 // Static decoration, injected once — deliberately outside the paint() cycle.
 document.querySelector<HTMLDivElement>("#backdrop")!.innerHTML = BACKDROP_SVG;
 
-let state: GameState = createGame(dailySeed(new Date()));
+let bootDate = new Date();
+let state: GameState = createGame(dailySeed(bootDate));
 let pendingEvent: GameEvent | null = null;
 // Log length captured just before a jump, so the station screen can surface every
 // entry the jump produced (fee, interest, event outcome, deliveries) as a turn report.
@@ -79,7 +80,8 @@ function applyAction(act: string | undefined, id: string | undefined) {
       break;
     }
     case "restart": {
-      state = createGame(dailySeed(new Date()));
+      bootDate = new Date();
+      state = createGame(dailySeed(bootDate));
       pendingEvent = null;
       break;
     }
@@ -98,7 +100,7 @@ app.addEventListener("click", async (e) => {
 
   if (act === "share") {
     await copyShare({
-      seed: state.seed,
+      dateLabel: formatDateLabel(bootDate),
       score: scoreFn(state.peakNetWorth, state.day),
       daysSurvived: state.day,
     });
