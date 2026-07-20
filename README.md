@@ -21,7 +21,7 @@ Every day has a new seed, and the seed is derived from the date — so everyone 
 - Six in-transit events — pirate ambush, salvage field, derelict hulk, customs inspection, engine trouble, and quiet jump — most offering a real choice.
 - Three income sources with different risk profiles: delivery contracts, market arbitrage, and salvage.
 - Escalating sinks: distance-scaled fuel, per-dock fees, progressive sale taxes, event-driven repairs, and compounding loan interest.
-- One-click score card sharing with the daily seed.
+- One-click score card sharing that names the day and links the game.
 
 ## Tech Stack
 
