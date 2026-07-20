@@ -22,9 +22,10 @@ These three "quick wins" from the audit are done and are **not** listed below:
   `resolveChoice` via `src/engine/preview.ts`.
 - Stranding is fully signalled (P0-2): disabled jump orbs carry "Need X⛽, have Y"
   reasons and a warning banner appears when no jump is reachable.
-- ×5/Max/All quantity buttons and the active-contract shortfall shortcut (P1-1)
-  shipped 2026-07-20; the stretch (patch changed DOM nodes instead of full
-  `innerHTML` swaps) remains open and is tracked as the B-4 root cause.
+- Buy 1/×5 and Sell 1/×5 quantity buttons and the active-contract shortfall
+  shortcut (P1-1) shipped 2026-07-20; the stretch (patch changed DOM nodes
+  instead of full `innerHTML` swaps) remains open and is tracked as the B-4
+  root cause.
 
 ---
 
