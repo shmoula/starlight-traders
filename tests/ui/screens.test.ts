@@ -404,6 +404,18 @@ describe("market quantity buttons (P1-1)", () => {
     expect(html).not.toContain("Max ×");
     expect(html).toContain(`disabled title="Not enough credits"`);
   });
+
+  it("guards the Max buy aria-label against zero-quantity phrasing", () => {
+    const html = stationScreen({ ...createGame(42), credits: 0 });
+    expect(html).toContain("Buy Water / Ice — Not enough credits");
+    expect(html).not.toContain("Buy 0 Water / Ice");
+  });
+
+  it("guards the All sell aria-label against zero-quantity phrasing", () => {
+    const html = stationScreen({ ...createGame(42), cargo: { water: 0, parts: 0, luxury: 0 } });
+    expect(html).toContain("Sell Water / Ice — none in hold");
+    expect(html).not.toContain("Sell all 0 Water / Ice");
+  });
 });
 
 describe("negative credits warning (B-3)", () => {

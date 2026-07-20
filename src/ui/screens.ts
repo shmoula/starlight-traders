@@ -199,6 +199,10 @@ function tradeHubPanel(s: GameState): string {
     const maxBuyAttrs = buyDisabled
       ? disabledAttr(true, buyTitle)
       : ` title="Buy ${maxBuy} for ${cr(maxBuy * price)}"`;
+    const maxBuyLabel =
+      maxBuy > 0
+        ? `Buy ${maxBuy} ${c.name} for ${cr(maxBuy * price)}`
+        : `Buy ${c.name} — ${buyTitle}`;
     const sellNet = (n: number): number => {
       const gross = n * price;
       return gross - taxOnSale(s.location, gross);
@@ -209,6 +213,10 @@ function tradeHubPanel(s: GameState): string {
     const sellAllAttrs = sellDisabled
       ? disabledAttr(true, "None in hold")
       : ` title="Sell ${held} for ${cr(sellNet(held))}"`;
+    const sellAllLabel =
+      held > 0
+        ? `Sell all ${held} ${c.name} for ${cr(sellNet(held))}`
+        : `Sell ${c.name} — none in hold`;
     return `<div class="st-market__row" role="group" aria-label="${c.name}">
       ${iconBox(c.id)}
       <span class="st-market__name">${c.name}</span>
@@ -217,10 +225,10 @@ function tradeHubPanel(s: GameState): string {
       <span class="st-market__actions">
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="1" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="5" aria-label="Buy 5 ${c.name} for ${cr(5 * price)}"${disabledAttr(buy5Disabled, buy5Title)}>×5</button>
-        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="${maxBuy}" aria-label="Buy ${maxBuy} ${c.name} for ${cr(maxBuy * price)}"${maxBuyAttrs}>Max${maxBuy > 0 ? ` ×${maxBuy}` : ""}</button>
+        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="${maxBuy}" aria-label="${maxBuyLabel}"${maxBuyAttrs}>Max${maxBuy > 0 ? ` ×${maxBuy}` : ""}</button>
         <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="1" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
         <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="5" aria-label="Sell 5 ${c.name} for ${cr(sellNet(5))}"${disabledAttr(sell5Disabled, sell5Title)}>×5</button>
-        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="${held}" aria-label="Sell all ${held} ${c.name} for ${cr(sellNet(held))}"${sellAllAttrs}>All${held > 0 ? ` ×${held}` : ""}</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="${held}" aria-label="${sellAllLabel}"${sellAllAttrs}>All${held > 0 ? ` ×${held}` : ""}</button>
       </span>
     </div>`;
   }).join("");
