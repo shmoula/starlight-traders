@@ -9,7 +9,7 @@ import { commodityName, getPrice } from "./world";
 
 /** Pirate toll demanded today, clamped to what the player holds. */
 export function pirateToll(s: GameState): number {
-  return Math.min(s.credits, 150 + s.day * 10);
+  return Math.max(0, Math.min(s.credits, 150 + s.day * 10));
 }
 
 /** Hull damage taken when fleeing pirates. */
@@ -38,7 +38,7 @@ export const DERELICT_TRAP_DAMAGE = 20;
 
 /** Customs bribe: the going rate for luxury here, clamped to held credits. */
 export function bribeCost(s: GameState): number {
-  return Math.min(s.credits, getPrice(s.seed, s.day, s.location, "luxury"));
+  return Math.max(0, Math.min(s.credits, getPrice(s.seed, s.day, s.location, "luxury")));
 }
 
 /**
