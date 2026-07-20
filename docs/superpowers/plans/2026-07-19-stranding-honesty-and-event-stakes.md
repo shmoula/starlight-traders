@@ -24,6 +24,7 @@
 ### Task 1: Navigator stranding signals (P0-2)
 
 **Files:**
+
 - Modify: `src/ui/screens.ts` (add `cheapestJumpCost` + `fuelWarnClass` helpers, rework `navigatorPanel`, simplify `stationScreen`)
 - Modify: `src/ui/styles.css` (`.nav-warning` spacing)
 - Test: `tests/ui/screens.test.ts`
@@ -114,7 +115,7 @@ function navigatorPanel(s: GameState): string {
 In `stationScreen`, replace the inline `cheapestJump`/`fuelClass` computation (currently lines 228–232):
 
 ```ts
-  const fuelClass = fuelWarnClass(s);
+const fuelClass = fuelWarnClass(s);
 ```
 
 `.st-badge` / `.st-badge--alert` already exist in `src/ui/design-system.css`. Add only the spacing rule to `src/ui/styles.css`, after the `.stat-warn` block (line ~117):
@@ -142,6 +143,7 @@ git commit -m "feat(ui): explain unreachable jumps and warn before stranding (P0
 ### Task 2: Refuel honesty label (B-1)
 
 **Files:**
+
 - Modify: `src/ui/screens.ts` (`logisticsPanel`)
 - Test: `tests/ui/screens.test.ts`
 
@@ -194,16 +196,16 @@ Expected: the three label tests FAIL (label still reads `+5`); the engine-consis
 In `logisticsPanel` (`src/ui/screens.ts`), replace the three refuel consts (currently lines 62–64):
 
 ```ts
-  // Mirror engine refuel(): it buys min(units, tankRoom, affordable) — the label
-  // must promise exactly what the click delivers (B-1).
-  const tankRoom = s.fuelCapacity - s.fuel;
-  const affordable = Math.floor(s.credits / REFUEL_PRICE);
-  const refuelUnits = Math.min(5, tankRoom, affordable);
-  const refuelDisabled = refuelUnits <= 0;
-  const refuelTitle = tankRoom <= 0 ? "Fuel tank full" : "Not enough credits";
-  const shownUnits = refuelDisabled ? 5 : refuelUnits;
-  const clampedByCredits = !refuelDisabled && affordable < Math.min(5, tankRoom);
-  const refuelLabel = `Refuel +${shownUnits} (${cr(shownUnits * REFUEL_PRICE)})${clampedByCredits ? " — all you can afford" : ""}`;
+// Mirror engine refuel(): it buys min(units, tankRoom, affordable) — the label
+// must promise exactly what the click delivers (B-1).
+const tankRoom = s.fuelCapacity - s.fuel;
+const affordable = Math.floor(s.credits / REFUEL_PRICE);
+const refuelUnits = Math.min(5, tankRoom, affordable);
+const refuelDisabled = refuelUnits <= 0;
+const refuelTitle = tankRoom <= 0 ? "Fuel tank full" : "Not enough credits";
+const shownUnits = refuelDisabled ? 5 : refuelUnits;
+const clampedByCredits = !refuelDisabled && affordable < Math.min(5, tankRoom);
+const refuelLabel = `Refuel +${shownUnits} (${cr(shownUnits * REFUEL_PRICE)})${clampedByCredits ? " — all you can afford" : ""}`;
 ```
 
 Replace the refuel button line (currently line 90):
@@ -231,6 +233,7 @@ git commit -m "feat(ui): refuel button promises exactly what it buys (B-1)"
 ### Task 3: Negative-credits warning (B-3)
 
 **Files:**
+
 - Modify: `src/ui/screens.ts` (`statbar`, `logisticsPanel`)
 - Modify: `src/ui/styles.css` (`.credits-negative`)
 - Test: `tests/ui/screens.test.ts`
@@ -278,8 +281,8 @@ function statbar(s: GameState, fuelClass: string): string {
 In `logisticsPanel`, extend the local `kv` helper with an `extra` class param and use it for the Credits row:
 
 ```ts
-  const kv = (label: string, value: string, gold = false, extra = "") =>
-    `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""}${extra ? ` ${extra}` : ""} st-num">${value}</span></div>`;
+const kv = (label: string, value: string, gold = false, extra = "") =>
+  `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""}${extra ? ` ${extra}` : ""} st-num">${value}</span></div>`;
 ```
 
 ```ts
@@ -314,6 +317,7 @@ git commit -m "feat(ui): style negative credits as an explicit warning state (B-
 ### Task 4: Stake-preview engine module (P0-1 foundation)
 
 **Files:**
+
 - Create: `src/engine/preview.ts`
 - Modify: `src/engine/game.ts` (`resolveChoice` refactor, lines 230–296)
 - Test: `tests/engine/preview.test.ts` (new)
@@ -602,6 +606,7 @@ git commit -m "refactor(engine): extract event formulas into preview module with
 ### Task 5: Event screen — vitals statbar + stake-labeled choices (P0-1)
 
 **Files:**
+
 - Modify: `src/ui/screens.ts` (`statbar` signature, `eventScreen`)
 - Modify: `src/ui/render.ts:17`
 - Modify: `src/ui/styles.css` (event statbar visibility, stake sub-line, h1 selector)
@@ -791,6 +796,7 @@ git commit -m "feat(ui): show vitals and per-choice stakes on event screens (P0-
 ### Task 6: Backlog docs + full verification
 
 **Files:**
+
 - Modify: `docs/BACKLOG.md` (move P0-1/P0-2 to the shipped section)
 - Modify: `docs/ENGAGEMENT_BACKLOG.md` (mark B-1, B-3 fixed)
 
