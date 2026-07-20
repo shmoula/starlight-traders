@@ -3,6 +3,7 @@ import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { missionsHere } from "../engine/game";
+import { choiceStakes } from "../engine/preview";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
@@ -10,6 +11,17 @@ const cr = (n: number) => `${n.toLocaleString()}cr`;
 /** Renders ` disabled title="…"` for a control, or nothing when it is enabled. */
 const disabledAttr = (disabled: boolean, title: string): string =>
   disabled ? ` disabled title="${title}"` : "";
+
+/** Fuel cost of the cheapest jump away from the current location. */
+function cheapestJumpCost(s: GameState): number {
+  return Math.min(...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n)));
+}
+
+/** Statbar/bar warning class shared by the station and event screens. */
+function fuelWarnClass(s: GameState): string {
+  const cheapest = cheapestJumpCost(s);
+  return s.fuel < cheapest ? "stat-critical" : s.fuel < cheapest * 2 ? "stat-warn" : "";
+}
 
 type Tone = "good" | "bad" | "neutral";
 
@@ -37,10 +49,20 @@ function screenHead(s: GameState): string {
   </header>`;
 }
 
-/** Sticky at-a-glance strip; duplicates logistics values, hence aria-hidden. */
-function statbar(s: GameState, fuelClass: string): string {
-  return `<div class="st-statbar" aria-hidden="true">
-    <span class="st-statbar__chip st-statbar__chip--gold st-num">${cr(s.credits)}</span>
+/**
+ * At-a-glance vitals strip. On the station screen it duplicates panel data, so it
+ * ships presentation-only (aria-hidden). On the event screen it is the ONLY vitals
+ * surface, so callers there keep it exposed and always visible.
+ */
+function statbar(
+  s: GameState,
+  fuelClass: string,
+  opts: { presentation?: boolean; extra?: string } = {}
+): string {
+  const { presentation = true, extra = "" } = opts;
+  const creditsClass = s.credits < 0 ? " credits-negative" : "";
+  return `<div class="st-statbar${extra ? ` ${extra}` : ""}"${presentation ? ' aria-hidden="true"' : ""}>
+    <span class="st-statbar__chip st-statbar__chip--gold st-num${creditsClass}">${cr(s.credits)}</span>
     <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
     <span class="st-statbar__chip st-num">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
     <span class="st-statbar__chip st-num">Hold ${cargoUsed(s.cargo)}/${s.cargoCapacity}</span>
@@ -59,20 +81,27 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
   const fuelPct = Math.round((s.fuel / s.fuelCapacity) * 100);
   const hullPct = Math.round((s.hull / s.hullMax) * 100);
   const barMod = fuelClass === "stat-critical" ? "st-bar--critical" : "st-bar--gold";
-  const tankFull = s.fuel >= s.fuelCapacity;
-  const refuelDisabled = tankFull || s.credits < REFUEL_PRICE;
-  const refuelTitle = tankFull ? "Fuel tank full" : "Not enough credits";
+  // Mirror engine refuel(): it buys min(units, tankRoom, affordable) — the label
+  // must promise exactly what the click delivers (B-1).
+  const tankRoom = s.fuelCapacity - s.fuel;
+  const affordable = Math.floor(s.credits / REFUEL_PRICE);
+  const refuelUnits = Math.min(5, tankRoom, affordable);
+  const refuelDisabled = refuelUnits <= 0;
+  const refuelTitle = tankRoom <= 0 ? "Fuel tank full" : "Not enough credits";
+  const shownUnits = refuelDisabled ? 5 : refuelUnits;
+  const clampedByCredits = !refuelDisabled && affordable < Math.min(5, tankRoom);
+  const refuelLabel = `Refuel +${shownUnits} (${cr(shownUnits * REFUEL_PRICE)})${clampedByCredits ? " — all you can afford" : ""}`;
   const hullFull = s.hull >= s.hullMax;
   const repairDisabled = hullFull || s.credits < REPAIR_PRICE;
   const repairTitle = hullFull ? "Hull fully repaired" : "Not enough credits";
   const noDebt = s.debt <= 0;
   const payDisabled = noDebt || s.credits <= 0;
   const payTitle = noDebt ? "No debt to pay" : "No credits to pay with";
-  const kv = (label: string, value: string, gold = false) =>
-    `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""} st-num">${value}</span></div>`;
+  const kv = (label: string, value: string, gold = false, extra = "") =>
+    `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""}${extra ? ` ${extra}` : ""} st-num">${value}</span></div>`;
   return panel(
     "Ship Logistics",
-    `${kv("Credits", cr(s.credits), true)}
+    `${kv("Credits", cr(s.credits), true, s.credits < 0 ? "credits-negative" : "")}
     ${kv("Debt", cr(s.debt), true)}
     ${kv("Net worth", cr(netWorth(s)), true)}
     ${kv("Day", String(s.day))}
@@ -87,7 +116,7 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
     <hr class="st-divider" />
     <div class="st-kv__label">Services</div>
     <div class="svc-row">
-      <button class="st-btn st-btn--ghost" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}Refuel +5 (${cr(5 * REFUEL_PRICE)})</button>
+      <button class="st-btn st-btn--ghost" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}${refuelLabel}</button>
       <button class="st-btn st-btn--ghost" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>${hullIcon()}Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
       <button class="st-btn st-btn--ghost" data-act="payDebt"${disabledAttr(payDisabled, payTitle)}>Pay 200 debt</button>
     </div>
@@ -108,21 +137,26 @@ function logPanel(s: GameState): string {
 }
 
 function navigatorPanel(s: GameState): string {
+  const banner =
+    s.fuel < cheapestJumpCost(s)
+      ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Not enough fuel to jump anywhere — refuel below (${REFUEL_PRICE}cr/unit)</div>`
+      : "";
   const orbs = NODE_IDS.filter((n) => n !== s.location)
     .map((n) => {
       const cost = fuelCost(s.location, n);
       const danger = Math.round(NODES[n].danger * 100);
       const disabled = s.fuel < cost;
-      return `<button class="st-orb" data-act="jump" data-id="${n}"${disabled ? " disabled" : ""}>
+      const reason = disabled ? ` — need ${cost}, have ${s.fuel}` : "";
+      return `<button class="st-orb" data-act="jump" data-id="${n}"${disabledAttr(disabled, `Need ${cost}⛽, have ${s.fuel}`)}>
         <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
         <span class="st-orb__label">${NODES[n].name}</span>
         <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${danger}%</span>
-        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${cost} fuel · ${danger}% danger</span>
-        <span class="st-sr-only"> — jump here, ${cost} fuel, danger ${danger}%</span>
+        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${cost} fuel · ${danger}% danger${reason}</span>
+        <span class="st-sr-only"> — jump here, ${cost} fuel, danger ${danger}%${reason}</span>
       </button>`;
     })
     .join("");
-  return panel("Navigator", `<div class="st-orb-group">${orbs}</div>`);
+  return panel("Navigator", `${banner}<div class="st-orb-group">${orbs}</div>`);
 }
 
 function cargoPanel(s: GameState): string {
@@ -225,11 +259,7 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
         .join("")}
     </div>`
     : "";
-  const cheapestJump = Math.min(
-    ...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n))
-  );
-  const fuelClass =
-    s.fuel < cheapestJump ? "stat-critical" : s.fuel < cheapestJump * 2 ? "stat-warn" : "";
+  const fuelClass = fuelWarnClass(s);
 
   return `
     ${screenHead(s)}
@@ -254,15 +284,22 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
   `;
 }
 
-export function eventScreen(e: GameEvent): string {
+export function eventScreen(s: GameState, e: GameEvent): string {
+  const stakes = choiceStakes(s, e);
   const choices = e.choices
-    .map((c) => `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}</button>`)
+    .map((c) => {
+      const stake = stakes[c.id];
+      return `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}${
+        stake ? `<span class="choice-stake st-num">${stake}</span>` : ""
+      }</button>`;
+    })
     .join("");
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="event-card">
-          <h2>${e.title}</h2><p>${e.description}</p><div class="choices">${choices}</div>
+          ${statbar(s, fuelWarnClass(s), { presentation: false, extra: "st-statbar--event" })}
+          <h1>${e.title}</h1><p>${e.description}</p><div class="choices">${choices}</div>
         </div>
       </div></div>
     </div>

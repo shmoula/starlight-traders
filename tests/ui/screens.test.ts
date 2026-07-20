@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { stationScreen, eventScreen, runEndScreen } from "../../src/ui/screens";
-import { createGame, missionsHere } from "../../src/engine/game";
+import { createGame, missionsHere, refuel } from "../../src/engine/game";
 import { COMMODITIES, NODES, commodityName } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
 
@@ -224,6 +224,53 @@ describe("stationScreen trade hub", () => {
   });
 });
 
+describe("navigator stranding signals (P0-2)", () => {
+  it("explains each unreachable route on its disabled orb", () => {
+    // From terra: vulcan costs 3 (reachable), kiruna costs 4 (not reachable).
+    const html = stationScreen({ ...createGame(42), fuel: 3 });
+    expect(html).toContain('data-act="jump" data-id="kiruna" disabled title="Need 4⛽, have 3"');
+    expect(html).toContain("— need 4, have 3");
+    expect(html).not.toContain('data-act="jump" data-id="vulcan" disabled');
+  });
+
+  it("shows a stranding banner when no jump is reachable", () => {
+    const html = stationScreen({ ...createGame(42), fuel: 2 }); // cheapest from terra costs 3
+    expect(html).toContain("Not enough fuel to jump anywhere — refuel below (8cr/unit)");
+  });
+
+  it("omits the banner while any jump is reachable", () => {
+    const html = stationScreen({ ...createGame(42), fuel: 3 });
+    expect(html).not.toContain("Not enough fuel to jump anywhere");
+  });
+});
+
+describe("refuel honesty (B-1)", () => {
+  it("shows the credit-clamped amount and flags it", () => {
+    // room 10, affordable floor(37/8) = 4 → buys 4 for 32cr
+    const html = stationScreen({ ...createGame(42), credits: 37, fuel: 10 });
+    expect(html).toContain("Refuel +4 (32cr) — all you can afford");
+  });
+
+  it("shows the room-clamped amount without the affordability flag", () => {
+    const html = stationScreen({ ...createGame(42), fuel: 18 }); // room 2, credits 800
+    expect(html).toContain("Refuel +2 (16cr)");
+    expect(html).not.toContain("all you can afford");
+  });
+
+  it("keeps the nominal label and disabled reason when nothing can be bought", () => {
+    const html = stationScreen({ ...createGame(42), credits: 0 });
+    expect(html).toContain('data-act="refuel" disabled title="Not enough credits"');
+    expect(html).toContain("Refuel +5 (40cr)");
+  });
+
+  it("matches what the engine actually buys", () => {
+    const s = { ...createGame(42), credits: 37, fuel: 10 };
+    const after = refuel(s, 5);
+    expect(after.fuel - s.fuel).toBe(4);
+    expect(s.credits - after.credits).toBe(32);
+  });
+});
+
 describe("event and run-end cards", () => {
   const event: GameEvent = {
     kind: "pirates",
@@ -233,7 +280,7 @@ describe("event and run-end cards", () => {
   };
 
   it("wraps the event in a chamfered card and keeps resolve hooks", () => {
-    const html = eventScreen(event);
+    const html = eventScreen(createGame(42), event);
     expect(html).toContain("st-panel--chamfer");
     expect(html).toContain('class="event-card"');
     expect(html).toContain('data-act="resolve" data-id="flee"');
@@ -247,5 +294,61 @@ describe("event and run-end cards", () => {
     expect(html).toContain('data-act="share"');
     expect(html).toContain('data-act="restart"');
     expect(html).toContain("Score: 999");
+  });
+});
+
+describe("eventScreen vitals and stakes (P0-1)", () => {
+  const pirates: GameEvent = {
+    kind: "pirates",
+    title: "Pirate Ambush",
+    description: "Raiders demand tribute.",
+    choices: [
+      { id: "pay", label: "Pay tribute" },
+      { id: "flee", label: "Run for it" },
+    ],
+  };
+
+  it("shows the vitals statbar, not hidden from assistive tech", () => {
+    const html = eventScreen(createGame(42), pirates);
+    expect(html).toContain('<div class="st-statbar st-statbar--event">');
+    expect(html).toContain("Fuel 16/20");
+    expect(html).toContain("Hull 100/100");
+    expect(html).toContain("800cr");
+  });
+
+  it("labels each choice with its stake", () => {
+    const s = { ...createGame(42), day: 4 };
+    const html = eventScreen(s, pirates);
+    expect(html).toContain('<span class="choice-stake st-num">~190cr</span>'); // 150 + 4×10
+    expect(html).toContain('<span class="choice-stake st-num">risk 19 hull</span>'); // 15 + 4
+  });
+
+  it("omits the stake span for choices without one", () => {
+    const quiet: GameEvent = {
+      kind: "quiet",
+      title: "Quiet Jump",
+      description: "The void is calm.",
+      choices: [{ id: "ack", label: "Continue" }],
+    };
+    const html = eventScreen(createGame(42), quiet);
+    expect(html).not.toContain("choice-stake");
+  });
+
+  it("uses a top-level heading for the event title", () => {
+    const html = eventScreen(createGame(42), pirates);
+    expect(html).toContain("<h1>Pirate Ambush</h1>");
+  });
+});
+
+describe("negative credits warning (B-3)", () => {
+  it("marks negative credits in both the statbar and logistics", () => {
+    const html = stationScreen({ ...createGame(42), credits: -33 });
+    expect(html.match(/credits-negative/g)?.length).toBe(2);
+    expect(html).toContain("-33cr");
+  });
+
+  it("adds no warning at zero or above", () => {
+    const html = stationScreen({ ...createGame(42), credits: 0 });
+    expect(html).not.toContain("credits-negative");
   });
 });
