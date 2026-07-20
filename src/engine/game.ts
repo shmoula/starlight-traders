@@ -191,7 +191,10 @@ export function checkLoss(state: GameState): GameState {
   const fuelShort = Math.max(0, cheapest - state.fuel);
   const canBuyFuel = state.credits >= fuelShort * REFUEL_PRICE;
   if (!canJumpNow && !canBuyFuel) {
-    return withLog({ ...state, status: "lost" }, "Stranded and broke. The run ends here.");
+    return withLog(
+      { ...state, status: "lost" },
+      `Stranded at ${NODES[state.location].name} — out of fuel, out of credits.`
+    );
   }
   return state;
 }

@@ -186,6 +186,21 @@ describe("checkLoss", () => {
     const s = createGame(42);
     expect(checkLoss(s).status).toBe("playing");
   });
+
+  it("names the station and cause in the stranding log line", () => {
+    const s = {
+      ...createGame(42),
+      location: "vulcan" as const,
+      fuel: 0,
+      credits: 0,
+      cargo: { water: 0, parts: 0, luxury: 0 },
+    };
+    const lost = checkLoss(s);
+    expect(lost.status).toBe("lost");
+    expect(lost.log[lost.log.length - 1]).toBe(
+      "Stranded at Vulcan Yards — out of fuel, out of credits."
+    );
+  });
 });
 
 describe("refuel partial fill (soft-lock fix)", () => {
