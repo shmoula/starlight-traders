@@ -418,6 +418,41 @@ describe("market quantity buttons (P1-1)", () => {
   });
 });
 
+describe("active contract shortfall shortcut (P1-1)", () => {
+  const mission: Mission = {
+    id: "m2",
+    commodity: "water",
+    qty: 10,
+    destination: "verge",
+    reward: 500,
+    deadlineDay: 30,
+  };
+
+  it("offers a one-click buy of the missing units at the local price", () => {
+    const s = withMission(mission, { cargo: { water: 3, parts: 0, luxury: 0 } });
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    const html = stationScreen(s);
+    expect(html).toContain(
+      `data-act="buy" data-id="water" data-qty="7" aria-label="Buy 7 Water / Ice for ${(7 * price).toLocaleString()}cr"`
+    );
+    expect(html).toContain(`buy 7 for ${(7 * price).toLocaleString()}cr`);
+  });
+
+  it("disables the shortcut with a reason when unaffordable", () => {
+    const s = withMission(mission, { cargo: { water: 3, parts: 0, luxury: 0 }, credits: 0 });
+    const html = stationScreen(s);
+    expect(html).toContain(`aria-disabled="true" aria-describedby="buy-hint-${mission.id}"`);
+    expect(html).toContain("(not enough credits)");
+  });
+
+  it("shows no shortcut once the cargo is ready", () => {
+    const s = withMission(mission); // helper fills cargo to the full qty
+    const html = stationScreen(s);
+    expect(html).not.toContain("buy-hint-");
+    expect(html).toContain("✓ carrying 10/10");
+  });
+});
+
 describe("negative credits warning (B-3)", () => {
   it("marks negative credits in both the statbar and logistics", () => {
     const html = stationScreen({ ...createGame(42), credits: -33 });

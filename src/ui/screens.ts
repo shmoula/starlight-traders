@@ -252,6 +252,22 @@ function tradeHubPanel(s: GameState): string {
       const atDestination = s.location === m.destination;
       const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
       const jumpHintId = `jump-hint-${m.id}`;
+      // Shortfall shortcut: buys the full missing amount at the local price, or
+      // is disabled with a reason — never a silent partial (B-1 precedent).
+      const shortfall = m.qty - have;
+      const unitPrice = getPrice(s.seed, s.day, s.location, m.commodity);
+      const shortfallCost = shortfall * unitPrice;
+      const roomLeft = s.cargoCapacity - cargoUsed(s.cargo);
+      const shortfallBlocked =
+        shortfallCost > s.credits
+          ? "not enough credits"
+          : shortfall > roomLeft
+            ? "not enough hold space"
+            : "";
+      const buyHintId = `buy-hint-${m.id}`;
+      const shortfallBtn = shortfallBlocked
+        ? `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}" aria-disabled="true" aria-describedby="${buyHintId}">buy ${shortfall} for ${cr(shortfallCost)}</button> <span id="${buyHintId}" class="bad">(${shortfallBlocked})</span>`
+        : `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}">buy ${shortfall} for ${cr(shortfallCost)}</button>`;
       const jumpBtn = canReach
         ? `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver">jump to ${NODES[m.destination].name}</button>`
         : `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver" aria-disabled="true" aria-describedby="${jumpHintId}">jump to ${NODES[m.destination].name}</button> <span id="${jumpHintId}" class="bad">(not enough fuel to jump)</span>`;
@@ -262,7 +278,7 @@ function tradeHubPanel(s: GameState): string {
         ? `<span class="bad">✗ deadline passed</span>`
         : ready
           ? `<span class="good">✓ carrying ${have}/${m.qty} — ready, ${readyBtn}</span>`
-          : `<span class="bad">✗ carrying ${have}/${m.qty} — buy ${m.qty - have} more ${commodityName(m.commodity)}</span>`;
+          : `<span class="bad">✗ carrying ${have}/${m.qty} — ${shortfallBtn}</span>`;
       return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${hint}</li>`;
     })
     .join("");
