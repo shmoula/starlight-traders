@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { stationScreen, eventScreen, runEndScreen } from "../../src/ui/screens";
-import { createGame, missionsHere, refuel } from "../../src/engine/game";
+import { createGame, missionsHere, refuel, checkLoss } from "../../src/engine/game";
 import { COMMODITIES, NODES, commodityName } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
 
@@ -306,6 +306,20 @@ describe("event and run-end cards", () => {
     expect(html).toContain('data-act="share"');
     expect(html).toContain('data-act="restart"');
     expect(html).toContain("Score: 999");
+  });
+});
+
+describe("run-end cause of death (quick win 3)", () => {
+  it("shows the final log line as the cause when the run is lost", () => {
+    const s = checkLoss({ ...createGame(42), location: "vulcan" as const, fuel: 0, credits: 0 });
+    const html = runEndScreen(s, 0);
+    expect(html).toContain('class="run-end__cause"');
+    expect(html).toContain("Stranded at Vulcan Yards — out of fuel, out of credits.");
+  });
+
+  it("omits the cause line while the run is not lost", () => {
+    const html = runEndScreen(createGame(42), 999);
+    expect(html).not.toContain("run-end__cause");
   });
 });
 

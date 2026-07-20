@@ -307,12 +307,17 @@ export function eventScreen(s: GameState, e: GameEvent): string {
 }
 
 export function runEndScreen(s: GameState, score: number): string {
+  // checkLoss is the only site that sets status "lost", and it appends the cause
+  // message in the same call — so on a lost run the newest log entry names what
+  // ended it. Guarded by status so future non-lost end states never mislabel.
+  const cause = s.status === "lost" ? (s.log[s.log.length - 1] ?? "") : "";
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="run-end">
           <h1>Run Over</h1>
           <p>You survived ${s.day} days.</p>
+          ${cause ? `<p class="run-end__cause">${cause}</p>` : ""}
           <p class="score st-num">Score: ${score.toLocaleString()}</p>
           <p class="hint">Seed #${s.seed}</p>
           <button class="st-btn" data-act="share">Copy score card</button>
