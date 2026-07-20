@@ -386,7 +386,7 @@ describe("market quantity buttons (P1-1)", () => {
     const price = getPrice(s.seed, s.day, s.location, "water");
     const html = stationScreen({ ...s, credits: price * 3 });
     expect(html).toContain(
-      `data-act="buy" data-id="water" data-qty="5" aria-label="Buy 5 Water / Ice for ${(5 * price).toLocaleString()}cr" disabled title="Only enough for 3"`
+      `data-act="buy" data-id="water" data-qty="5" aria-label="Buy ×5 Water / Ice for ${(5 * price).toLocaleString()}cr" disabled title="Only enough for 3"`
     );
   });
 
