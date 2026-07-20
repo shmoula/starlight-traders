@@ -100,6 +100,18 @@ describe("stationScreen turn report", () => {
   });
 });
 
+describe("stationScreen day identity (quick win 2)", () => {
+  it("shows the date beside the day counter", () => {
+    const html = stationScreen(createGame(42), [], "Jul 20");
+    expect(html).toContain("Terra Hub · Day 1 · Jul 20");
+  });
+
+  it("omits the date segment when no label is given", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("Terra Hub · Day 1</p>");
+  });
+});
+
 describe("stationScreen ship's log", () => {
   it("renders a titled, labelled log section", () => {
     const html = stationScreen(createGame(42));

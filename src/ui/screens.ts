@@ -42,10 +42,10 @@ function toneOf(msg: string): Tone {
 
 const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›" };
 
-function screenHead(s: GameState): string {
+function screenHead(s: GameState, dateLabel = ""): string {
   return `<header class="screen-head">
     <h1 class="st-screen-title">Starlight Traders</h1>
-    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}</p>
+    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}${dateLabel ? ` · ${dateLabel}` : ""}</p>
   </header>`;
 }
 
@@ -247,7 +247,7 @@ function tradeHubPanel(s: GameState): string {
   </section>`;
 }
 
-export function stationScreen(s: GameState, turnReport: string[] = []): string {
+export function stationScreen(s: GameState, turnReport: string[] = [], dateLabel = ""): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
       <h2 class="turn-report__title">Since your last jump</h2>
@@ -262,7 +262,7 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
   const fuelClass = fuelWarnClass(s);
 
   return `
-    ${screenHead(s)}
+    ${screenHead(s, dateLabel)}
     ${statbar(s, fuelClass)}
     <div class="st-shell station-shell">
       <!-- DOM order leads with the stage so single-column mobile reads

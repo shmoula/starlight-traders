@@ -33,7 +33,7 @@ let turnReport: string[] = [];
 let logMarkBeforeJump = 0;
 
 function paint() {
-  render(app, { state, pendingEvent, turnReport });
+  render(app, { state, pendingEvent, turnReport, dateLabel: formatDateLabel(bootDate) });
 }
 
 function applyAction(act: string | undefined, id: string | undefined) {
