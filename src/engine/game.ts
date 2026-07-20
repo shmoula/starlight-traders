@@ -17,8 +17,10 @@ import {
   bribeCost,
   derelictReward,
   engineBurn,
+  engineHullStrain,
   fleeDamage,
   pirateToll,
+  SALVAGE_TRAP_DAMAGE,
   salvageAmount,
 } from "./preview";
 
@@ -257,17 +259,29 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
     }
     case "salvage": {
       if (choiceId === "collect") {
-        const got = salvageAmount(s);
-        s = withLog(
-          { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
-          `Salvaged ${got} ${commodityName("parts")}.`
-        );
+        if ((s.day * 7 + s.seed) % 3 === 0) {
+          s = withLog(
+            { ...s, hull: Math.max(0, s.hull - SALVAGE_TRAP_DAMAGE) },
+            `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`
+          );
+        } else {
+          const got = salvageAmount(s);
+          s = withLog(
+            { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
+            `Salvaged ${got} ${commodityName("parts")}.`
+          );
+        }
       }
       break;
     }
     case "engine": {
       const burn = engineBurn(s);
-      s = withLog({ ...s, fuel: s.fuel - burn }, `Engine trouble burned ${burn} fuel.`);
+      const strain = engineHullStrain(s);
+      const msg =
+        strain > 0
+          ? `Engine trouble burned ${burn} fuel and overheated the hull for ${strain}.`
+          : `Engine trouble burned ${burn} fuel.`;
+      s = withLog({ ...s, fuel: s.fuel - burn, hull: Math.max(0, s.hull - strain) }, msg);
       break;
     }
     case "derelict": {

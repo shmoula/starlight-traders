@@ -5,8 +5,10 @@ import {
   choiceStakes,
   derelictReward,
   engineBurn,
+  engineHullStrain,
   fleeDamage,
   pirateToll,
+  SALVAGE_TRAP_DAMAGE,
   salvageAmount,
 } from "../../src/engine/preview";
 import { createGame, resolveChoice } from "../../src/engine/game";
@@ -38,20 +40,58 @@ describe("stake previews match resolveChoice outcomes", () => {
     expect(s.hull - after.hull).toBe(fleeDamage(s.day));
   });
 
-  it("salvage: collect gains exactly the previewed parts", () => {
-    const s = { ...createGame(42), day: 6 };
+  it("salvage: previews both outcomes; a clean day gains exactly the previewed parts", () => {
+    const s = { ...createGame(42), day: 4 }; // (4×7 + 42) % 3 === 1 → clean
     const e = ev("salvage", ["collect", "ignore"]);
-    expect(choiceStakes(s, e).collect).toBe(`+${salvageAmount(s)} Machine Parts`);
+    expect(choiceStakes(s, e).collect).toBe(
+      `+${salvageAmount(s)} Machine Parts, or a hazard: −${SALVAGE_TRAP_DAMAGE} hull`
+    );
     const after = resolveChoice(s, e, "collect");
     expect(after.cargo.parts - s.cargo.parts).toBe(salvageAmount(s));
+    expect(after.hull).toBe(s.hull);
   });
 
-  it("engine: burns exactly the previewed fuel", () => {
-    const s = { ...createGame(42), fuel: 1 };
+  it("salvage: a hazard day costs the previewed hull and no cargo", () => {
+    const s = { ...createGame(42), day: 6 }; // (6×7 + 42) % 3 === 0 → hazard
+    const e = ev("salvage", ["collect", "ignore"]);
+    const after = resolveChoice(s, e, "collect");
+    expect(s.hull - after.hull).toBe(SALVAGE_TRAP_DAMAGE);
+    expect(after.cargo.parts).toBe(s.cargo.parts);
+  });
+
+  it("salvage: staying on course is a safe no-op", () => {
+    const s = { ...createGame(42), day: 6 };
+    const after = resolveChoice(s, ev("salvage", ["collect", "ignore"]), "ignore");
+    expect(after.hull).toBe(s.hull);
+    expect(after.cargo.parts).toBe(s.cargo.parts);
+  });
+
+  it("engine: a healthy tank burns exactly the previewed fuel and no hull", () => {
+    const s = { ...createGame(42), fuel: 5 };
     const e = ev("engine", ["ack"]);
-    expect(choiceStakes(s, e).ack).toBe("−1 fuel");
+    expect(choiceStakes(s, e).ack).toBe(`−${engineBurn(s)} fuel`);
     const after = resolveChoice(s, e, "ack");
     expect(s.fuel - after.fuel).toBe(engineBurn(s));
+    expect(after.hull).toBe(s.hull);
+  });
+
+  it("engine: a near-empty tank vents the rest of the leak into the hull", () => {
+    const s = { ...createGame(42), fuel: 1 };
+    const e = ev("engine", ["ack"]);
+    expect(choiceStakes(s, e).ack).toBe(`−1 fuel, −${engineHullStrain(s)} hull`);
+    const after = resolveChoice(s, e, "ack");
+    expect(s.fuel - after.fuel).toBe(1);
+    expect(s.hull - after.hull).toBe(engineHullStrain(s));
+  });
+
+  it("engine: a dry tank still costs something — never a free −0 fuel", () => {
+    const s = { ...createGame(42), fuel: 0 };
+    const e = ev("engine", ["ack"]);
+    expect(engineBurn(s)).toBe(0);
+    expect(engineHullStrain(s)).toBeGreaterThan(0);
+    expect(choiceStakes(s, e).ack).toBe(`−${engineHullStrain(s)} hull`);
+    const after = resolveChoice(s, e, "ack");
+    expect(s.hull - after.hull).toBe(engineHullStrain(s));
   });
 
   it("derelict: previews both outcomes; a win day pays the previewed reward", () => {

@@ -42,9 +42,10 @@ function salvage(): GameEvent {
   return {
     kind: "salvage",
     title: "Salvage Field",
-    description: "Debris drifts nearby. Scoop it up for free goods?",
+    description:
+      "Debris drifts nearby — mostly cargo, but war-era wrecks sometimes hide live ordnance. Scoop it up?",
     choices: [
-      { id: "collect", label: "Collect salvage" },
+      { id: "collect", label: "Scoop the debris (gamble)" },
       { id: "ignore", label: "Stay on course" },
     ],
   };

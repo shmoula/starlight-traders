@@ -17,15 +17,28 @@ export function fleeDamage(day: number): number {
   return 15 + (day % 10);
 }
 
-/** Salvage units collected, clamped to cargo room. */
+/** Salvage units collected on a clean scoop, clamped to cargo room. */
 export function salvageAmount(s: GameState): number {
   const room = s.cargoCapacity - cargoUsed(s.cargo);
   return Math.min(room, 2 + (s.day % 4));
 }
 
-/** Fuel burned by engine trouble. */
+/** Hull damage when the salvage field hides a hazard. */
+export const SALVAGE_TRAP_DAMAGE = 10;
+
+/** A coolant leak always vents this many units of trouble. */
+export const ENGINE_LEAK = 2;
+/** Hull cooked per unit of leak the tank is too empty to vent as fuel. */
+export const ENGINE_STRAIN_PER_FUEL = 5;
+
+/** Fuel burned by engine trouble — as much of the leak as the tank can cover. */
 export function engineBurn(s: GameState): number {
-  return Math.min(s.fuel, 2);
+  return Math.min(s.fuel, ENGINE_LEAK);
+}
+
+/** Hull damage when the tank is too empty to vent the whole leak as fuel. */
+export function engineHullStrain(s: GameState): number {
+  return (ENGINE_LEAK - engineBurn(s)) * ENGINE_STRAIN_PER_FUEL;
 }
 
 /** Credits found aboard a derelict on a lucky day. */
@@ -51,10 +64,17 @@ export function choiceStakes(s: GameState, e: GameEvent): Record<string, string>
       return { pay: `~${pirateToll(s)}cr`, flee: `risk ${fleeDamage(s.day)} hull` };
     case "salvage": {
       const got = salvageAmount(s);
-      return { collect: got > 0 ? `+${got} ${commodityName("parts")}` : "hold is full" };
+      const gain = got > 0 ? `+${got} ${commodityName("parts")}` : `hold full, nothing to gain`;
+      return { collect: `${gain}, or a hazard: −${SALVAGE_TRAP_DAMAGE} hull` };
     }
-    case "engine":
-      return { ack: `−${engineBurn(s)} fuel` };
+    case "engine": {
+      const burn = engineBurn(s);
+      const strain = engineHullStrain(s);
+      const parts: string[] = [];
+      if (burn > 0) parts.push(`−${burn} fuel`);
+      if (strain > 0) parts.push(`−${strain} hull`);
+      return { ack: parts.join(", ") };
+    }
     case "derelict":
       return {
         board: `could hold ~${derelictReward(s.day)}cr, or a trap: −${DERELICT_TRAP_DAMAGE} hull`,
