@@ -16,6 +16,14 @@ import {
 import { getPrice } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
 
+describe("createGame goal line", () => {
+  it("opens the log by stating the stake, the objective, and the shared sky", () => {
+    expect(createGame(42).log[0]).toBe(
+      "The Syndicate staked your ship — 1,500cr, compounding. Score = your peak fortune. Everyone flies today's sky."
+    );
+  });
+});
+
 describe("arrival settlement reporting", () => {
   const contract: Mission = {
     id: "c1",

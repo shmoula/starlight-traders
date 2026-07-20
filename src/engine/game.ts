@@ -49,7 +49,9 @@ export function createGame(seed: number): GameState {
     activeMissions: [],
     peakNetWorth: 0,
     status: "playing",
-    log: ["You launch from Terra Hub, 1500 credits in debt. Make it count."],
+    log: [
+      "The Syndicate staked your ship — 1,500cr, compounding. Score = your peak fortune. Everyone flies today's sky.",
+    ],
   };
 }
 

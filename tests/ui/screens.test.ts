@@ -105,7 +105,7 @@ describe("stationScreen ship's log", () => {
     const html = stationScreen(createGame(42));
     expect(html).toContain('aria-label="Ship\'s log"');
     expect(html).toContain("Ship's Log");
-    expect(html).toContain("You launch from Terra Hub");
+    expect(html).toContain("The Syndicate staked your ship");
   });
 });
 
