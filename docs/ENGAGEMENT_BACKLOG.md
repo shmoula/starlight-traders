@@ -202,16 +202,14 @@ not an oracle.
 2. **Goal line + day identity**: intro log line becomes "The Syndicate staked your
    ship — 1,500cr, compounding. Score = your peak fortune. Everyone flies today's
    sky."; header gains "Starlight · Jul 19". Extends UIUX P2-4's visible-score idea.
-3. **B-1 refuel honesty label** (see Bugs): the stranding-adjacent lifeline becomes
-   visible exactly when it matters.
-4. **Cause-of-death line** on the end screen from the existing loss log ("Stranded at
+3. **Cause-of-death line** on the end screen from the existing loss log ("Stranded at
    Vulcan Yards — out of fuel, out of credits."). Foundation for E1-3.
-5. **Share card date + URL**: replace "Seed #1482862887" with "Starlight · Jul 19" and
+4. **Share card date + URL**: replace "Seed #1482862887" with "Starlight · Jul 19" and
    append the game URL. (Full v2 card is E1-2.)
 
 ## 6. Suggested iteration order
 
-1. **Quick wins 1–5** — one afternoon, no dependencies.
+1. **Quick wins 1–4** — one afternoon, no dependencies.
 2. **E0-1 Daily Audit** (+ E0-2 final scoring) — the identity fix everything else
    builds on.
 3. **E0-3 Persistence pack** — needs E0-1's end states to know what to record.
