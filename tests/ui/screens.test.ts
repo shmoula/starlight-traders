@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { stationScreen, eventScreen, runEndScreen } from "../../src/ui/screens";
 import { createGame, missionsHere, refuel, checkLoss } from "../../src/engine/game";
-import { COMMODITIES, NODES, commodityName } from "../../src/engine/world";
+import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
 
 function withMission(mission: Mission, overrides: Partial<ReturnType<typeof createGame>> = {}) {
@@ -363,6 +363,46 @@ describe("eventScreen vitals and stakes (P0-1)", () => {
   it("uses a top-level heading for the event title", () => {
     const html = eventScreen(createGame(42), pirates);
     expect(html).toContain("<h1>Pirate Ambush</h1>");
+  });
+});
+
+describe("market quantity buttons (P1-1)", () => {
+  it("renders ×5 and Max buy buttons that pass exact clamped quantities", () => {
+    const s = createGame(42);
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    const maxBuy = Math.min(Math.floor(s.credits / price), s.cargoCapacity);
+    const html = stationScreen(s);
+    expect(html).toContain(`data-act="buy" data-id="water" data-qty="5"`);
+    expect(html).toContain(`data-act="buy" data-id="water" data-qty="${maxBuy}"`);
+    expect(html).toContain(`Max ×${maxBuy}`);
+  });
+
+  it("disables ×5 buy with a pointer to Max when fewer than 5 are affordable", () => {
+    const s = createGame(42);
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    const html = stationScreen({ ...s, credits: price * 3 });
+    expect(html).toContain(
+      `data-act="buy" data-id="water" data-qty="5" aria-label="Buy 5 Water / Ice for ${(5 * price).toLocaleString()}cr" disabled title="Can only manage 3 — use Max"`
+    );
+  });
+
+  it("sell buttons pass the held quantity and All sells everything", () => {
+    const s = { ...createGame(42), cargo: { water: 7, parts: 0, luxury: 0 } };
+    const html = stationScreen(s);
+    expect(html).toContain(`data-act="sell" data-id="water" data-qty="7"`);
+    expect(html).toContain("All ×7");
+  });
+
+  it("disables ×5 sell when fewer than 5 are held", () => {
+    const s = { ...createGame(42), cargo: { water: 3, parts: 0, luxury: 0 } };
+    const html = stationScreen(s);
+    expect(html).toContain(`disabled title="Only 3 in hold — use All"`);
+  });
+
+  it("keeps Max disabled with the standard reason at zero purchasing power", () => {
+    const html = stationScreen({ ...createGame(42), credits: 0 });
+    expect(html).not.toContain("Max ×");
+    expect(html).toContain(`disabled title="Not enough credits"`);
   });
 });
 

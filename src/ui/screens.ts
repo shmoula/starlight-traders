@@ -1,7 +1,14 @@
 // src/ui/screens.ts
 import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
-import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
+import {
+  REFUEL_PRICE,
+  REPAIR_PRICE,
+  cargoUsed,
+  dockingFee,
+  netWorth,
+  taxOnSale,
+} from "../engine/economy";
 import { missionsHere } from "../engine/game";
 import { choiceStakes } from "../engine/preview";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
@@ -178,19 +185,42 @@ function cargoPanel(s: GameState): string {
 function tradeHubPanel(s: GameState): string {
   const marketRows = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
+    const held = s.cargo[c.id];
+    const room = s.cargoCapacity - cargoUsed(s.cargo);
     const cantAfford = price > s.credits;
-    const holdFull = cargoUsed(s.cargo) + 1 > s.cargoCapacity;
+    const holdFull = room < 1;
     const buyDisabled = cantAfford || holdFull;
     const buyTitle = cantAfford ? "Not enough credits" : "Cargo hold full";
-    const sellDisabled = s.cargo[c.id] < 1;
+    // Exact clamped quantities: the button promises precisely what the engine
+    // will do, so an enabled click never silently no-ops (B-1 precedent).
+    const maxBuy = Math.max(0, Math.min(Math.floor(s.credits / price), room));
+    const buy5Disabled = maxBuy < 5;
+    const buy5Title = buyDisabled ? buyTitle : `Can only manage ${maxBuy} — use Max`;
+    const maxBuyAttrs = buyDisabled
+      ? disabledAttr(true, buyTitle)
+      : ` title="Buy ${maxBuy} for ${cr(maxBuy * price)}"`;
+    const sellNet = (n: number): number => {
+      const gross = n * price;
+      return gross - taxOnSale(s.location, gross);
+    };
+    const sellDisabled = held < 1;
+    const sell5Disabled = held < 5;
+    const sell5Title = sellDisabled ? "None in hold" : `Only ${held} in hold — use All`;
+    const sellAllAttrs = sellDisabled
+      ? disabledAttr(true, "None in hold")
+      : ` title="Sell ${held} for ${cr(sellNet(held))}"`;
     return `<div class="st-market__row" role="group" aria-label="${c.name}">
       ${iconBox(c.id)}
       <span class="st-market__name">${c.name}</span>
       <span class="st-market__prices st-num" aria-label="Market price ${price} credits"><span class="st-market__buy-price">${cr(price)}</span></span>
-      <span class="st-market__held st-num" aria-label="${s.cargo[c.id]} units held">×${s.cargo[c.id]}</span>
+      <span class="st-market__held st-num" aria-label="${held} units held">×${held}</span>
       <span class="st-market__actions">
-        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
-        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
+        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="1" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
+        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="5" aria-label="Buy 5 ${c.name} for ${cr(5 * price)}"${disabledAttr(buy5Disabled, buy5Title)}>×5</button>
+        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="${maxBuy}" aria-label="Buy ${maxBuy} ${c.name} for ${cr(maxBuy * price)}"${maxBuyAttrs}>Max${maxBuy > 0 ? ` ×${maxBuy}` : ""}</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="1" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="5" aria-label="Sell 5 ${c.name} for ${cr(sellNet(5))}"${disabledAttr(sell5Disabled, sell5Title)}>×5</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="${held}" aria-label="Sell all ${held} ${c.name} for ${cr(sellNet(held))}"${sellAllAttrs}>All${held > 0 ? ` ×${held}` : ""}</button>
       </span>
     </div>`;
   }).join("");

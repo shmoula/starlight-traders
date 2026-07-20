@@ -36,13 +36,13 @@ function paint() {
   render(app, { state, pendingEvent, turnReport, dateLabel: formatDateLabel(bootDate) });
 }
 
-function applyAction(act: string | undefined, id: string | undefined) {
+function applyAction(act: string | undefined, id: string | undefined, qty: number) {
   switch (act) {
     case "buy":
-      state = buy(state, id as CommodityId, 1);
+      state = buy(state, id as CommodityId, qty);
       break;
     case "sell":
-      state = sell(state, id as CommodityId, 1);
+      state = sell(state, id as CommodityId, qty);
       break;
     case "refuel":
       state = refuel(state, 5);
@@ -94,6 +94,9 @@ app.addEventListener("click", async (e) => {
   if (btn.getAttribute("aria-disabled") === "true") return;
   const act = btn.dataset.act;
   const id = btn.dataset.id;
+  // data-qty carries the exact clamped quantity computed by the renderer;
+  // absent/garbage values fall back to 1 (Number("") → 0, Number("x") → NaN).
+  const qty = Math.max(1, Math.floor(Number(btn.dataset.qty ?? "1")) || 1);
 
   // The turn report clears on any new action; it is re-populated when a jump settles.
   turnReport = [];
@@ -105,7 +108,7 @@ app.addEventListener("click", async (e) => {
       daysSurvived: state.day,
     });
   } else {
-    applyAction(act, id);
+    applyAction(act, id, qty);
   }
   paint();
 });
