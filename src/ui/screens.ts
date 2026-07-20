@@ -3,6 +3,7 @@ import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { missionsHere } from "../engine/game";
+import { choiceStakes } from "../engine/preview";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
@@ -48,10 +49,19 @@ function screenHead(s: GameState): string {
   </header>`;
 }
 
-/** Sticky at-a-glance strip; duplicates logistics values, hence aria-hidden. */
-function statbar(s: GameState, fuelClass: string): string {
+/**
+ * At-a-glance vitals strip. On the station screen it duplicates panel data, so it
+ * ships presentation-only (aria-hidden). On the event screen it is the ONLY vitals
+ * surface, so callers there keep it exposed and always visible.
+ */
+function statbar(
+  s: GameState,
+  fuelClass: string,
+  opts: { presentation?: boolean; extra?: string } = {}
+): string {
+  const { presentation = true, extra = "" } = opts;
   const creditsClass = s.credits < 0 ? " credits-negative" : "";
-  return `<div class="st-statbar" aria-hidden="true">
+  return `<div class="st-statbar${extra ? ` ${extra}` : ""}"${presentation ? ' aria-hidden="true"' : ""}>
     <span class="st-statbar__chip st-statbar__chip--gold st-num${creditsClass}">${cr(s.credits)}</span>
     <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
     <span class="st-statbar__chip st-num">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
@@ -274,15 +284,22 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
   `;
 }
 
-export function eventScreen(e: GameEvent): string {
+export function eventScreen(s: GameState, e: GameEvent): string {
+  const stakes = choiceStakes(s, e);
   const choices = e.choices
-    .map((c) => `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}</button>`)
+    .map((c) => {
+      const stake = stakes[c.id];
+      return `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}${
+        stake ? `<span class="choice-stake st-num">${stake}</span>` : ""
+      }</button>`;
+    })
     .join("");
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="event-card">
-          <h2>${e.title}</h2><p>${e.description}</p><div class="choices">${choices}</div>
+          ${statbar(s, fuelWarnClass(s), { presentation: false, extra: "st-statbar--event" })}
+          <h1>${e.title}</h1><p>${e.description}</p><div class="choices">${choices}</div>
         </div>
       </div></div>
     </div>

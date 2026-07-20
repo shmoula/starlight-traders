@@ -14,7 +14,7 @@ export function render(root: HTMLElement, vm: ViewModel): void {
   if (vm.state.status === "lost") {
     root.innerHTML = runEndScreen(vm.state, scoreFn(vm.state.peakNetWorth, vm.state.day));
   } else if (vm.pendingEvent) {
-    root.innerHTML = eventScreen(vm.pendingEvent);
+    root.innerHTML = eventScreen(vm.state, vm.pendingEvent);
   } else {
     root.innerHTML = stationScreen(vm.state, vm.turnReport);
   }

@@ -280,7 +280,7 @@ describe("event and run-end cards", () => {
   };
 
   it("wraps the event in a chamfered card and keeps resolve hooks", () => {
-    const html = eventScreen(event);
+    const html = eventScreen(createGame(42), event);
     expect(html).toContain("st-panel--chamfer");
     expect(html).toContain('class="event-card"');
     expect(html).toContain('data-act="resolve" data-id="flee"');
@@ -294,6 +294,49 @@ describe("event and run-end cards", () => {
     expect(html).toContain('data-act="share"');
     expect(html).toContain('data-act="restart"');
     expect(html).toContain("Score: 999");
+  });
+});
+
+describe("eventScreen vitals and stakes (P0-1)", () => {
+  const pirates: GameEvent = {
+    kind: "pirates",
+    title: "Pirate Ambush",
+    description: "Raiders demand tribute.",
+    choices: [
+      { id: "pay", label: "Pay tribute" },
+      { id: "flee", label: "Run for it" },
+    ],
+  };
+
+  it("shows the vitals statbar, not hidden from assistive tech", () => {
+    const html = eventScreen(createGame(42), pirates);
+    expect(html).toContain('<div class="st-statbar st-statbar--event">');
+    expect(html).toContain("Fuel 16/20");
+    expect(html).toContain("Hull 100/100");
+    expect(html).toContain("800cr");
+  });
+
+  it("labels each choice with its stake", () => {
+    const s = { ...createGame(42), day: 4 };
+    const html = eventScreen(s, pirates);
+    expect(html).toContain('<span class="choice-stake st-num">~190cr</span>'); // 150 + 4×10
+    expect(html).toContain('<span class="choice-stake st-num">risk 19 hull</span>'); // 15 + 4
+  });
+
+  it("omits the stake span for choices without one", () => {
+    const quiet: GameEvent = {
+      kind: "quiet",
+      title: "Quiet Jump",
+      description: "The void is calm.",
+      choices: [{ id: "ack", label: "Continue" }],
+    };
+    const html = eventScreen(createGame(42), quiet);
+    expect(html).not.toContain("choice-stake");
+  });
+
+  it("uses a top-level heading for the event title", () => {
+    const html = eventScreen(createGame(42), pirates);
+    expect(html).toContain("<h1>Pirate Ambush</h1>");
   });
 });
 

@@ -46,7 +46,7 @@ body {
   text-align: center;
   padding: var(--st-space-6) var(--st-space-5);
 }
-.event-card h2,
+.event-card h1,
 .run-end h1 {
   margin: 0 0 var(--st-space-3);
   font-family: var(--st-font-display);
@@ -124,6 +124,37 @@ body {
 }
 .st-statbar__chip.credits-negative {
   color: var(--st-negative);
+}
+/* Event screen: the statbar is the sole vitals surface — inline it in the card
+   and keep it visible at desktop widths where the station statbar hides. */
+.st-statbar--event {
+  position: static;
+  justify-content: center;
+  background: transparent;
+  border-bottom: 1px solid var(--st-border);
+  margin-bottom: var(--st-space-3);
+  padding: 0 0 var(--st-space-2);
+}
+@media (min-width: 1100px) {
+  .st-statbar.st-statbar--event {
+    display: flex;
+  }
+}
+/* Choice buttons grow a second line for the stake. */
+.event-card .st-btn {
+  height: auto;
+  min-height: var(--st-control-h);
+  padding: var(--st-space-2) var(--st-space-3);
+  flex-direction: column;
+  gap: 2px;
+}
+.choice-stake {
+  display: block;
+  font-size: var(--st-text-2xs);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--st-text-dim);
 }
 .accepted {
   color: var(--st-positive);
