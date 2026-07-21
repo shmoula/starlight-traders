@@ -269,3 +269,57 @@ describe("retire (E0-1)", () => {
     expect(retire(dead)).toBe(dead);
   });
 });
+
+describe("the Daily Audit (E0-1)", () => {
+  it("arrival on day 12 ends the run as audited", () => {
+    const s = { ...createGame(42), day: 11, fuel: 20 };
+    const j = jump(s, "kiruna"); // arrival day = 12
+    const r = arrive(j.state);
+    expect(r.state.status).toBe("audited");
+    expect(r.state.runEnd?.daysSurvived).toBe(12);
+    expect(r.state.log[r.state.log.length - 1]).toBe(
+      "Day 12 — the Syndicate audits your books and banks your score."
+    );
+  });
+
+  it("audit beats stranding: arriving broke on day 12 still banks the score", () => {
+    // Fuel exactly covers terra→kiruna (4); nothing left to jump or refuel with after.
+    const s = { ...createGame(42), day: 11, fuel: 4, credits: 30 };
+    const j = jump(s, "kiruna"); // docking fee eats the last credits
+    const r = arrive(j.state);
+    expect(r.state.status).toBe("audited");
+  });
+
+  it("no audit before day 12", () => {
+    const s = { ...createGame(42), day: 5, fuel: 20 };
+    const r = arrive(jump(s, "kiruna").state);
+    expect(r.state.status).toBe("playing");
+  });
+
+  it("deliveries settle before the audit banks, so the reward counts", () => {
+    const contract: Mission = {
+      id: "a1",
+      commodity: "water",
+      qty: 5,
+      destination: "kiruna",
+      reward: 500,
+      deadlineDay: 99,
+    };
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, day: 11, fuel: 20, cargo: { ...s.cargo, water: 5 } };
+    const r = arrive(jump(s, "kiruna").state);
+    expect(r.delivered.map((m) => m.id)).toEqual(["a1"]);
+    expect(r.state.status).toBe("audited");
+    // Reward was paid into credits before endRun computed net worth.
+    expect(r.state.runEnd!.netWorthAtEnd).toBe(r.state.credits + 0 - r.state.debt);
+  });
+
+  it("arrive early-returns on an ended run without settling deliveries", () => {
+    const dead = endRun(createGame(42), "lost", "gone");
+    const r = arrive(dead);
+    expect(r.state).toBe(dead);
+    expect(r.delivered).toEqual([]);
+    expect(r.expired).toEqual([]);
+  });
+});

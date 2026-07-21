@@ -24,7 +24,7 @@ import {
   SALVAGE_TRAP_DAMAGE,
   salvageAmount,
 } from "./preview";
-import { endRun } from "./run-end";
+import { RUN_LENGTH, endRun } from "./run-end";
 
 export const STARTING = {
   credits: 800,
@@ -278,16 +278,26 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
 
 /**
  * Finalize arrival once the in-transit event is resolved: settle deliveries against the
- * cargo actually in the hold, track peak net worth, then run the loss check (so a delivery
- * reward can rescue a player who would otherwise be stranded). Returns what settled.
+ * cargo actually in the hold, track peak net worth, then close the day — the Day-12
+ * audit banks the run (it outranks stranding: you made it), otherwise the loss check
+ * runs (so a delivery reward can rescue a player who would otherwise be stranded).
  */
 export function arrive(state: GameState): {
   state: GameState;
   delivered: Mission[];
   expired: Mission[];
 } {
+  if (state.status !== "playing") return { state, delivered: [], expired: [] };
   const settled = settleMissions(state);
-  const s = checkLoss(trackPeak(settled.state));
+  let s = trackPeak(settled.state);
+  s =
+    s.day >= RUN_LENGTH
+      ? endRun(
+          s,
+          "audited",
+          `Day ${RUN_LENGTH} — the Syndicate audits your books and banks your score.`
+        )
+      : checkLoss(s);
   return { state: s, delivered: settled.delivered, expired: settled.expired };
 }
 
