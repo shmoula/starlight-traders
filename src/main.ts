@@ -24,8 +24,20 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 // Static decoration, injected once — deliberately outside the paint() cycle.
 document.querySelector<HTMLDivElement>("#backdrop")!.innerHTML = BACKDROP_SVG;
 
-let bootDate = new Date();
-let state: GameState = createGame(dailySeed(bootDate));
+// One place ties the seed and the display date to a single instant, so they cannot
+// desync: the run stamps its own UTC day into GameState (see createGame), and the
+// header/share date derive from that stamp rather than a hand-synced shadow variable.
+function bootDailyGame(): GameState {
+  const boot = new Date();
+  return createGame(dailySeed(boot), boot.toISOString());
+}
+
+/** Display date for a run, from the UTC day stamped into its state ("" for seed-only runs). */
+function dateLabelOf(s: GameState): string {
+  return s.bootDate ? formatDateLabel(new Date(s.bootDate)) : "";
+}
+
+let state: GameState = bootDailyGame();
 let pendingEvent: GameEvent | null = null;
 // Log length captured just before a jump, so the station screen can surface every
 // entry the jump produced (fee, interest, event outcome, deliveries) as a turn report.
@@ -33,7 +45,7 @@ let turnReport: string[] = [];
 let logMarkBeforeJump = 0;
 
 function paint() {
-  render(app, { state, pendingEvent, turnReport, dateLabel: formatDateLabel(bootDate) });
+  render(app, { state, pendingEvent, turnReport, dateLabel: dateLabelOf(state) });
 }
 
 function applyAction(act: string | undefined, id: string | undefined, qty: number) {
@@ -80,8 +92,7 @@ function applyAction(act: string | undefined, id: string | undefined, qty: numbe
       break;
     }
     case "restart": {
-      bootDate = new Date();
-      state = createGame(dailySeed(bootDate));
+      state = bootDailyGame();
       pendingEvent = null;
       break;
     }
@@ -103,7 +114,7 @@ app.addEventListener("click", async (e) => {
 
   if (act === "share") {
     await copyShare({
-      dateLabel: formatDateLabel(bootDate),
+      dateLabel: dateLabelOf(state),
       score: scoreFn(state.peakNetWorth, state.day),
       daysSurvived: state.day,
     });

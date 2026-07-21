@@ -1,15 +1,8 @@
 // src/ui/screens.ts
 import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
-import {
-  REFUEL_PRICE,
-  REPAIR_PRICE,
-  cargoUsed,
-  dockingFee,
-  netWorth,
-  taxOnSale,
-} from "../engine/economy";
-import { missionsHere } from "../engine/game";
+import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
+import { buyBlockReason, maxBuyable, missionsHere, netProceeds } from "../engine/game";
 import { choiceStakes } from "../engine/preview";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 
@@ -38,7 +31,11 @@ type Tone = "good" | "bad" | "neutral";
  * neutral, so a new message never renders as a false win or loss.
  */
 function toneOf(msg: string): Tone {
-  if (/trap|damage|seized|expired|burned|Bribed|Paid pirates|Loan interest|Stranded/i.test(msg)) {
+  if (
+    /trap|damage|seized|expired|burned|warhead|overheated|Bribed|Paid pirates|Loan interest|Stranded/i.test(
+      msg
+    )
+  ) {
     return "bad";
   }
   if (/held \d|Salvaged|Delivery complete|Paid down/i.test(msg)) {
@@ -186,20 +183,20 @@ function tradeHubPanel(s: GameState): string {
   const marketRows = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
     const held = s.cargo[c.id];
-    const room = s.cargoCapacity - cargoUsed(s.cargo);
-    const cantAfford = price > s.credits;
-    const holdFull = room < 1;
-    const buyDisabled = cantAfford || holdFull;
-    const buyTitle = cantAfford ? "Not enough credits" : "Cargo hold full";
-    // Exact clamped quantity: the button promises precisely what the engine
-    // will do, so an enabled click never silently no-ops (B-1 precedent).
-    const maxBuy = Math.max(0, Math.min(Math.floor(s.credits / price), room));
+    // Clamped quantities and block reasons come from the engine helpers, so an enabled
+    // button always delivers exactly its label and can't drift from buy()/sell() (B-1).
+    const maxBuy = maxBuyable(s, c.id);
+    const buy1Reason = buyBlockReason(s, c.id, 1);
+    const buyDisabled = buy1Reason !== "";
+    const buyTitle = buy1Reason === "room" ? "Cargo hold full" : "Not enough credits";
     const buy5Disabled = maxBuy < 5;
-    const buy5Title = buyDisabled ? buyTitle : `Only enough for ${maxBuy}`;
-    const sellNet = (n: number): number => {
-      const gross = n * price;
-      return gross - taxOnSale(s.location, gross);
-    };
+    // Attribute the ×5 limit to whichever constraint binds one unit past the max, so a
+    // hold-limited player isn't sent looking for credits they already have.
+    const buy5Title = buyDisabled
+      ? buyTitle
+      : buyBlockReason(s, c.id, maxBuy + 1) === "room"
+        ? `Hold space for only ${maxBuy}`
+        : `Only enough for ${maxBuy}`;
     const sellDisabled = held < 1;
     const sell5Disabled = held < 5;
     const sell5Title = sellDisabled ? "None in hold" : `Only ${held} in hold`;
@@ -212,7 +209,7 @@ function tradeHubPanel(s: GameState): string {
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="1" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="5" aria-label="Buy ×5 ${c.name} for ${cr(5 * price)}"${disabledAttr(buy5Disabled, buy5Title)}>×5</button>
         <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="1" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
-        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="5" aria-label="Sell ×5 ${c.name} for ${cr(sellNet(5))}"${disabledAttr(sell5Disabled, sell5Title)}>×5</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="5" aria-label="Sell ×5 ${c.name} for ${cr(netProceeds(s, c.id, 5))}"${disabledAttr(sell5Disabled, sell5Title)}>×5</button>
       </span>
     </div>`;
   }).join("");
@@ -239,19 +236,25 @@ function tradeHubPanel(s: GameState): string {
       // Shortfall shortcut: buys the full missing amount at the local price, or
       // is disabled with a reason — never a silent partial (B-1 precedent).
       const shortfall = m.qty - have;
-      const unitPrice = getPrice(s.seed, s.day, s.location, m.commodity);
-      const shortfallCost = shortfall * unitPrice;
-      const roomLeft = s.cargoCapacity - cargoUsed(s.cargo);
+      const shortfallCost = shortfall * getPrice(s.seed, s.day, s.location, m.commodity);
+      // Same engine guard as the market Buy buttons, so the block reason can't drift from buy().
+      const shortfallReason = buyBlockReason(s, m.commodity, shortfall);
       const shortfallBlocked =
-        shortfallCost > s.credits
+        shortfallReason === "credits"
           ? "not enough credits"
-          : shortfall > roomLeft
+          : shortfallReason === "room"
             ? "not enough hold space"
             : "";
       const buyHintId = `buy-hint-${m.id}`;
-      const shortfallBtn = shortfallBlocked
-        ? `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}" aria-disabled="true" aria-describedby="${buyHintId}">buy ${shortfall} for ${cr(shortfallCost)}</button> <span id="${buyHintId}" class="bad">(${shortfallBlocked})</span>`
-        : `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}">buy ${shortfall} for ${cr(shortfallCost)}</button>`;
+      // Compose the button once and splice on the disabled fragment, so the two states
+      // can't diverge. aria-disabled (not `disabled`) keeps it focusable to announce the
+      // reason, which is why disabledAttr's plain `disabled` attribute doesn't fit here.
+      const shortfallLabel = `Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}`;
+      const shortfallBtn =
+        `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="${shortfallLabel}"${
+          shortfallBlocked ? ` aria-disabled="true" aria-describedby="${buyHintId}"` : ""
+        }>buy ${shortfall} for ${cr(shortfallCost)}</button>` +
+        (shortfallBlocked ? ` <span id="${buyHintId}" class="bad">(${shortfallBlocked})</span>` : "");
       const jumpBtn = canReach
         ? `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver">jump to ${NODES[m.destination].name}</button>`
         : `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver" aria-disabled="true" aria-describedby="${jumpHintId}">jump to ${NODES[m.destination].name}</button> <span id="${jumpHintId}" class="bad">(not enough fuel to jump)</span>`;

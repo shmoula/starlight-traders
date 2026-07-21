@@ -98,6 +98,13 @@ describe("stationScreen turn report", () => {
     const html = stationScreen(createGame(42), ["Loan interest: debt grows 60cr."]);
     expect(html).toContain('class="tr-line tr-bad"');
   });
+
+  it("colors both hull-damage outcomes (warhead, overheated) as bad", () => {
+    const warhead = stationScreen(createGame(42), ["Salvage hid a live warhead: -10 hull."]);
+    expect(warhead).toContain('class="tr-line tr-bad"');
+    const overheated = stationScreen(createGame(42), ["Engine trouble overheated the hull for 10."]);
+    expect(overheated).toContain('class="tr-line tr-bad"');
+  });
 });
 
 describe("stationScreen day identity (quick win 2)", () => {
@@ -314,7 +321,9 @@ describe("run-end cause of death (quick win 3)", () => {
     const s = checkLoss({ ...createGame(42), location: "vulcan" as const, fuel: 0, credits: 0 });
     const html = runEndScreen(s, 0);
     expect(html).toContain('class="run-end__cause"');
-    expect(html).toContain("Stranded at Vulcan Yards — out of fuel, out of credits.");
+    expect(html).toContain(
+      "Stranded at Vulcan Yards — not enough fuel to jump, and refueling costs more than you have."
+    );
   });
 
   it("omits the cause line while the run is not lost", () => {
@@ -388,6 +397,14 @@ describe("market quantity buttons (P1-1)", () => {
     expect(html).toContain(
       `data-act="buy" data-id="water" data-qty="5" aria-label="Buy ×5 Water / Ice for ${(5 * price).toLocaleString()}cr" disabled title="Only enough for 3"`
     );
+  });
+
+  it("attributes a hold-limited ×5 buy to hold space, not credits", () => {
+    // Credits are ample; only 3 slots of hold remain, so the limit is space, not money.
+    const s = { ...createGame(42), credits: 100000, cargo: { water: 27, parts: 0, luxury: 0 } };
+    const html = stationScreen(s);
+    expect(html).toContain(`data-id="water" data-qty="5"`);
+    expect(html).toContain(`disabled title="Hold space for only 3"`);
   });
 
   it("renders Sell 1 and ×5 sell buttons", () => {
