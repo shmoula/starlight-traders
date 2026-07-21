@@ -78,6 +78,12 @@ function trackPeak(state: GameState): GameState {
   return nw > state.peakNetWorth ? { ...state, peakNetWorth: nw } : state;
 }
 
+/** Hull 0 destroys the ship (B-6): the run ends as a loss and cargo goes down with it. */
+function checkHullDeath(s: GameState): GameState {
+  if (s.hull > 0 || s.status !== "playing") return s;
+  return endRun({ ...s, hull: 0 }, "lost", "Hull breach — your ship broke apart.");
+}
+
 export function missionsHere(state: GameState): Mission[] {
   return generateMissions(state.seed, state.day, state.location);
 }
@@ -307,7 +313,7 @@ function resolvePirates(s: GameState, choiceId: string): GameState {
     return withLog({ ...s, credits: s.credits - toll }, `Paid pirates ${toll}cr.`);
   }
   const dmg = fleeDamage(s.day);
-  return withLog({ ...s, hull: Math.max(0, s.hull - dmg) }, `Fled — took ${dmg} hull damage.`);
+  return withLog({ ...s, hull: s.hull - dmg }, `Fled — took ${dmg} hull damage.`);
 }
 
 function resolveSalvage(s: GameState, choiceId: string): GameState {
@@ -316,7 +322,7 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
   // strict every-3rd-day periodicity a raw `(day*7+seed) % 3` produces (B-2 class).
   if (hashSeed(s.seed, s.day) % 3 === 0) {
     return withLog(
-      { ...s, hull: Math.max(0, s.hull - SALVAGE_TRAP_DAMAGE) },
+      { ...s, hull: s.hull - SALVAGE_TRAP_DAMAGE },
       `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`
     );
   }
@@ -336,7 +342,7 @@ function resolveEngine(s: GameState): GameState {
   if (burn > 0) clauses.push(`burned ${burn} fuel`);
   if (strain > 0) clauses.push(`overheated the hull for ${strain}`);
   const msg = `Engine trouble ${clauses.join(" and ")}.`;
-  return withLog({ ...s, fuel: s.fuel - burn, hull: Math.max(0, s.hull - strain) }, msg);
+  return withLog({ ...s, fuel: s.fuel - burn, hull: s.hull - strain }, msg);
 }
 
 function resolveDerelict(s: GameState, choiceId: string): GameState {
@@ -348,7 +354,7 @@ function resolveDerelict(s: GameState, choiceId: string): GameState {
     return withLog({ ...s, credits: s.credits + reward }, `Derelict held ${reward}cr!`);
   }
   return withLog(
-    { ...s, hull: Math.max(0, s.hull - DERELICT_TRAP_DAMAGE) },
+    { ...s, hull: s.hull - DERELICT_TRAP_DAMAGE },
     `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`
   );
 }
@@ -391,7 +397,7 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
     default:
       break;
   }
-  // Loss/peak are evaluated in `arrive`, after deliveries settle against the
-  // post-event cargo — keep this focused on applying the event's effect.
-  return trackPeak(s);
+  // Loss/peak from deliveries are evaluated in `arrive`; hull death is checked here
+  // because a destroyed ship must not reach arrival settlement (cargo is lost).
+  return checkHullDeath(trackPeak(s));
 }

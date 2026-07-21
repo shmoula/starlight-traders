@@ -17,6 +17,7 @@ import {
 import { getPrice } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
+import { hashSeed } from "../../src/engine/rng";
 
 describe("createGame goal line", () => {
   it("opens the log by stating the stake, the objective, and the shared sky", () => {
@@ -321,5 +322,97 @@ describe("the Daily Audit (E0-1)", () => {
     expect(r.state).toBe(dead);
     expect(r.delivered).toEqual([]);
     expect(r.expired).toEqual([]);
+  });
+});
+
+describe("hull death (B-6)", () => {
+  const pirates: GameEvent = {
+    kind: "pirates",
+    title: "",
+    description: "",
+    choices: [{ id: "flee", label: "" }],
+  };
+
+  it("fleeing pirates at low hull destroys the ship", () => {
+    // fleeDamage(day) = 15 + (day % 10) → 16 on day 1; hull 10 cannot survive it.
+    const s = { ...createGame(42), hull: 10 };
+    const dead = resolveChoice(s, pirates, "flee");
+    expect(dead.status).toBe("lost");
+    expect(dead.hull).toBe(0);
+    expect(dead.runEnd?.cause).toBe("Hull breach — your ship broke apart.");
+  });
+
+  it("fleeing at healthy hull just takes the damage", () => {
+    const s = { ...createGame(42), hull: 50 };
+    const fled = resolveChoice(s, pirates, "flee");
+    expect(fled.status).toBe("playing");
+    expect(fled.hull).toBe(50 - 16);
+  });
+
+  it("a salvage trap can kill", () => {
+    // Find a trap day for this seed: resolveSalvage traps when hashSeed(seed, day) % 3 === 0.
+    const trapDay = Array.from({ length: 30 }, (_, i) => i + 1).find(
+      (d) => hashSeed(42, d) % 3 === 0
+    )!;
+    const salvage: GameEvent = {
+      kind: "salvage",
+      title: "",
+      description: "",
+      choices: [{ id: "collect", label: "" }],
+    };
+    const s = { ...createGame(42), day: trapDay, hull: 10 }; // SALVAGE_TRAP_DAMAGE = 10
+    const dead = resolveChoice(s, salvage, "collect");
+    expect(dead.status).toBe("lost");
+    expect(dead.hull).toBe(0);
+  });
+
+  it("a derelict trap can kill", () => {
+    // resolveDerelict traps when hashSeed(seed, day) % 2 !== 0.
+    const trapDay = Array.from({ length: 30 }, (_, i) => i + 1).find(
+      (d) => hashSeed(42, d) % 2 !== 0
+    )!;
+    const derelict: GameEvent = {
+      kind: "derelict",
+      title: "",
+      description: "",
+      choices: [{ id: "board", label: "" }],
+    };
+    const s = { ...createGame(42), day: trapDay, hull: 20 }; // DERELICT_TRAP_DAMAGE = 20
+    const dead = resolveChoice(s, derelict, "board");
+    expect(dead.status).toBe("lost");
+  });
+
+  it("engine strain on an empty tank can kill", () => {
+    const engine: GameEvent = {
+      kind: "engine",
+      title: "",
+      description: "",
+      choices: [{ id: "ack", label: "" }],
+    };
+    // fuel 0 → strain = ENGINE_LEAK(2) × 5 = 10 hull.
+    const s = { ...createGame(42), fuel: 0, hull: 10 };
+    const dead = resolveChoice(s, engine, "ack");
+    expect(dead.status).toBe("lost");
+    expect(dead.hull).toBe(0);
+  });
+
+  it("a ship destroyed in transit does not settle its deliveries", () => {
+    const contract: Mission = {
+      id: "h1",
+      commodity: "water",
+      qty: 5,
+      destination: "kiruna",
+      reward: 500,
+      deadlineDay: 99,
+    };
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, fuel: 20, hull: 10, cargo: { ...s.cargo, water: 5 } };
+    const j = jump(s, "kiruna");
+    const dead = resolveChoice(j.state, pirates, "flee"); // 15+(2%10)=17 ≥ 10 → destroyed
+    expect(dead.status).toBe("lost");
+    const r = arrive(dead);
+    expect(r.delivered).toEqual([]); // cargo went down with the ship
+    expect(r.state.runEnd?.survivalBonus).toBe(0);
   });
 });
