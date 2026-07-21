@@ -15,6 +15,7 @@ import {
 } from "../../src/engine/game";
 import { getPrice } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
+import { endRun } from "../../src/engine/run-end";
 
 describe("createGame goal line", () => {
   it("opens the log by stating the stake, the objective, and the shared sky", () => {
@@ -229,5 +230,23 @@ describe("resolveChoice", () => {
     };
     const s2 = resolveChoice(s, evt, "pay");
     expect(s2.credits).toBeLessThanOrEqual(s.credits);
+  });
+});
+
+describe("ended-run guards", () => {
+  it("jump is a no-op on an ended run", () => {
+    const dead = endRun({ ...createGame(42), fuel: 20 }, "lost", "gone");
+    const r = jump(dead, "kiruna");
+    expect(r.state).toBe(dead);
+    expect(r.event).toBeNull();
+  });
+
+  it("checkLoss banks a RunEnd with no survival bonus on stranding", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 0, cargo: { water: 0, parts: 0, luxury: 0 } };
+    const lost = checkLoss(s);
+    expect(lost.status).toBe("lost");
+    expect(lost.runEnd?.status).toBe("lost");
+    expect(lost.runEnd?.survivalBonus).toBe(0);
+    expect(lost.runEnd?.score).toBe(0); // credits 0 − debt 1500 floors at 0
   });
 });

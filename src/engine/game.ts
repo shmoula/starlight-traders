@@ -24,6 +24,7 @@ import {
   SALVAGE_TRAP_DAMAGE,
   salvageAmount,
 } from "./preview";
+import { endRun } from "./run-end";
 
 export const STARTING = {
   credits: 800,
@@ -221,7 +222,7 @@ function settleMissions(state: GameState): {
 }
 
 export function checkLoss(state: GameState): GameState {
-  if (state.status === "lost") return state;
+  if (state.status !== "playing") return state;
   const cheapest = Math.min(
     ...NODE_IDS.filter((n) => n !== state.location).map((n) => fuelCost(state.location, n))
   );
@@ -229,8 +230,9 @@ export function checkLoss(state: GameState): GameState {
   const fuelShort = Math.max(0, cheapest - state.fuel);
   const canBuyFuel = state.credits >= fuelShort * REFUEL_PRICE;
   if (!canJumpNow && !canBuyFuel) {
-    return withLog(
-      { ...state, status: "lost" },
+    return endRun(
+      state,
+      "lost",
       `Stranded at ${NODES[state.location].name} — not enough fuel to jump, and refueling costs more than you have.`
     );
   }
@@ -244,6 +246,7 @@ export function checkLoss(state: GameState): GameState {
  * cargo gained in transit (salvage, derelict loot) counts toward a delivery.
  */
 export function jump(state: GameState, to: NodeId): { state: GameState; event: GameEvent | null } {
+  if (state.status !== "playing") return { state, event: null };
   if (to === state.location) return { state, event: null };
   const cost = fuelCost(state.location, to);
   if (state.fuel < cost) return { state, event: null };
