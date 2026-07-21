@@ -78,10 +78,18 @@ function trackPeak(state: GameState): GameState {
   return nw > state.peakNetWorth ? { ...state, peakNetWorth: nw } : state;
 }
 
-/** Hull 0 destroys the ship (B-6): the run ends as a loss and cargo goes down with it. */
+/**
+ * Hull 0 destroys the ship (B-6): the run ends as a loss and cargo goes down with it.
+ * The four damage sites (resolvePirates/resolveSalvage/resolveEngine/resolveDerelict)
+ * intentionally subtract hull unclamped — always floor here, regardless of run status,
+ * so a negative hull never leaks past this point; only end the run from a live state.
+ */
 function checkHullDeath(s: GameState): GameState {
-  if (s.hull > 0 || s.status !== "playing") return s;
-  return endRun({ ...s, hull: 0 }, "lost", "Hull breach — your ship broke apart.");
+  if (s.hull > 0) return s;
+  const floored = { ...s, hull: 0 };
+  return s.status === "playing"
+    ? endRun(floored, "lost", "Hull breach — your ship broke apart.")
+    : floored;
 }
 
 export function missionsHere(state: GameState): Mission[] {
