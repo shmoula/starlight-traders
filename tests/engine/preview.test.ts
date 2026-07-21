@@ -102,7 +102,7 @@ describe("stake previews match resolveChoice outcomes", () => {
   });
 
   it("derelict: previews both outcomes; a win day pays the previewed reward", () => {
-    const s = { ...createGame(42), day: 2 }; // (2×7 + 42) % 2 === 0 → win
+    const s = { ...createGame(42), day: 3 }; // hashSeed(42, 3) % 2 === 0 → win
     const e = ev("derelict", ["board", "leave"]);
     expect(choiceStakes(s, e).board).toBe(
       `could hold ~${derelictReward(s.day)}cr, or a trap: −${DERELICT_TRAP_DAMAGE} hull`
@@ -112,7 +112,7 @@ describe("stake previews match resolveChoice outcomes", () => {
   });
 
   it("derelict: a trap day costs the previewed hull", () => {
-    const s = { ...createGame(42), day: 3 }; // (3×7 + 42) % 2 === 1 → trap
+    const s = { ...createGame(42), day: 2 }; // hashSeed(42, 2) % 2 === 1 → trap
     const after = resolveChoice(s, ev("derelict", ["board", "leave"]), "board");
     expect(s.hull - after.hull).toBe(DERELICT_TRAP_DAMAGE);
   });

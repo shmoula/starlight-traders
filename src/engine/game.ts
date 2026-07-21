@@ -60,7 +60,7 @@ export function createGame(seed: number, bootDate = ""): GameState {
     peakNetWorth: 0,
     status: "playing",
     log: [
-      "The Syndicate staked your ship — 1,500cr, compounding. Score = your peak fortune. Everyone flies today's sky.",
+      `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Score = your peak fortune. Everyone flies today's sky.`,
     ],
   };
 }
@@ -319,7 +319,9 @@ function resolveEngine(s: GameState): GameState {
 
 function resolveDerelict(s: GameState, choiceId: string): GameState {
   if (choiceId !== "board") return s;
-  if ((s.day * 7 + s.seed) % 2 === 0) {
+  // Shared hash, same as resolveSalvage — avoids the every-other-day periodicity a raw
+  // `(day*7+seed) % 2` produces (B-2 class). E1-4 still owns making these odds visible.
+  if (hashSeed(s.seed, s.day) % 2 === 0) {
     const reward = derelictReward(s.day);
     return withLog({ ...s, credits: s.credits + reward }, `Derelict held ${reward}cr!`);
   }
