@@ -63,7 +63,7 @@ export function createGame(seed: number, bootDate = ""): GameState {
     peakNetWorth: 0,
     status: "playing",
     log: [
-      `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Score = your peak fortune. Everyone flies today's sky.`,
+      `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Bank your fortune before the Day ${RUN_LENGTH} audit. Everyone flies today's sky.`,
     ],
   };
 }

@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { stationScreen, eventScreen, runEndScreen } from "../../src/ui/screens";
-import { createGame, missionsHere, refuel, checkLoss } from "../../src/engine/game";
+import { createGame, missionsHere, refuel, checkLoss, retire } from "../../src/engine/game";
 import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
+import { endRun } from "../../src/engine/run-end";
 
 function withMission(mission: Mission, overrides: Partial<ReturnType<typeof createGame>> = {}) {
   const s = createGame(42);
@@ -109,15 +110,15 @@ describe("stationScreen turn report", () => {
   });
 });
 
-describe("stationScreen day identity (quick win 2)", () => {
-  it("shows the date beside the day counter", () => {
+describe("stationScreen day identity", () => {
+  it("shows the bounded day counter beside the date", () => {
     const html = stationScreen(createGame(42), [], "Jul 20");
-    expect(html).toContain("Terra Hub · Day 1 · Jul 20");
+    expect(html).toContain("Terra Hub · Day 1/12 · Jul 20");
   });
 
   it("omits the date segment when no label is given", () => {
     const html = stationScreen(createGame(42));
-    expect(html).toContain("Terra Hub · Day 1</p>");
+    expect(html).toContain("Terra Hub · Day 1/12</p>");
   });
 });
 
@@ -307,30 +308,52 @@ describe("event and run-end cards", () => {
     expect(html).toContain('data-act="resolve" data-id="flee"');
   });
 
-  it("wraps the run-end in a chamfered card and keeps restart/share hooks", () => {
-    // Score 999 avoids locale-dependent thousands separators from toLocaleString.
-    const html = runEndScreen(createGame(42), 999);
+});
+
+describe("runEndScreen (E0-1/E0-2)", () => {
+  it("renders a retired run with breakdown, share, and restart hooks", () => {
+    // credits 2000, debt 1500, day 1 → net worth 500, bonus 50, score 550 (no locale separators).
+    const s = retire({ ...createGame(42), credits: 2000 });
+    const html = runEndScreen(s, s.runEnd!);
     expect(html).toContain("st-panel--chamfer");
-    expect(html).toContain('class="run-end"');
+    expect(html).toContain("<h1>Retired</h1>");
+    expect(html).toContain("Retired at Terra Hub — the Syndicate banks your score.");
+    expect(html).toContain("Survival bonus");
+    expect(html).toContain("Score: 550");
     expect(html).toContain('data-act="share"');
     expect(html).toContain('data-act="restart"');
-    expect(html).toContain("Score: 999");
+    expect(html).not.toContain("Seed #");
+  });
+
+  it("headlines an audited run", () => {
+    const s = endRun({ ...createGame(42), day: 12 }, "audited", "Day 12 — audited.");
+    expect(runEndScreen(s, s.runEnd!)).toContain("<h1>Audited</h1>");
+  });
+
+  it("headlines a hull breach as Ship Destroyed and forfeits the bonus", () => {
+    const s = endRun({ ...createGame(42), hull: 0 }, "lost", "Hull breach — your ship broke apart.");
+    const html = runEndScreen(s, s.runEnd!);
+    expect(html).toContain("<h1>Ship Destroyed</h1>");
+    expect(html).toContain("forfeited");
+    expect(html).toContain("Hull breach — your ship broke apart.");
+  });
+
+  it("headlines a stranding as Stranded", () => {
+    const s = checkLoss({ ...createGame(42), location: "vulcan" as const, fuel: 0, credits: 0 });
+    expect(runEndScreen(s, s.runEnd!)).toContain("<h1>Stranded</h1>");
   });
 });
 
-describe("run-end cause of death (quick win 3)", () => {
-  it("shows the final log line as the cause when the run is lost", () => {
-    const s = checkLoss({ ...createGame(42), location: "vulcan" as const, fuel: 0, credits: 0 });
-    const html = runEndScreen(s, 0);
-    expect(html).toContain('class="run-end__cause"');
-    expect(html).toContain(
-      "Stranded at Vulcan Yards — not enough fuel to jump, and refueling costs more than you have."
-    );
+describe("retire button (E0-1)", () => {
+  it("offers Retire at dock", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain('data-act="retire"');
+    expect(html).not.toContain('data-act="retireConfirm"');
   });
 
-  it("omits the cause line while the run is not lost", () => {
-    const html = runEndScreen(createGame(42), 999);
-    expect(html).not.toContain("run-end__cause");
+  it("shows the confirm step when armed", () => {
+    const html = stationScreen(createGame(42), [], "", true);
+    expect(html).toContain('data-act="retireConfirm"');
   });
 });
 

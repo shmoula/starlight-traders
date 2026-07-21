@@ -20,9 +20,9 @@ import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
 
 describe("createGame goal line", () => {
-  it("opens the log by stating the stake, the objective, and the shared sky", () => {
+  it("opens the log by stating the stake, the deadline, and the shared sky", () => {
     expect(createGame(42).log[0]).toBe(
-      "The Syndicate staked your ship — 1,500cr, compounding. Score = your peak fortune. Everyone flies today's sky."
+      "The Syndicate staked your ship — 1,500cr, compounding. Bank your fortune before the Day 12 audit. Everyone flies today's sky."
     );
   });
 });
