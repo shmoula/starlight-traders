@@ -26,6 +26,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     peakNetWorth: 0,
     status: "playing",
     log: [],
+    bootDate: "",
     ...overrides,
   };
 }

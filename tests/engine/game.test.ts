@@ -75,7 +75,8 @@ describe("arrival settlement reporting", () => {
     };
     let s = createGame(42);
     s = acceptMission(s, partsContract);
-    s = { ...s, cargo: { ...s.cargo, parts: 8 }, fuel: 20 }; // short by 2
+    // day 4 so the post-jump day (5) is a clean salvage day: hashSeed(42, 5) % 3 === 1.
+    s = { ...s, cargo: { ...s.cargo, parts: 8 }, fuel: 20, day: 4 }; // short by 2
 
     const j = jump(s, "kiruna"); // arrives at kiruna carrying 8 parts
     const salvage: GameEvent = {
@@ -198,7 +199,7 @@ describe("checkLoss", () => {
     const lost = checkLoss(s);
     expect(lost.status).toBe("lost");
     expect(lost.log[lost.log.length - 1]).toBe(
-      "Stranded at Vulcan Yards — out of fuel, out of credits."
+      "Stranded at Vulcan Yards — not enough fuel to jump, and refueling costs more than you have."
     );
   });
 });

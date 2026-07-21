@@ -12,6 +12,7 @@ import {
 } from "./economy";
 import { generateMissions } from "./missions";
 import { rollEvent } from "./events";
+import { hashSeed } from "./rng";
 import {
   DERELICT_TRAP_DAMAGE,
   bribeCost,
@@ -35,9 +36,16 @@ export const STARTING = {
 
 const INTEREST_EVERY = 3; // days between interest accruals
 
-export function createGame(seed: number): GameState {
+/**
+ * Create a fresh run for `seed`. `bootDate` (an ISO instant) stamps the run with the
+ * UTC day the seed was derived from, so the header/share date travels with the seed in
+ * state rather than in a hand-synced shadow variable. Seed-only callers (the balance
+ * sim) omit it and it stays "".
+ */
+export function createGame(seed: number, bootDate = ""): GameState {
   return {
     seed,
+    bootDate,
     day: 1,
     credits: STARTING.credits,
     debt: STARTING.debt,
@@ -100,6 +108,34 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
   return trackPeak(
     withLog(next, `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`)
   );
+}
+
+// Shared trade math so the UI never re-derives buy()/sell()'s guards by hand. A button
+// that computes its clamped quantity or net proceeds from these helpers stays honest
+// about what a click delivers even if buy()/sell() later grows a fee or rounding rule (B-1).
+
+/** Largest quantity of `id` buyable here, clamped by both credits and hold room. */
+export function maxBuyable(state: GameState, id: CommodityId): number {
+  const price = getPrice(state.seed, state.day, state.location, id);
+  const room = state.cargoCapacity - cargoUsed(state.cargo);
+  return Math.max(0, Math.min(Math.floor(state.credits / price), room));
+}
+
+/** Net credits from selling `qty` of `id` here, after sale tax — what sell() actually pays. */
+export function netProceeds(state: GameState, id: CommodityId, qty: number): number {
+  const price = getPrice(state.seed, state.day, state.location, id);
+  const gross = price * qty;
+  return gross - taxOnSale(state.location, gross);
+}
+
+/** Why buying `qty` of `id` here is blocked — "" when it would succeed. Mirrors buy()'s guard order. */
+export type BuyBlock = "" | "credits" | "room";
+export function buyBlockReason(state: GameState, id: CommodityId, qty: number): BuyBlock {
+  if (qty <= 0) return "";
+  const price = getPrice(state.seed, state.day, state.location, id);
+  if (price * qty > state.credits) return "credits";
+  if (cargoUsed(state.cargo) + qty > state.cargoCapacity) return "room";
+  return "";
 }
 
 export function refuel(state: GameState, units: number): GameState {
@@ -195,7 +231,7 @@ export function checkLoss(state: GameState): GameState {
   if (!canJumpNow && !canBuyFuel) {
     return withLog(
       { ...state, status: "lost" },
-      `Stranded at ${NODES[state.location].name} — out of fuel, out of credits.`
+      `Stranded at ${NODES[state.location].name} — not enough fuel to jump, and refueling costs more than you have.`
     );
   }
   return state;
@@ -254,7 +290,9 @@ function resolvePirates(s: GameState, choiceId: string): GameState {
 
 function resolveSalvage(s: GameState, choiceId: string): GameState {
   if (choiceId !== "collect") return s;
-  if ((s.day * 7 + s.seed) % 3 === 0) {
+  // Deterministic per seed/day via the shared hash — mulberry32's hashSeed avoids the
+  // strict every-3rd-day periodicity a raw `(day*7+seed) % 3` produces (B-2 class).
+  if (hashSeed(s.seed, s.day) % 3 === 0) {
     return withLog(
       { ...s, hull: Math.max(0, s.hull - SALVAGE_TRAP_DAMAGE) },
       `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`
@@ -262,8 +300,10 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
   }
   const got = salvageAmount(s);
   return withLog(
-    { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
-    `Salvaged ${got} ${commodityName("parts")}.`
+    got > 0
+      ? { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } }
+      : s,
+    got > 0 ? `Salvaged ${got} ${commodityName("parts")}.` : `Hold full — left the salvage drifting.`
   );
 }
 

@@ -41,7 +41,7 @@ describe("stake previews match resolveChoice outcomes", () => {
   });
 
   it("salvage: previews both outcomes; a clean day gains exactly the previewed parts", () => {
-    const s = { ...createGame(42), day: 4 }; // (4×7 + 42) % 3 === 1 → clean
+    const s = { ...createGame(42), day: 5 }; // hashSeed(42, 5) % 3 === 1 → clean
     const e = ev("salvage", ["collect", "ignore"]);
     expect(choiceStakes(s, e).collect).toBe(
       `+${salvageAmount(s)} Machine Parts, or a hazard: −${SALVAGE_TRAP_DAMAGE} hull`
@@ -52,11 +52,18 @@ describe("stake previews match resolveChoice outcomes", () => {
   });
 
   it("salvage: a hazard day costs the previewed hull and no cargo", () => {
-    const s = { ...createGame(42), day: 6 }; // (6×7 + 42) % 3 === 0 → hazard
+    const s = { ...createGame(42), day: 4 }; // hashSeed(42, 4) % 3 === 0 → hazard
     const e = ev("salvage", ["collect", "ignore"]);
     const after = resolveChoice(s, e, "collect");
     expect(s.hull - after.hull).toBe(SALVAGE_TRAP_DAMAGE);
     expect(after.cargo.parts).toBe(s.cargo.parts);
+  });
+
+  it("salvage: a full hold on a clean day scoops nothing and never logs 'Salvaged 0'", () => {
+    const s = { ...createGame(42), day: 5, cargo: { water: 30, parts: 0, luxury: 0 } }; // hold full
+    const after = resolveChoice(s, ev("salvage", ["collect", "ignore"]), "collect");
+    expect(after.cargo.parts).toBe(0);
+    expect(after.log[after.log.length - 1]).toBe("Hold full — left the salvage drifting.");
   });
 
   it("salvage: staying on course is a safe no-op", () => {
