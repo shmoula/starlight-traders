@@ -5,7 +5,6 @@ import {
   loanInterest,
   cargoUsed,
   netWorth,
-  score,
 } from "../../src/engine/economy";
 import { GameState } from "../../src/engine/types";
 
@@ -59,10 +58,5 @@ describe("economy", () => {
     const s = baseState({ credits: 1000, debt: 500, cargo: { water: 10, parts: 0, luxury: 0 } });
     const nw = netWorth(s);
     expect(nw).toBeGreaterThan(500); // 1000 - 500 + value of 10 water
-  });
-
-  it("score rewards both peak net worth and days survived", () => {
-    expect(score(10000, 8)).toBeGreaterThan(score(10000, 4));
-    expect(score(20000, 4)).toBeGreaterThan(score(10000, 4));
   });
 });

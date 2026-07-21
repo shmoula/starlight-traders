@@ -44,7 +44,3 @@ export function cargoValue(state: GameState): number {
 export function netWorth(state: GameState): number {
   return state.credits + cargoValue(state) - state.debt;
 }
-
-export function score(peakNetWorth: number, daysSurvived: number): number {
-  return Math.max(0, Math.round(peakNetWorth * (1 + daysSurvived * 0.1)));
-}

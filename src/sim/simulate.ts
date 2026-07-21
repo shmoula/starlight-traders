@@ -1,8 +1,17 @@
 // src/sim/simulate.ts
 import { CommodityId, GameState, NodeId } from "../engine/types";
-import { createGame, buy, sell, refuel, jump, resolveChoice, checkLoss } from "../engine/game";
+import {
+  arrive,
+  buy,
+  checkLoss,
+  createGame,
+  jump,
+  refuel,
+  repair,
+  resolveChoice,
+  sell,
+} from "../engine/game";
 import { NODE_IDS, fuelCost, getPrice } from "../engine/world";
-import { score as scoreFn } from "../engine/economy";
 
 export type Archetype = "cautious" | "balanced" | "greedy";
 
@@ -10,6 +19,7 @@ export interface SimResult {
   daysSurvived: number;
   peakNetWorth: number;
   score: number;
+  status: GameState["status"];
 }
 
 /** Pick the destination + commodity that maximizes naive expected margin this turn. */
@@ -31,7 +41,8 @@ function bestTrade(
   return best ? { to: best.to, id: best.id } : null;
 }
 
-export function runArchetype(kind: Archetype, seed: number, maxDays: number): SimResult {
+/** One full bounded run; the engine ends it by audit, stranding, or hull breach. */
+export function runArchetype(kind: Archetype, seed: number): SimResult {
   let s = createGame(seed);
   const candidates: CommodityId[] =
     kind === "cautious"
@@ -40,14 +51,16 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
         ? ["water", "parts"]
         : ["water", "parts", "luxury"];
 
-  while (s.status === "playing" && s.day < maxDays) {
-    // Top up fuel modestly each turn.
+  while (s.status === "playing") {
+    // Top up fuel modestly each turn; careful personas also maintain the hull now
+    // that hull 0 destroys the ship (B-6). Greedy gambles it, in persona.
     s = refuel(s, 6);
+    if (kind !== "greedy" && s.hull < 50) s = repair(s, 30);
 
     const pick = bestTrade(s, candidates);
     if (!pick) {
       s = checkLoss(s);
-      if (s.status === "lost") break;
+      if (s.status !== "playing") break;
       // Cannot act — force a cheap jump to advance and accrue costs.
       const to = NODE_IDS.filter((n) => n !== s.location).sort(
         (a, b) => fuelCost(s.location, a) - fuelCost(s.location, b)
@@ -55,6 +68,7 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
       const r = jump(s, to);
       if (r.event === null) break;
       s = resolveChoice(r.state, r.event, r.event.choices[0].id);
+      s = arrive(s).state;
       continue;
     }
 
@@ -73,13 +87,14 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
       s = checkLoss(s);
       break;
     }
-    // Cautious pays pirates; others flee to save credits. Salvage/derelict are hull
-    // gambles taken only by greedy — cautious/balanced stay on course, in persona.
     const choice = chooseEventOption(
       kind,
       r.event.choices.map((c) => c.id)
     );
     s = resolveChoice(r.state, r.event, choice);
+    // arrive() settles deliveries, banks the Day-12 audit, and runs the loss check.
+    s = arrive(s).state;
+    if (s.status !== "playing") break;
 
     // Sell everything we can at the new location.
     (["water", "parts", "luxury"] as CommodityId[]).forEach((id) => {
@@ -89,9 +104,10 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
   }
 
   return {
-    daysSurvived: s.day,
+    daysSurvived: s.runEnd?.daysSurvived ?? Math.min(s.day, 12),
     peakNetWorth: s.peakNetWorth,
-    score: scoreFn(s.peakNetWorth, s.day),
+    score: s.runEnd?.score ?? 0,
+    status: s.status,
   };
 }
 
