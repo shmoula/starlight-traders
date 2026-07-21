@@ -7,6 +7,8 @@ import {
   dockingFee,
   taxOnSale,
   loanInterest,
+  LOAN_STEP_IMPATIENT,
+  LOAN_STEP_DESPERATE,
   cargoUsed,
   netWorth,
 } from "./economy";
@@ -76,8 +78,8 @@ function withLog(state: GameState, msg: string): GameState {
 /** The lender's voice escalates with its rate tier (E0-4). */
 function interestLine(interest: number, day: number): string {
   const base = `The Syndicate compounds: +${interest}cr.`;
-  if (day >= 9) return `${base} It is losing patience with you.`;
-  if (day >= 5) return `${base} It grows impatient.`;
+  if (day >= LOAN_STEP_DESPERATE) return `${base} It is losing patience with you.`;
+  if (day >= LOAN_STEP_IMPATIENT) return `${base} It grows impatient.`;
   return base;
 }
 

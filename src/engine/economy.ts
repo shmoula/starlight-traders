@@ -5,9 +5,13 @@ import { NODES, getPrice } from "./world";
 export const BASE_DOCKING_FEE = 25;
 export const REFUEL_PRICE = 8; // credits per fuel unit
 export const REPAIR_PRICE = 6; // credits per hull point
-/** Loan interest rate by day — the Syndicate's patience runs out in steps (E0-4). */
+/** Days on which the Syndicate's patience steps down a tier (E0-4 tuning knob). */
+export const LOAN_STEP_IMPATIENT = 5; // rate → 6%
+export const LOAN_STEP_DESPERATE = 9; // rate → 8%
+
+/** The Syndicate's loan rate by day — its patience runs out in steps (E0-4). */
 export function loanRate(day: number): number {
-  return day >= 9 ? 0.08 : day >= 5 ? 0.06 : 0.04;
+  return day >= LOAN_STEP_DESPERATE ? 0.08 : day >= LOAN_STEP_IMPATIENT ? 0.06 : 0.04;
 }
 
 export function dockingFee(node: NodeId): number {
