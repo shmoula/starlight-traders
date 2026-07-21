@@ -2,7 +2,7 @@
 import { GameEvent, GameState } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
-import { missionsHere } from "../engine/game";
+import { buyBlockReason, maxBuyable, missionsHere, netProceeds } from "../engine/game";
 import { choiceStakes } from "../engine/preview";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 
@@ -31,7 +31,11 @@ type Tone = "good" | "bad" | "neutral";
  * neutral, so a new message never renders as a false win or loss.
  */
 function toneOf(msg: string): Tone {
-  if (/trap|damage|seized|expired|burned|Bribed|Paid pirates|Loan interest|Stranded/i.test(msg)) {
+  if (
+    /trap|damage|seized|expired|burned|warhead|overheated|Bribed|Paid pirates|Loan interest|Stranded/i.test(
+      msg
+    )
+  ) {
     return "bad";
   }
   if (/held \d|Salvaged|Delivery complete|Paid down/i.test(msg)) {
@@ -42,10 +46,10 @@ function toneOf(msg: string): Tone {
 
 const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›" };
 
-function screenHead(s: GameState): string {
+function screenHead(s: GameState, dateLabel = ""): string {
   return `<header class="screen-head">
     <h1 class="st-screen-title">Starlight Traders</h1>
-    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}</p>
+    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}${dateLabel ? ` · ${dateLabel}` : ""}</p>
   </header>`;
 }
 
@@ -178,19 +182,34 @@ function cargoPanel(s: GameState): string {
 function tradeHubPanel(s: GameState): string {
   const marketRows = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
-    const cantAfford = price > s.credits;
-    const holdFull = cargoUsed(s.cargo) + 1 > s.cargoCapacity;
-    const buyDisabled = cantAfford || holdFull;
-    const buyTitle = cantAfford ? "Not enough credits" : "Cargo hold full";
-    const sellDisabled = s.cargo[c.id] < 1;
+    const held = s.cargo[c.id];
+    // Clamped quantities and block reasons come from the engine helpers, so an enabled
+    // button always delivers exactly its label and can't drift from buy()/sell() (B-1).
+    const maxBuy = maxBuyable(s, c.id);
+    const buy1Reason = buyBlockReason(s, c.id, 1);
+    const buyDisabled = buy1Reason !== "";
+    const buyTitle = buy1Reason === "room" ? "Cargo hold full" : "Not enough credits";
+    const buy5Disabled = maxBuy < 5;
+    // Attribute the ×5 limit to whichever constraint binds one unit past the max, so a
+    // hold-limited player isn't sent looking for credits they already have.
+    const buy5Title = buyDisabled
+      ? buyTitle
+      : buyBlockReason(s, c.id, maxBuy + 1) === "room"
+        ? `Hold space for only ${maxBuy}`
+        : `Only enough for ${maxBuy}`;
+    const sellDisabled = held < 1;
+    const sell5Disabled = held < 5;
+    const sell5Title = sellDisabled ? "None in hold" : `Only ${held} in hold`;
     return `<div class="st-market__row" role="group" aria-label="${c.name}">
       ${iconBox(c.id)}
       <span class="st-market__name">${c.name}</span>
       <span class="st-market__prices st-num" aria-label="Market price ${price} credits"><span class="st-market__buy-price">${cr(price)}</span></span>
-      <span class="st-market__held st-num" aria-label="${s.cargo[c.id]} units held">×${s.cargo[c.id]}</span>
+      <span class="st-market__held st-num" aria-label="${held} units held">×${held}</span>
       <span class="st-market__actions">
-        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
-        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
+        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="1" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
+        <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="5" aria-label="Buy ×5 ${c.name} for ${cr(5 * price)}"${disabledAttr(buy5Disabled, buy5Title)}>×5</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="1" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="5" aria-label="Sell ×5 ${c.name} for ${cr(netProceeds(s, c.id, 5))}"${disabledAttr(sell5Disabled, sell5Title)}>×5</button>
       </span>
     </div>`;
   }).join("");
@@ -214,6 +233,30 @@ function tradeHubPanel(s: GameState): string {
       const atDestination = s.location === m.destination;
       const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
       const jumpHintId = `jump-hint-${m.id}`;
+      // Shortfall shortcut: buys the full missing amount at the local price, or
+      // is disabled with a reason — never a silent partial (B-1 precedent).
+      const shortfall = m.qty - have;
+      const shortfallCost = shortfall * getPrice(s.seed, s.day, s.location, m.commodity);
+      // Same engine guard as the market Buy buttons, so the block reason can't drift from buy().
+      const shortfallReason = buyBlockReason(s, m.commodity, shortfall);
+      const shortfallBlocked =
+        shortfallReason === "credits"
+          ? "not enough credits"
+          : shortfallReason === "room"
+            ? "not enough hold space"
+            : "";
+      const buyHintId = `buy-hint-${m.id}`;
+      // Compose the button once and splice on the disabled fragment, so the two states
+      // can't diverge. aria-disabled (not `disabled`) keeps it focusable to announce the
+      // reason, which is why disabledAttr's plain `disabled` attribute doesn't fit here.
+      const shortfallLabel = `Buy ${shortfall} ${commodityName(m.commodity)} for ${cr(shortfallCost)}`;
+      const shortfallBtn =
+        `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="${shortfallLabel}"${
+          shortfallBlocked ? ` aria-disabled="true" aria-describedby="${buyHintId}"` : ""
+        }>buy ${shortfall} for ${cr(shortfallCost)}</button>` +
+        (shortfallBlocked
+          ? ` <span id="${buyHintId}" class="bad">(${shortfallBlocked})</span>`
+          : "");
       const jumpBtn = canReach
         ? `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver">jump to ${NODES[m.destination].name}</button>`
         : `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver" aria-disabled="true" aria-describedby="${jumpHintId}">jump to ${NODES[m.destination].name}</button> <span id="${jumpHintId}" class="bad">(not enough fuel to jump)</span>`;
@@ -224,7 +267,7 @@ function tradeHubPanel(s: GameState): string {
         ? `<span class="bad">✗ deadline passed</span>`
         : ready
           ? `<span class="good">✓ carrying ${have}/${m.qty} — ready, ${readyBtn}</span>`
-          : `<span class="bad">✗ carrying ${have}/${m.qty} — buy ${m.qty - have} more ${commodityName(m.commodity)}</span>`;
+          : `<span class="bad">✗ carrying ${have}/${m.qty} — ${shortfallBtn}</span>`;
       return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${hint}</li>`;
     })
     .join("");
@@ -247,7 +290,7 @@ function tradeHubPanel(s: GameState): string {
   </section>`;
 }
 
-export function stationScreen(s: GameState, turnReport: string[] = []): string {
+export function stationScreen(s: GameState, turnReport: string[] = [], dateLabel = ""): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
       <h2 class="turn-report__title">Since your last jump</h2>
@@ -262,7 +305,7 @@ export function stationScreen(s: GameState, turnReport: string[] = []): string {
   const fuelClass = fuelWarnClass(s);
 
   return `
-    ${screenHead(s)}
+    ${screenHead(s, dateLabel)}
     ${statbar(s, fuelClass)}
     <div class="st-shell station-shell">
       <!-- DOM order leads with the stage so single-column mobile reads
@@ -307,12 +350,17 @@ export function eventScreen(s: GameState, e: GameEvent): string {
 }
 
 export function runEndScreen(s: GameState, score: number): string {
+  // checkLoss is the only site that sets status "lost", and it appends the cause
+  // message in the same call — so on a lost run the newest log entry names what
+  // ended it. Guarded by status so future non-lost end states never mislabel.
+  const cause = s.status === "lost" ? (s.log[s.log.length - 1] ?? "") : "";
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="run-end">
           <h1>Run Over</h1>
           <p>You survived ${s.day} days.</p>
+          ${cause ? `<p class="run-end__cause">${cause}</p>` : ""}
           <p class="score st-num">Score: ${score.toLocaleString()}</p>
           <p class="hint">Seed #${s.seed}</p>
           <button class="st-btn" data-act="share">Copy score card</button>

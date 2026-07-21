@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { stationScreen, eventScreen, runEndScreen } from "../../src/ui/screens";
-import { createGame, missionsHere, refuel } from "../../src/engine/game";
-import { COMMODITIES, NODES, commodityName } from "../../src/engine/world";
+import { createGame, missionsHere, refuel, checkLoss } from "../../src/engine/game";
+import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
 
 function withMission(mission: Mission, overrides: Partial<ReturnType<typeof createGame>> = {}) {
@@ -98,6 +98,27 @@ describe("stationScreen turn report", () => {
     const html = stationScreen(createGame(42), ["Loan interest: debt grows 60cr."]);
     expect(html).toContain('class="tr-line tr-bad"');
   });
+
+  it("colors both hull-damage outcomes (warhead, overheated) as bad", () => {
+    const warhead = stationScreen(createGame(42), ["Salvage hid a live warhead: -10 hull."]);
+    expect(warhead).toContain('class="tr-line tr-bad"');
+    const overheated = stationScreen(createGame(42), [
+      "Engine trouble overheated the hull for 10.",
+    ]);
+    expect(overheated).toContain('class="tr-line tr-bad"');
+  });
+});
+
+describe("stationScreen day identity (quick win 2)", () => {
+  it("shows the date beside the day counter", () => {
+    const html = stationScreen(createGame(42), [], "Jul 20");
+    expect(html).toContain("Terra Hub · Day 1 · Jul 20");
+  });
+
+  it("omits the date segment when no label is given", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("Terra Hub · Day 1</p>");
+  });
 });
 
 describe("stationScreen ship's log", () => {
@@ -105,7 +126,7 @@ describe("stationScreen ship's log", () => {
     const html = stationScreen(createGame(42));
     expect(html).toContain('aria-label="Ship\'s log"');
     expect(html).toContain("Ship's Log");
-    expect(html).toContain("You launch from Terra Hub");
+    expect(html).toContain("The Syndicate staked your ship");
   });
 });
 
@@ -297,6 +318,22 @@ describe("event and run-end cards", () => {
   });
 });
 
+describe("run-end cause of death (quick win 3)", () => {
+  it("shows the final log line as the cause when the run is lost", () => {
+    const s = checkLoss({ ...createGame(42), location: "vulcan" as const, fuel: 0, credits: 0 });
+    const html = runEndScreen(s, 0);
+    expect(html).toContain('class="run-end__cause"');
+    expect(html).toContain(
+      "Stranded at Vulcan Yards — not enough fuel to jump, and refueling costs more than you have."
+    );
+  });
+
+  it("omits the cause line while the run is not lost", () => {
+    const html = runEndScreen(createGame(42), 999);
+    expect(html).not.toContain("run-end__cause");
+  });
+});
+
 describe("eventScreen vitals and stakes (P0-1)", () => {
   const pirates: GameEvent = {
     kind: "pirates",
@@ -337,6 +374,92 @@ describe("eventScreen vitals and stakes (P0-1)", () => {
   it("uses a top-level heading for the event title", () => {
     const html = eventScreen(createGame(42), pirates);
     expect(html).toContain("<h1>Pirate Ambush</h1>");
+  });
+});
+
+describe("market quantity buttons (P1-1)", () => {
+  it("renders Buy 1 and ×5 buy buttons", () => {
+    const s = createGame(42);
+    const html = stationScreen(s);
+    expect(html).toContain(`data-act="buy" data-id="water" data-qty="1"`);
+    expect(html).toContain(`data-act="buy" data-id="water" data-qty="5"`);
+  });
+
+  it("no longer renders the buy-max or sell-all buttons", () => {
+    const s = { ...createGame(42), cargo: { water: 7, parts: 0, luxury: 0 } };
+    const html = stationScreen(s);
+    expect(html).not.toContain("Max ×");
+    expect(html).not.toContain("All ×");
+  });
+
+  it("disables ×5 buy when fewer than 5 are affordable", () => {
+    const s = createGame(42);
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    const html = stationScreen({ ...s, credits: price * 3 });
+    expect(html).toContain(
+      `data-act="buy" data-id="water" data-qty="5" aria-label="Buy ×5 Water / Ice for ${(5 * price).toLocaleString()}cr" disabled title="Only enough for 3"`
+    );
+  });
+
+  it("attributes a hold-limited ×5 buy to hold space, not credits", () => {
+    // Credits are ample; only 3 slots of hold remain, so the limit is space, not money.
+    const s = { ...createGame(42), credits: 100000, cargo: { water: 27, parts: 0, luxury: 0 } };
+    const html = stationScreen(s);
+    expect(html).toContain(`data-id="water" data-qty="5"`);
+    expect(html).toContain(`disabled title="Hold space for only 3"`);
+  });
+
+  it("renders Sell 1 and ×5 sell buttons", () => {
+    const s = { ...createGame(42), cargo: { water: 7, parts: 0, luxury: 0 } };
+    const html = stationScreen(s);
+    expect(html).toContain(`data-act="sell" data-id="water" data-qty="1"`);
+    expect(html).toContain(`data-act="sell" data-id="water" data-qty="5"`);
+  });
+
+  it("disables ×5 sell when fewer than 5 are held", () => {
+    const s = { ...createGame(42), cargo: { water: 3, parts: 0, luxury: 0 } };
+    const html = stationScreen(s);
+    expect(html).toContain(`disabled title="Only 3 in hold"`);
+  });
+
+  it("disables buy with the standard reason at zero purchasing power", () => {
+    const html = stationScreen({ ...createGame(42), credits: 0 });
+    expect(html).toContain(`disabled title="Not enough credits"`);
+  });
+});
+
+describe("active contract shortfall shortcut (P1-1)", () => {
+  const mission: Mission = {
+    id: "m2",
+    commodity: "water",
+    qty: 10,
+    destination: "verge",
+    reward: 500,
+    deadlineDay: 30,
+  };
+
+  it("offers a one-click buy of the missing units at the local price", () => {
+    const s = withMission(mission, { cargo: { water: 3, parts: 0, luxury: 0 } });
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    const html = stationScreen(s);
+    expect(html).toContain(
+      `data-act="buy" data-id="water" data-qty="7" aria-label="Buy 7 Water / Ice for ${(7 * price).toLocaleString()}cr"`
+    );
+    expect(html).toContain(`buy 7 for ${(7 * price).toLocaleString()}cr`);
+  });
+
+  it("disables the shortcut with a reason when unaffordable", () => {
+    const s = withMission(mission, { cargo: { water: 3, parts: 0, luxury: 0 }, credits: 0 });
+    const html = stationScreen(s);
+    expect(html).toContain(`aria-disabled="true" aria-describedby="buy-hint-${mission.id}"`);
+    expect(html).toContain("(not enough credits)");
+  });
+
+  it("shows no shortcut once the cargo is ready", () => {
+    const s = withMission(mission); // helper fills cargo to the full qty
+    const html = stationScreen(s);
+    expect(html).not.toContain("buy-hint-");
+    expect(html).toContain("✓ carrying 10/10");
   });
 });
 

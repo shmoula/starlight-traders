@@ -8,6 +8,8 @@ export interface ViewModel {
   pendingEvent: GameEvent | null;
   /** Log entries generated during the most recent jump, surfaced as a turn report. */
   turnReport: string[];
+  /** UTC date label ("Jul 20") naming today's shared seed. */
+  dateLabel: string;
 }
 
 export function render(root: HTMLElement, vm: ViewModel): void {
@@ -16,6 +18,6 @@ export function render(root: HTMLElement, vm: ViewModel): void {
   } else if (vm.pendingEvent) {
     root.innerHTML = eventScreen(vm.state, vm.pendingEvent);
   } else {
-    root.innerHTML = stationScreen(vm.state, vm.turnReport);
+    root.innerHTML = stationScreen(vm.state, vm.turnReport, vm.dateLabel);
   }
 }

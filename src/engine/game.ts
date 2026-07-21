@@ -12,13 +12,16 @@ import {
 } from "./economy";
 import { generateMissions } from "./missions";
 import { rollEvent } from "./events";
+import { hashSeed } from "./rng";
 import {
   DERELICT_TRAP_DAMAGE,
   bribeCost,
   derelictReward,
   engineBurn,
+  engineHullStrain,
   fleeDamage,
   pirateToll,
+  SALVAGE_TRAP_DAMAGE,
   salvageAmount,
 } from "./preview";
 
@@ -33,9 +36,16 @@ export const STARTING = {
 
 const INTEREST_EVERY = 3; // days between interest accruals
 
-export function createGame(seed: number): GameState {
+/**
+ * Create a fresh run for `seed`. `bootDate` (an ISO instant) stamps the run with the
+ * UTC day the seed was derived from, so the header/share date travels with the seed in
+ * state rather than in a hand-synced shadow variable. Seed-only callers (the balance
+ * sim) omit it and it stays "".
+ */
+export function createGame(seed: number, bootDate = ""): GameState {
   return {
     seed,
+    bootDate,
     day: 1,
     credits: STARTING.credits,
     debt: STARTING.debt,
@@ -49,7 +59,9 @@ export function createGame(seed: number): GameState {
     activeMissions: [],
     peakNetWorth: 0,
     status: "playing",
-    log: ["You launch from Terra Hub, 1500 credits in debt. Make it count."],
+    log: [
+      `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Score = your peak fortune. Everyone flies today's sky.`,
+    ],
   };
 }
 
@@ -96,6 +108,34 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
   return trackPeak(
     withLog(next, `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`)
   );
+}
+
+// Shared trade math so the UI never re-derives buy()/sell()'s guards by hand. A button
+// that computes its clamped quantity or net proceeds from these helpers stays honest
+// about what a click delivers even if buy()/sell() later grows a fee or rounding rule (B-1).
+
+/** Largest quantity of `id` buyable here, clamped by both credits and hold room. */
+export function maxBuyable(state: GameState, id: CommodityId): number {
+  const price = getPrice(state.seed, state.day, state.location, id);
+  const room = state.cargoCapacity - cargoUsed(state.cargo);
+  return Math.max(0, Math.min(Math.floor(state.credits / price), room));
+}
+
+/** Net credits from selling `qty` of `id` here, after sale tax — what sell() actually pays. */
+export function netProceeds(state: GameState, id: CommodityId, qty: number): number {
+  const price = getPrice(state.seed, state.day, state.location, id);
+  const gross = price * qty;
+  return gross - taxOnSale(state.location, gross);
+}
+
+/** Why buying `qty` of `id` here is blocked — "" when it would succeed. Mirrors buy()'s guard order. */
+export type BuyBlock = "" | "credits" | "room";
+export function buyBlockReason(state: GameState, id: CommodityId, qty: number): BuyBlock {
+  if (qty <= 0) return "";
+  const price = getPrice(state.seed, state.day, state.location, id);
+  if (price * qty > state.credits) return "credits";
+  if (cargoUsed(state.cargo) + qty > state.cargoCapacity) return "room";
+  return "";
 }
 
 export function refuel(state: GameState, units: number): GameState {
@@ -189,7 +229,10 @@ export function checkLoss(state: GameState): GameState {
   const fuelShort = Math.max(0, cheapest - state.fuel);
   const canBuyFuel = state.credits >= fuelShort * REFUEL_PRICE;
   if (!canJumpNow && !canBuyFuel) {
-    return withLog({ ...state, status: "lost" }, "Stranded and broke. The run ends here.");
+    return withLog(
+      { ...state, status: "lost" },
+      `Stranded at ${NODES[state.location].name} — not enough fuel to jump, and refueling costs more than you have.`
+    );
   }
   return state;
 }
@@ -236,62 +279,92 @@ export function arrive(state: GameState): {
   return { state: s, delivered: settled.delivered, expired: settled.expired };
 }
 
+function resolvePirates(s: GameState, choiceId: string): GameState {
+  if (choiceId === "pay") {
+    const toll = pirateToll(s);
+    return withLog({ ...s, credits: s.credits - toll }, `Paid pirates ${toll}cr.`);
+  }
+  const dmg = fleeDamage(s.day);
+  return withLog({ ...s, hull: Math.max(0, s.hull - dmg) }, `Fled — took ${dmg} hull damage.`);
+}
+
+function resolveSalvage(s: GameState, choiceId: string): GameState {
+  if (choiceId !== "collect") return s;
+  // Deterministic per seed/day via the shared hash — mulberry32's hashSeed avoids the
+  // strict every-3rd-day periodicity a raw `(day*7+seed) % 3` produces (B-2 class).
+  if (hashSeed(s.seed, s.day) % 3 === 0) {
+    return withLog(
+      { ...s, hull: Math.max(0, s.hull - SALVAGE_TRAP_DAMAGE) },
+      `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`
+    );
+  }
+  const got = salvageAmount(s);
+  return withLog(
+    got > 0 ? { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } } : s,
+    got > 0
+      ? `Salvaged ${got} ${commodityName("parts")}.`
+      : `Hold full — left the salvage drifting.`
+  );
+}
+
+function resolveEngine(s: GameState): GameState {
+  const burn = engineBurn(s);
+  const strain = engineHullStrain(s);
+  const clauses: string[] = [];
+  if (burn > 0) clauses.push(`burned ${burn} fuel`);
+  if (strain > 0) clauses.push(`overheated the hull for ${strain}`);
+  const msg = `Engine trouble ${clauses.join(" and ")}.`;
+  return withLog({ ...s, fuel: s.fuel - burn, hull: Math.max(0, s.hull - strain) }, msg);
+}
+
+function resolveDerelict(s: GameState, choiceId: string): GameState {
+  if (choiceId !== "board") return s;
+  // Shared hash, same as resolveSalvage — avoids the every-other-day periodicity a raw
+  // `(day*7+seed) % 2` produces (B-2 class). E1-4 still owns making these odds visible.
+  if (hashSeed(s.seed, s.day) % 2 === 0) {
+    const reward = derelictReward(s.day);
+    return withLog({ ...s, credits: s.credits + reward }, `Derelict held ${reward}cr!`);
+  }
+  return withLog(
+    { ...s, hull: Math.max(0, s.hull - DERELICT_TRAP_DAMAGE) },
+    `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`
+  );
+}
+
+function resolveCustoms(s: GameState, choiceId: string): GameState {
+  if (choiceId === "comply" && s.cargo.luxury > 0) {
+    const seized = s.cargo.luxury;
+    return withLog(
+      { ...s, cargo: { ...s.cargo, luxury: 0 } },
+      `Customs seized ${seized} luxury goods.`
+    );
+  }
+  if (choiceId === "bribe") {
+    const bribe = bribeCost(s);
+    return withLog({ ...s, credits: s.credits - bribe }, `Bribed customs ${bribe}cr.`);
+  }
+  return s;
+}
+
 /** Apply the consequences of an event choice. Deterministic per seed/day. */
 export function resolveChoice(state: GameState, event: GameEvent, choiceId: string): GameState {
   let s = state;
   switch (event.kind) {
-    case "pirates": {
-      if (choiceId === "pay") {
-        const toll = pirateToll(s);
-        s = withLog({ ...s, credits: s.credits - toll }, `Paid pirates ${toll}cr.`);
-      } else {
-        const dmg = fleeDamage(s.day);
-        s = withLog({ ...s, hull: Math.max(0, s.hull - dmg) }, `Fled — took ${dmg} hull damage.`);
-      }
+    case "pirates":
+      s = resolvePirates(s, choiceId);
       break;
-    }
-    case "salvage": {
-      if (choiceId === "collect") {
-        const got = salvageAmount(s);
-        s = withLog(
-          { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
-          `Salvaged ${got} ${commodityName("parts")}.`
-        );
-      }
+    case "salvage":
+      s = resolveSalvage(s, choiceId);
       break;
-    }
-    case "engine": {
-      const burn = engineBurn(s);
-      s = withLog({ ...s, fuel: s.fuel - burn }, `Engine trouble burned ${burn} fuel.`);
+    case "engine":
+      s = resolveEngine(s);
       break;
-    }
-    case "derelict": {
-      if (choiceId === "board") {
-        if ((s.day * 7 + s.seed) % 2 === 0) {
-          const reward = derelictReward(s.day);
-          s = withLog({ ...s, credits: s.credits + reward }, `Derelict held ${reward}cr!`);
-        } else {
-          s = withLog(
-            { ...s, hull: Math.max(0, s.hull - DERELICT_TRAP_DAMAGE) },
-            `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`
-          );
-        }
-      }
+    case "derelict":
+      s = resolveDerelict(s, choiceId);
       break;
-    }
-    case "customs": {
-      if (choiceId === "comply" && s.cargo.luxury > 0) {
-        const seized = s.cargo.luxury;
-        s = withLog(
-          { ...s, cargo: { ...s.cargo, luxury: 0 } },
-          `Customs seized ${seized} luxury goods.`
-        );
-      } else if (choiceId === "bribe") {
-        const bribe = bribeCost(s);
-        s = withLog({ ...s, credits: s.credits - bribe }, `Bribed customs ${bribe}cr.`);
-      }
+    case "customs":
+      s = resolveCustoms(s, choiceId);
       break;
-    }
     case "quiet":
     default:
       break;

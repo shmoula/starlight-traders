@@ -1,16 +1,30 @@
 // src/ui/share.ts
 
+/** Public home of the game — the share card's call to action. Swap once an itch.io page exists. */
+export const GAME_URL = "https://github.com/shmoula/starlight-traders";
+
+const DATE_FMT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+/** UTC month-day label ("Jul 20") — names the same calendar day dailySeed hashes. */
+export function formatDateLabel(date: Date): string {
+  return DATE_FMT.format(date);
+}
+
 export interface ShareData {
-  seed: number;
+  dateLabel: string;
   score: number;
   daysSurvived: number;
 }
 
 export function shareText(d: ShareData): string {
   return [
-    `🚀 Starlight Traders — Daily Run`,
+    `🚀 Starlight Traders — ${d.dateLabel}`,
     `Score ${d.score} · survived ${d.daysSurvived} days`,
-    `Seed #${d.seed} — beat my run!`,
+    `Beat my run: ${GAME_URL}`,
   ].join("\n");
 }
 

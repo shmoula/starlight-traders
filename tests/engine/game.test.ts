@@ -16,6 +16,14 @@ import {
 import { getPrice } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
 
+describe("createGame goal line", () => {
+  it("opens the log by stating the stake, the objective, and the shared sky", () => {
+    expect(createGame(42).log[0]).toBe(
+      "The Syndicate staked your ship — 1,500cr, compounding. Score = your peak fortune. Everyone flies today's sky."
+    );
+  });
+});
+
 describe("arrival settlement reporting", () => {
   const contract: Mission = {
     id: "c1",
@@ -67,7 +75,8 @@ describe("arrival settlement reporting", () => {
     };
     let s = createGame(42);
     s = acceptMission(s, partsContract);
-    s = { ...s, cargo: { ...s.cargo, parts: 8 }, fuel: 20 }; // short by 2
+    // day 4 so the post-jump day (5) is a clean salvage day: hashSeed(42, 5) % 3 === 1.
+    s = { ...s, cargo: { ...s.cargo, parts: 8 }, fuel: 20, day: 4 }; // short by 2
 
     const j = jump(s, "kiruna"); // arrives at kiruna carrying 8 parts
     const salvage: GameEvent = {
@@ -177,6 +186,21 @@ describe("checkLoss", () => {
   it("stays playing when a jump is still affordable", () => {
     const s = createGame(42);
     expect(checkLoss(s).status).toBe("playing");
+  });
+
+  it("names the station and cause in the stranding log line", () => {
+    const s = {
+      ...createGame(42),
+      location: "vulcan" as const,
+      fuel: 0,
+      credits: 0,
+      cargo: { water: 0, parts: 0, luxury: 0 },
+    };
+    const lost = checkLoss(s);
+    expect(lost.status).toBe("lost");
+    expect(lost.log[lost.log.length - 1]).toBe(
+      "Stranded at Vulcan Yards — not enough fuel to jump, and refueling costs more than you have."
+    );
   });
 });
 

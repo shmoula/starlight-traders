@@ -45,6 +45,7 @@ export interface GameState {
   peakNetWorth: number;
   status: "playing" | "lost";
   log: string[]; // recent player-facing messages, newest last
+  bootDate: string; // ISO instant the run was created — names the UTC day `seed` hashes; "" for seed-only sim runs
 }
 
 export type GameEventKind = "quiet" | "pirates" | "salvage" | "derelict" | "customs" | "engine";

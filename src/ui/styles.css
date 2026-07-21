@@ -71,6 +71,10 @@ body {
 .run-end button {
   margin: var(--st-space-1);
 }
+.run-end__cause {
+  color: var(--st-text-dim);
+  font-style: italic;
+}
 /* Legacy contract classes — names are load-bearing (tests/markup), values tokenized. */
 .hint {
   font-size: var(--st-text-xs);

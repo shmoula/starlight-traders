@@ -22,15 +22,18 @@ These three "quick wins" from the audit are done and are **not** listed below:
   `resolveChoice` via `src/engine/preview.ts`.
 - Stranding is fully signalled (P0-2): disabled jump orbs carry "Need X⛽, have Y"
   reasons and a warning banner appears when no jump is reachable.
+- Buy 1/×5 and Sell 1/×5 quantity buttons and the active-contract shortfall
+  shortcut (P1-1) shipped 2026-07-20; the stretch (patch changed DOM nodes
+  instead of full `innerHTML` swaps) remains open and is tracked as the B-4
+  root cause.
 
 ---
 
 ## P1 — High
 
-| #    | Friction point                                                                                                                                                                                                                                                                                                       | Proposed improvement                                                                                                                                                                                                                 | Effort |
-| :--- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----: |
-| P1-1 | **Trading is 1 unit per click.** Buttons hardcode qty 1 (`main.ts:41`); fulfilling a 7- or 10-unit contract means 7–10 clicks, and each click rebuilds the whole DOM via `innerHTML` (`render.ts:19`), resetting focus/scroll and occasionally swallowing rapid clicks (a playtest fill lost 28 of 30 rapid clicks). | Add "×5" and "Max" buttons (`data-qty`; the engine already accepts `qty`) and a one-click "Buy N for Xcr" shortcut on each active-contract card. **Stretch (L):** patch only changed DOM nodes instead of full `innerHTML` swaps.    |   M    |
-| P1-2 | **Sinks are stealth deductions.** Docking fee is only shown for the _current_ station (`screens.ts:94`), never the destination you're about to jump to; loan interest (+4% every 3 days, `game.ts:202`) arrives unannounced; sales tax (18% at Meridian!) only appears in the post-sale log.                         | Put costs on the jump buttons ("Jump to Meridian — 5⛽ · dock 45cr · 20%☠"); add an interest countdown chip on the debt stat ("+63cr in 2 days"); show "Sales tax here: X%" beside the docking fee and net proceeds on Sell buttons. |   M    |
+| #    | Friction point                                                                                                                                                                                                                                                                               | Proposed improvement                                                                                                                                                                                                                 | Effort |
+| :--- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----: |
+| P1-2 | **Sinks are stealth deductions.** Docking fee is only shown for the _current_ station (`screens.ts:94`), never the destination you're about to jump to; loan interest (+4% every 3 days, `game.ts:202`) arrives unannounced; sales tax (18% at Meridian!) only appears in the post-sale log. | Put costs on the jump buttons ("Jump to Meridian — 5⛽ · dock 45cr · 20%☠"); add an interest countdown chip on the debt stat ("+63cr in 2 days"); show "Sales tax here: X%" beside the docking fee and net proceeds on Sell buttons. |   M    |
 
 ## P2 — Medium
 
