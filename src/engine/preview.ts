@@ -7,6 +7,14 @@ import { GameEvent, GameState } from "./types";
 import { cargoUsed } from "./economy";
 import { commodityName, getPrice } from "./world";
 
+/** Appended to a stake whose worst-case hull roll would destroy the ship (B-6 honesty). */
+export const LETHAL_MARK = " — ⚠ could destroy you";
+
+/** The marker when `worstCaseHull` damage would reduce this ship's hull to 0 or below. */
+function lethalIf(s: GameState, worstCaseHull: number): string {
+  return worstCaseHull >= s.hull ? LETHAL_MARK : "";
+}
+
 /** Pirate toll demanded today, clamped to what the player holds. */
 export function pirateToll(s: GameState): number {
   return Math.max(0, Math.min(s.credits, 150 + s.day * 10));
@@ -61,23 +69,28 @@ export function bribeCost(s: GameState): number {
 export function choiceStakes(s: GameState, e: GameEvent): Record<string, string> {
   switch (e.kind) {
     case "pirates":
-      return { pay: `~${pirateToll(s)}cr`, flee: `risk ${fleeDamage(s.day)} hull` };
+      return {
+        pay: `~${pirateToll(s)}cr`,
+        flee: `risk ${fleeDamage(s.day)} hull${lethalIf(s, fleeDamage(s.day))}`,
+      };
     case "salvage": {
       const got = salvageAmount(s);
       const gain = got > 0 ? `+${got} ${commodityName("parts")}` : `hold full, nothing to gain`;
-      return { collect: `${gain}, or a hazard: −${SALVAGE_TRAP_DAMAGE} hull` };
+      return {
+        collect: `${gain}, or a hazard: −${SALVAGE_TRAP_DAMAGE} hull${lethalIf(s, SALVAGE_TRAP_DAMAGE)}`,
+      };
     }
     case "engine": {
       const burn = engineBurn(s);
       const strain = engineHullStrain(s);
       const parts: string[] = [];
       if (burn > 0) parts.push(`−${burn} fuel`);
-      if (strain > 0) parts.push(`−${strain} hull`);
+      if (strain > 0) parts.push(`−${strain} hull${lethalIf(s, strain)}`);
       return { ack: parts.join(", ") };
     }
     case "derelict":
       return {
-        board: `could hold ~${derelictReward(s.day)}cr, or a trap: −${DERELICT_TRAP_DAMAGE} hull`,
+        board: `could hold ~${derelictReward(s.day)}cr, or a trap: −${DERELICT_TRAP_DAMAGE} hull${lethalIf(s, DERELICT_TRAP_DAMAGE)}`,
       };
     case "customs":
       return {
