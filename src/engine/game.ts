@@ -174,6 +174,15 @@ export function payDebt(state: GameState, amount: number): GameState {
   );
 }
 
+/** Voluntarily end the run at dock, banking the score (E0-1). No-op once the run is over. */
+export function retire(state: GameState): GameState {
+  return endRun(
+    state,
+    "retired",
+    `Retired at ${NODES[state.location].name} — the Syndicate banks your score.`
+  );
+}
+
 export function acceptMission(state: GameState, mission: Mission): GameState {
   if (state.activeMissions.some((m) => m.id === mission.id)) return state;
   return withLog(

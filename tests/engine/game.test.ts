@@ -11,6 +11,7 @@ import {
   acceptMission,
   checkLoss,
   deliver,
+  retire,
   STARTING,
 } from "../../src/engine/game";
 import { getPrice } from "../../src/engine/world";
@@ -248,5 +249,23 @@ describe("ended-run guards", () => {
     expect(lost.runEnd?.status).toBe("lost");
     expect(lost.runEnd?.survivalBonus).toBe(0);
     expect(lost.runEnd?.score).toBe(0); // credits 0 − debt 1500 floors at 0
+  });
+});
+
+describe("retire (E0-1)", () => {
+  it("ends the run as retired and banks the score", () => {
+    const s = { ...createGame(42), day: 5, credits: 2000, debt: 500 };
+    const r = retire(s);
+    expect(r.status).toBe("retired");
+    expect(r.runEnd?.status).toBe("retired");
+    expect(r.runEnd?.daysSurvived).toBe(5);
+    expect(r.log[r.log.length - 1]).toBe(
+      "Retired at Terra Hub — the Syndicate banks your score."
+    );
+  });
+
+  it("is a no-op on an ended run", () => {
+    const dead = endRun(createGame(42), "lost", "gone");
+    expect(retire(dead)).toBe(dead);
   });
 });
