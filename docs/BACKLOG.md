@@ -10,6 +10,13 @@ written). Every item below is still open; a few are now **partially addressed** 
 flagged inline. For game-design and retention work (as opposed to this UI/UX friction
 audit), see [ENGAGEMENT_BACKLOG.md](ENGAGEMENT_BACKLOG.md).
 
+> **Triage 2026-07-21** — see [ROADMAP.md](ROADMAP.md) for the sequenced plan.
+>
+> - ✅ **Committed:** P1-2 (with E1-1) · P2-1 · P2-3 (with E2-2) · P2-2 · P3-2 · P3-3.
+> - 🔀 **Absorbed:** P2-4 — score semantics move to E0-2; copy-confirm superseded by
+>   E1-2 share card v2. The live score-chase display folds into E0-2.
+> - ⚪ **Left in backlog:** P3-1 log spam/ordering (depends on P2-1).
+
 ## Already shipped (commit `e090e3d`)
 
 These three "quick wins" from the audit are done and are **not** listed below:

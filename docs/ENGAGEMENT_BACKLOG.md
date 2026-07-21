@@ -5,6 +5,16 @@ This complements [BACKLOG.md](BACKLOG.md) (UI/UX friction) — items here are ab
 design, retention, and meaning_; where they touch UI/UX items they cross-reference them
 (e.g. "extends UIUX P0-1"). Effort: **S** ≈ ≤2h, **M** ≈ half-day, **L** ≈ ~1 day+.
 
+> **Triage 2026-07-21** — see [ROADMAP.md](ROADMAP.md) for the sequenced plan.
+> Committed to the **bounded daily run (E0)** pivot.
+>
+> - ✅ **Committed:** E0-1, E0-2, E0-3, E0-4 (M1) · E1-1, E1-2, E1-3, E1-4 (M2) ·
+>   E2-1, E2-2, E2-3, E2-4, E2-5 (M3) · E3-1, E3-2, E3-4 (M4) · B-2, B-5, B-6.
+> - 🟡 **Deferred to a tuning pass:** E1-5 Heat (only if endgame stays flat after E0-1+E0-4).
+> - ⚪ **Left in backlog:** E3-3 Distress Call.
+> - Sequencing notes: E0-2 bundled with E0-1; B-6 rides with M1; B-2 with E1-4;
+>   E2-1 goes **last** and is sim-gated (re-run the 100-seed sweep).
+
 ## 1. Method
 
 - **4 browser runs on the 2026-07-19 seed (#1482862887)**, same world each time:
