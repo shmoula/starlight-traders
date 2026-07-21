@@ -29,6 +29,18 @@ export interface Mission {
   deadlineDay: number; // absolute game day by which cargo must arrive
 }
 
+export type RunEndStatus = "lost" | "audited" | "retired";
+
+/** Banked summary of a finished run — the single source of truth for end-of-run surfaces. */
+export interface RunEnd {
+  status: RunEndStatus;
+  cause: string; // player-facing line naming what ended the run
+  daysSurvived: number; // capped at RUN_LENGTH
+  netWorthAtEnd: number; // banked runs: full net worth; death: credits − debt (cargo is lost)
+  survivalBonus: number; // 0 on death
+  score: number; // max(0, netWorthAtEnd) + survivalBonus
+}
+
 export interface GameState {
   seed: number;
   day: number;
@@ -43,7 +55,8 @@ export interface GameState {
   cargoCapacity: number;
   activeMissions: Mission[];
   peakNetWorth: number;
-  status: "playing" | "lost";
+  status: "playing" | RunEndStatus;
+  runEnd?: RunEnd; // present exactly when status !== "playing"
   log: string[]; // recent player-facing messages, newest last
   bootDate: string; // ISO instant the run was created — names the UTC day `seed` hashes; "" for seed-only sim runs
 }
