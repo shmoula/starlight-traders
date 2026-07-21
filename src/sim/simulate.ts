@@ -73,7 +73,8 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
       s = checkLoss(s);
       break;
     }
-    // Cautious pays pirates; greedy flees to save credits. Take first salvage/derelict gamble for greedy.
+    // Cautious pays pirates; others flee to save credits. Salvage/derelict are hull
+    // gambles taken only by greedy — cautious/balanced stay on course, in persona.
     const choice = chooseEventOption(
       kind,
       r.event.choices.map((c) => c.id)
@@ -97,8 +98,11 @@ export function runArchetype(kind: Archetype, seed: number, maxDays: number): Si
 function chooseEventOption(kind: Archetype, ids: string[]): string {
   if (ids.includes("pay") && kind === "cautious") return "pay";
   if (ids.includes("flee") && kind !== "cautious") return "flee";
-  if (ids.includes("collect")) return "collect";
-  if (ids.includes("board") && kind === "greedy") return "board";
+  // Salvage and derelict both stake hull on a gamble; only the greedy archetype takes
+  // it. Cautious/balanced pick the safe option so the sim measures a real persona split
+  // rather than every archetype quietly gambling hull via the fall-through.
+  if (ids.includes("collect")) return kind === "greedy" ? "collect" : "ignore";
+  if (ids.includes("board")) return kind === "greedy" ? "board" : "leave";
   if (ids.includes("comply")) return "comply";
   return ids[0];
 }
