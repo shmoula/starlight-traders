@@ -5,7 +5,10 @@ import { NODES, getPrice } from "./world";
 export const BASE_DOCKING_FEE = 25;
 export const REFUEL_PRICE = 8; // credits per fuel unit
 export const REPAIR_PRICE = 6; // credits per hull point
-export const LOAN_RATE = 0.04; // interest fraction applied per accrual
+/** Loan interest rate by day — the Syndicate's patience runs out in steps (E0-4). */
+export function loanRate(day: number): number {
+  return day >= 9 ? 0.08 : day >= 5 ? 0.06 : 0.04;
+}
 
 export function dockingFee(node: NodeId): number {
   return Math.round(BASE_DOCKING_FEE * NODES[node].feeMultiplier);
@@ -16,9 +19,9 @@ export function taxOnSale(node: NodeId, proceeds: number): number {
   return Math.round(proceeds * NODES[node].taxRate);
 }
 
-export function loanInterest(debt: number): number {
+export function loanInterest(debt: number, day: number): number {
   if (debt <= 0) return 0;
-  return Math.ceil(debt * LOAN_RATE);
+  return Math.ceil(debt * loanRate(day));
 }
 
 export function cargoUsed(cargo: Record<CommodityId, number>): number {

@@ -32,7 +32,7 @@ type Tone = "good" | "bad" | "neutral";
  */
 function toneOf(msg: string): Tone {
   if (
-    /trap|damage|seized|expired|burned|warhead|overheated|Bribed|Paid pirates|Loan interest|Stranded/i.test(
+    /trap|damage|seized|expired|burned|warhead|overheated|Bribed|Paid pirates|Syndicate compounds|Hull breach|Stranded/i.test(
       msg
     )
   ) {

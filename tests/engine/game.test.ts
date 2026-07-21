@@ -416,3 +416,25 @@ describe("hull death (B-6)", () => {
     expect(r.state.runEnd?.survivalBonus).toBe(0);
   });
 });
+
+describe("loan escalation voice (E0-4)", () => {
+  const interestLineAfterJump = (day: number): string => {
+    const s = { ...createGame(42), day: day - 1, fuel: 20 };
+    const j = jump(s, "kiruna");
+    return j.state.log.find((l) => l.includes("Syndicate compounds")) ?? "";
+  };
+
+  it("day 3 accrues at 4% with the base line", () => {
+    expect(interestLineAfterJump(3)).toBe("The Syndicate compounds: +60cr.");
+  });
+
+  it("day 6 accrues at 6% and grows impatient", () => {
+    expect(interestLineAfterJump(6)).toBe("The Syndicate compounds: +90cr. It grows impatient.");
+  });
+
+  it("day 9 accrues at 8% and loses patience", () => {
+    expect(interestLineAfterJump(9)).toBe(
+      "The Syndicate compounds: +120cr. It is losing patience with you."
+    );
+  });
+});

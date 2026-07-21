@@ -95,7 +95,7 @@ describe("stationScreen turn report", () => {
   });
 
   it("treats loan interest as a loss", () => {
-    const html = stationScreen(createGame(42), ["Loan interest: debt grows 60cr."]);
+    const html = stationScreen(createGame(42), ["The Syndicate compounds: +60cr."]);
     expect(html).toContain('class="tr-line tr-bad"');
   });
 

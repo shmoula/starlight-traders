@@ -73,6 +73,14 @@ function withLog(state: GameState, msg: string): GameState {
   return { ...state, log: [...state.log, msg] };
 }
 
+/** The lender's voice escalates with its rate tier (E0-4). */
+function interestLine(interest: number, day: number): string {
+  const base = `The Syndicate compounds: +${interest}cr.`;
+  if (day >= 9) return `${base} It is losing patience with you.`;
+  if (day >= 5) return `${base} It grows impatient.`;
+  return base;
+}
+
 function trackPeak(state: GameState): GameState {
   const nw = netWorth(state);
   return nw > state.peakNetWorth ? { ...state, peakNetWorth: nw } : state;
@@ -278,8 +286,8 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
 
   // Interest accrues on a fixed cadence.
   if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
-    const interest = loanInterest(s.debt);
-    s = withLog({ ...s, debt: s.debt + interest }, `Loan interest: debt grows ${interest}cr.`);
+    const interest = loanInterest(s.debt, s.day);
+    s = withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day));
   }
 
   // Docking fee on arrival.
