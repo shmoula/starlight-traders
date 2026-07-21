@@ -254,7 +254,9 @@ function tradeHubPanel(s: GameState): string {
         `<button class="jump-link" data-act="buy" data-id="${m.commodity}" data-qty="${shortfall}" aria-label="${shortfallLabel}"${
           shortfallBlocked ? ` aria-disabled="true" aria-describedby="${buyHintId}"` : ""
         }>buy ${shortfall} for ${cr(shortfallCost)}</button>` +
-        (shortfallBlocked ? ` <span id="${buyHintId}" class="bad">(${shortfallBlocked})</span>` : "");
+        (shortfallBlocked
+          ? ` <span id="${buyHintId}" class="bad">(${shortfallBlocked})</span>`
+          : "");
       const jumpBtn = canReach
         ? `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver">jump to ${NODES[m.destination].name}</button>`
         : `<button class="jump-link" data-act="jump" data-id="${m.destination}" aria-label="Jump to ${NODES[m.destination].name} to deliver" aria-disabled="true" aria-describedby="${jumpHintId}">jump to ${NODES[m.destination].name}</button> <span id="${jumpHintId}" class="bad">(not enough fuel to jump)</span>`;

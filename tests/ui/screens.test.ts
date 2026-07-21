@@ -102,7 +102,9 @@ describe("stationScreen turn report", () => {
   it("colors both hull-damage outcomes (warhead, overheated) as bad", () => {
     const warhead = stationScreen(createGame(42), ["Salvage hid a live warhead: -10 hull."]);
     expect(warhead).toContain('class="tr-line tr-bad"');
-    const overheated = stationScreen(createGame(42), ["Engine trouble overheated the hull for 10."]);
+    const overheated = stationScreen(createGame(42), [
+      "Engine trouble overheated the hull for 10.",
+    ]);
     expect(overheated).toContain('class="tr-line tr-bad"');
   });
 });

@@ -300,10 +300,10 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
   }
   const got = salvageAmount(s);
   return withLog(
+    got > 0 ? { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } } : s,
     got > 0
-      ? { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } }
-      : s,
-    got > 0 ? `Salvaged ${got} ${commodityName("parts")}.` : `Hold full — left the salvage drifting.`
+      ? `Salvaged ${got} ${commodityName("parts")}.`
+      : `Hold full — left the salvage drifting.`
   );
 }
 
