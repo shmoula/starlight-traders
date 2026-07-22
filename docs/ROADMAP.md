@@ -19,11 +19,11 @@ The pivot everything downstream builds on.
 
 | Item | What | Notes |
 | :--- | :--- | :--- |
-| **E0-1** | Daily Audit: run lasts ≤12 days + Retire button | The keystone. Spec in ENGAGEMENT §4.1. |
-| **E0-2** | Rework score = net worth + capped survival bonus | **Bundled with E0-1** — score semantics change exactly once. |
+| **E0-1** | Daily Audit: run lasts ≤12 days + Retire button | ✅ **Shipped 2026-07-21.** The keystone. Spec in ENGAGEMENT §4.1. |
+| **E0-2** | Rework score = net worth + capped survival bonus | ✅ **Shipped 2026-07-21.** Bundled with E0-1 — score semantics changed exactly once. |
 | **E0-3** | localStorage persistence (PB, attempts, Daily/Practice) | After E0-1's end states exist. Spec in ENGAGEMENT §4.2. |
-| **E0-4** | Loan escalation (4→6→8%) + named lender ("The Syndicate") | In-milestone: cheapest late-run tension; lands the voice E2-4 reuses. |
-| **B-6** | Give hull 0 a real consequence | Sequenced here per backlog — advertised "−N hull" stakes must be real. |
+| **E0-4** | Loan escalation (4→6→8%) + named lender ("The Syndicate") | ✅ **Shipped 2026-07-21.** In-milestone: cheapest late-run tension; lands the voice E2-4 reuses. |
+| **B-6** | Give hull 0 a real consequence | ✅ **Shipped 2026-07-21.** Advertised "−N hull" stakes are now real — hull 0 destroys the ship. |
 | **P3-3** | A11y/polish (focus restore, `document.title`, `<h1>`, restart confirm) | Restart-confirm matters more once runs bank a score. |
 | 🔀 P2-4 | Live score-chase in statbar | Folded into E0-2; copy-confirm superseded by E1-2. |
 
@@ -83,4 +83,6 @@ Cashes in the E0 pivot: the ending becomes retention.
 ## Already shipped (context)
 
 UIUX P0-1, P0-2, P1-1 (trade buttons); bugs B-1, B-3, B-4; Engagement quick wins 1–4.
-See the two backlog files for details.
+Milestone 1 (2026-07-21): E0-1 (bounded run + Retire), E0-2 (net-worth + capped
+survival-bonus score), E0-4 (loan escalation + the Syndicate), B-6 (hull 0 destroys
+the ship). E0-3 and P3-3 remain open in M1. See the two backlog files for details.
