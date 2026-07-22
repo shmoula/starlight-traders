@@ -1,31 +1,40 @@
 import { describe, it, expect } from "vitest";
-import { runArchetype } from "../../src/sim/simulate";
+import { Archetype, runArchetype } from "../../src/sim/simulate";
 
-describe("balance simulation", () => {
-  it("cautious players (water-only safe loop) trend toward losing", () => {
-    // Average peak net worth across seeds should be modest / often negative-trending.
-    let survivedLong = 0;
-    for (let seed = 1; seed <= 30; seed++) {
-      const r = runArchetype("cautious", seed, 30);
-      if (r.daysSurvived >= 25) survivedLong++;
+const SEEDS = Array.from({ length: 100 }, (_, i) => i + 1);
+const ALL: Archetype[] = ["cautious", "balanced", "greedy"];
+
+describe("bounded-run balance sweep (E0-1 acceptance)", () => {
+  it("every run ends by day 12 — no archetype outlives the audit", () => {
+    for (const kind of ALL) {
+      for (const seed of SEEDS) {
+        const r = runArchetype(kind, seed);
+        expect(r.status, `${kind} seed ${seed}`).not.toBe("playing");
+        expect(r.daysSurvived, `${kind} seed ${seed}`).toBeLessThanOrEqual(12);
+      }
     }
-    // The safety loop should NOT trivially survive every run to day 25.
-    expect(survivedLong).toBeLessThan(30);
   });
 
-  it("greedy arbitrage players reach higher peak net worth than cautious on average", () => {
-    let greedy = 0,
-      cautious = 0;
-    for (let seed = 1; seed <= 30; seed++) {
-      greedy += runArchetype("greedy", seed, 30).peakNetWorth;
-      cautious += runArchetype("cautious", seed, 30).peakNetWorth;
+  it("at least 95% of cautious and balanced runs reach the audit alive", () => {
+    for (const kind of ["cautious", "balanced"] as Archetype[]) {
+      const audited = SEEDS.filter((s) => runArchetype(kind, s).status === "audited").length;
+      expect(audited, kind).toBeGreaterThanOrEqual(95);
+    }
+  });
+
+  it("greedy death rate before day 12 lands between 10% and 40%", () => {
+    const dead = SEEDS.filter((s) => runArchetype("greedy", s).status === "lost").length;
+    expect(dead).toBeGreaterThanOrEqual(10);
+    expect(dead).toBeLessThanOrEqual(40);
+  });
+
+  it("greedy outearns cautious across the sweep (spread is not inverted)", () => {
+    let greedy = 0;
+    let cautious = 0;
+    for (const seed of SEEDS) {
+      greedy += runArchetype("greedy", seed).peakNetWorth;
+      cautious += runArchetype("cautious", seed).peakNetWorth;
     }
     expect(greedy).toBeGreaterThan(cautious);
-  });
-
-  it("every run terminates (no infinite loop) and reports a score", () => {
-    const r = runArchetype("balanced", 5, 30);
-    expect(r.daysSurvived).toBeGreaterThan(0);
-    expect(r.score).toBeGreaterThanOrEqual(0);
   });
 });

@@ -1,6 +1,5 @@
 // src/ui/render.ts
 import { GameEvent, GameState } from "../engine/types";
-import { score as scoreFn } from "../engine/economy";
 import { eventScreen, runEndScreen, stationScreen } from "./screens";
 
 export interface ViewModel {
@@ -10,14 +9,16 @@ export interface ViewModel {
   turnReport: string[];
   /** UTC date label ("Jul 20") naming today's shared seed. */
   dateLabel: string;
+  /** Two-click retire confirm armed (see main.ts). */
+  retireArmed: boolean;
 }
 
 export function render(root: HTMLElement, vm: ViewModel): void {
-  if (vm.state.status === "lost") {
-    root.innerHTML = runEndScreen(vm.state, scoreFn(vm.state.peakNetWorth, vm.state.day));
+  if (vm.state.runEnd) {
+    root.innerHTML = runEndScreen(vm.state, vm.state.runEnd);
   } else if (vm.pendingEvent) {
     root.innerHTML = eventScreen(vm.state, vm.pendingEvent);
   } else {
-    root.innerHTML = stationScreen(vm.state, vm.turnReport, vm.dateLabel);
+    root.innerHTML = stationScreen(vm.state, vm.turnReport, vm.dateLabel, vm.retireArmed);
   }
 }

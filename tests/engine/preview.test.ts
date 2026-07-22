@@ -7,6 +7,7 @@ import {
   engineBurn,
   engineHullStrain,
   fleeDamage,
+  LETHAL_MARK,
   pirateToll,
   SALVAGE_TRAP_DAMAGE,
   salvageAmount,
@@ -137,5 +138,46 @@ describe("stake previews match resolveChoice outcomes", () => {
 
   it("quiet events preview nothing", () => {
     expect(choiceStakes(createGame(42), ev("quiet", ["ack"]))).toEqual({});
+  });
+});
+
+describe("lethal-stake marker (B-6)", () => {
+  it("marks a pirate flee that could destroy the ship", () => {
+    const s = { ...createGame(42), hull: 10 }; // fleeDamage day 1 = 16 ≥ 10
+    const stakes = choiceStakes(s, {
+      kind: "pirates",
+      title: "",
+      description: "",
+      choices: [],
+    });
+    expect(stakes.flee).toContain(LETHAL_MARK);
+    expect(stakes.pay).not.toContain(LETHAL_MARK);
+  });
+
+  it("does not mark a survivable flee", () => {
+    const s = { ...createGame(42), hull: 50 };
+    const stakes = choiceStakes(s, { kind: "pirates", title: "", description: "", choices: [] });
+    expect(stakes.flee).not.toContain(LETHAL_MARK);
+  });
+
+  it("marks salvage and derelict gambles at killable hull", () => {
+    const s = { ...createGame(42), hull: 10 }; // salvage trap 10 ≥ 10; derelict trap 20 ≥ 10
+    expect(
+      choiceStakes(s, { kind: "salvage", title: "", description: "", choices: [] }).collect
+    ).toContain(LETHAL_MARK);
+    expect(
+      choiceStakes(s, { kind: "derelict", title: "", description: "", choices: [] }).board
+    ).toContain(LETHAL_MARK);
+  });
+
+  it("marks engine strain only when it could kill", () => {
+    const dying = { ...createGame(42), fuel: 0, hull: 10 }; // strain 10 ≥ 10
+    const fine = { ...createGame(42), fuel: 0, hull: 50 };
+    expect(
+      choiceStakes(dying, { kind: "engine", title: "", description: "", choices: [] }).ack
+    ).toContain(LETHAL_MARK);
+    expect(
+      choiceStakes(fine, { kind: "engine", title: "", description: "", choices: [] }).ack
+    ).not.toContain(LETHAL_MARK);
   });
 });

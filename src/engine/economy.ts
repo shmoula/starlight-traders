@@ -5,7 +5,14 @@ import { NODES, getPrice } from "./world";
 export const BASE_DOCKING_FEE = 25;
 export const REFUEL_PRICE = 8; // credits per fuel unit
 export const REPAIR_PRICE = 6; // credits per hull point
-export const LOAN_RATE = 0.04; // interest fraction applied per accrual
+/** Days on which the Syndicate's patience steps down a tier (E0-4 tuning knob). */
+export const LOAN_STEP_IMPATIENT = 5; // rate → 6%
+export const LOAN_STEP_DESPERATE = 9; // rate → 8%
+
+/** The Syndicate's loan rate by day — its patience runs out in steps (E0-4). */
+export function loanRate(day: number): number {
+  return day >= LOAN_STEP_DESPERATE ? 0.08 : day >= LOAN_STEP_IMPATIENT ? 0.06 : 0.04;
+}
 
 export function dockingFee(node: NodeId): number {
   return Math.round(BASE_DOCKING_FEE * NODES[node].feeMultiplier);
@@ -16,9 +23,9 @@ export function taxOnSale(node: NodeId, proceeds: number): number {
   return Math.round(proceeds * NODES[node].taxRate);
 }
 
-export function loanInterest(debt: number): number {
+export function loanInterest(debt: number, day: number): number {
   if (debt <= 0) return 0;
-  return Math.ceil(debt * LOAN_RATE);
+  return Math.ceil(debt * loanRate(day));
 }
 
 export function cargoUsed(cargo: Record<CommodityId, number>): number {
@@ -36,8 +43,4 @@ export function cargoValue(state: GameState): number {
 
 export function netWorth(state: GameState): number {
   return state.credits + cargoValue(state) - state.debt;
-}
-
-export function score(peakNetWorth: number, daysSurvived: number): number {
-  return Math.max(0, Math.round(peakNetWorth * (1 + daysSurvived * 0.1)));
 }

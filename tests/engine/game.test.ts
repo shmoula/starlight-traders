@@ -11,15 +11,18 @@ import {
   acceptMission,
   checkLoss,
   deliver,
+  retire,
   STARTING,
 } from "../../src/engine/game";
 import { getPrice } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
+import { endRun } from "../../src/engine/run-end";
+import { hashSeed } from "../../src/engine/rng";
 
 describe("createGame goal line", () => {
-  it("opens the log by stating the stake, the objective, and the shared sky", () => {
+  it("opens the log by stating the stake, the deadline, and the shared sky", () => {
     expect(createGame(42).log[0]).toBe(
-      "The Syndicate staked your ship — 1,500cr, compounding. Score = your peak fortune. Everyone flies today's sky."
+      "The Syndicate staked your ship — 1,500cr, compounding. Bank your fortune before the Day 12 audit. Everyone flies today's sky."
     );
   });
 });
@@ -229,5 +232,207 @@ describe("resolveChoice", () => {
     };
     const s2 = resolveChoice(s, evt, "pay");
     expect(s2.credits).toBeLessThanOrEqual(s.credits);
+  });
+});
+
+describe("ended-run guards", () => {
+  it("jump is a no-op on an ended run", () => {
+    const dead = endRun({ ...createGame(42), fuel: 20 }, "lost", "gone", "hull");
+    const r = jump(dead, "kiruna");
+    expect(r.state).toBe(dead);
+    expect(r.event).toBeNull();
+  });
+
+  it("checkLoss banks a RunEnd with no survival bonus on stranding", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 0, cargo: { water: 0, parts: 0, luxury: 0 } };
+    const lost = checkLoss(s);
+    expect(lost.status).toBe("lost");
+    expect(lost.runEnd?.status).toBe("lost");
+    expect(lost.runEnd?.survivalBonus).toBe(0);
+    expect(lost.runEnd?.score).toBe(0); // credits 0 − debt 1500 floors at 0
+  });
+});
+
+describe("retire (E0-1)", () => {
+  it("ends the run as retired and banks the score", () => {
+    const s = { ...createGame(42), day: 5, credits: 2000, debt: 500 };
+    const r = retire(s);
+    expect(r.status).toBe("retired");
+    expect(r.runEnd?.status).toBe("retired");
+    expect(r.runEnd?.daysSurvived).toBe(5);
+    expect(r.log[r.log.length - 1]).toBe("Retired at Terra Hub — the Syndicate banks your score.");
+  });
+
+  it("is a no-op on an ended run", () => {
+    const dead = endRun(createGame(42), "lost", "gone", "hull");
+    expect(retire(dead)).toBe(dead);
+  });
+});
+
+describe("the Daily Audit (E0-1)", () => {
+  it("arrival on day 12 ends the run as audited", () => {
+    const s = { ...createGame(42), day: 11, fuel: 20 };
+    const j = jump(s, "kiruna"); // arrival day = 12
+    const r = arrive(j.state);
+    expect(r.state.status).toBe("audited");
+    expect(r.state.runEnd?.daysSurvived).toBe(12);
+    expect(r.state.log[r.state.log.length - 1]).toBe(
+      "Day 12 — the Syndicate audits your books and banks your score."
+    );
+  });
+
+  it("audit beats stranding: arriving broke on day 12 still banks the score", () => {
+    // Fuel exactly covers terra→kiruna (4); nothing left to jump or refuel with after.
+    const s = { ...createGame(42), day: 11, fuel: 4, credits: 30 };
+    const j = jump(s, "kiruna"); // docking fee eats the last credits
+    const r = arrive(j.state);
+    expect(r.state.status).toBe("audited");
+  });
+
+  it("no audit before day 12", () => {
+    const s = { ...createGame(42), day: 5, fuel: 20 };
+    const r = arrive(jump(s, "kiruna").state);
+    expect(r.state.status).toBe("playing");
+  });
+
+  it("deliveries settle before the audit banks, so the reward counts", () => {
+    const contract: Mission = {
+      id: "a1",
+      commodity: "water",
+      qty: 5,
+      destination: "kiruna",
+      reward: 500,
+      deadlineDay: 99,
+    };
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, day: 11, fuel: 20, cargo: { ...s.cargo, water: 5 } };
+    const r = arrive(jump(s, "kiruna").state);
+    expect(r.delivered.map((m) => m.id)).toEqual(["a1"]);
+    expect(r.state.status).toBe("audited");
+    // Reward was paid into credits before endRun computed net worth.
+    expect(r.state.runEnd!.netWorthAtEnd).toBe(r.state.credits + 0 - r.state.debt);
+  });
+
+  it("arrive early-returns on an ended run without settling deliveries", () => {
+    const dead = endRun(createGame(42), "lost", "gone", "hull");
+    const r = arrive(dead);
+    expect(r.state).toBe(dead);
+    expect(r.delivered).toEqual([]);
+    expect(r.expired).toEqual([]);
+  });
+});
+
+describe("hull death (B-6)", () => {
+  const pirates: GameEvent = {
+    kind: "pirates",
+    title: "",
+    description: "",
+    choices: [{ id: "flee", label: "" }],
+  };
+
+  it("fleeing pirates at low hull destroys the ship", () => {
+    // fleeDamage(day) = 15 + (day % 10) → 16 on day 1; hull 10 cannot survive it.
+    const s = { ...createGame(42), hull: 10 };
+    const dead = resolveChoice(s, pirates, "flee");
+    expect(dead.status).toBe("lost");
+    expect(dead.hull).toBe(0);
+    expect(dead.runEnd?.cause).toBe("Hull breach — your ship broke apart.");
+  });
+
+  it("fleeing at healthy hull just takes the damage", () => {
+    const s = { ...createGame(42), hull: 50 };
+    const fled = resolveChoice(s, pirates, "flee");
+    expect(fled.status).toBe("playing");
+    expect(fled.hull).toBe(50 - 16);
+  });
+
+  it("a salvage trap can kill", () => {
+    // Find a trap day for this seed: resolveSalvage traps when hashSeed(seed, day) % 3 === 0.
+    const trapDay = Array.from({ length: 30 }, (_, i) => i + 1).find(
+      (d) => hashSeed(42, d) % 3 === 0
+    )!;
+    const salvage: GameEvent = {
+      kind: "salvage",
+      title: "",
+      description: "",
+      choices: [{ id: "collect", label: "" }],
+    };
+    const s = { ...createGame(42), day: trapDay, hull: 10 }; // SALVAGE_TRAP_DAMAGE = 10
+    const dead = resolveChoice(s, salvage, "collect");
+    expect(dead.status).toBe("lost");
+    expect(dead.hull).toBe(0);
+  });
+
+  it("a derelict trap can kill", () => {
+    // resolveDerelict traps when hashSeed(seed, day) % 2 !== 0.
+    const trapDay = Array.from({ length: 30 }, (_, i) => i + 1).find(
+      (d) => hashSeed(42, d) % 2 !== 0
+    )!;
+    const derelict: GameEvent = {
+      kind: "derelict",
+      title: "",
+      description: "",
+      choices: [{ id: "board", label: "" }],
+    };
+    const s = { ...createGame(42), day: trapDay, hull: 20 }; // DERELICT_TRAP_DAMAGE = 20
+    const dead = resolveChoice(s, derelict, "board");
+    expect(dead.status).toBe("lost");
+  });
+
+  it("engine strain on an empty tank can kill", () => {
+    const engine: GameEvent = {
+      kind: "engine",
+      title: "",
+      description: "",
+      choices: [{ id: "ack", label: "" }],
+    };
+    // fuel 0 → strain = ENGINE_LEAK(2) × 5 = 10 hull.
+    const s = { ...createGame(42), fuel: 0, hull: 10 };
+    const dead = resolveChoice(s, engine, "ack");
+    expect(dead.status).toBe("lost");
+    expect(dead.hull).toBe(0);
+  });
+
+  it("a ship destroyed in transit does not settle its deliveries", () => {
+    const contract: Mission = {
+      id: "h1",
+      commodity: "water",
+      qty: 5,
+      destination: "kiruna",
+      reward: 500,
+      deadlineDay: 99,
+    };
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, fuel: 20, hull: 10, cargo: { ...s.cargo, water: 5 } };
+    const j = jump(s, "kiruna");
+    const dead = resolveChoice(j.state, pirates, "flee"); // 15+(2%10)=17 ≥ 10 → destroyed
+    expect(dead.status).toBe("lost");
+    const r = arrive(dead);
+    expect(r.delivered).toEqual([]); // cargo went down with the ship
+    expect(r.state.runEnd?.survivalBonus).toBe(0);
+  });
+});
+
+describe("loan escalation voice (E0-4)", () => {
+  const interestLineAfterJump = (day: number): string => {
+    const s = { ...createGame(42), day: day - 1, fuel: 20 };
+    const j = jump(s, "kiruna");
+    return j.state.log.find((l) => l.includes("Syndicate compounds")) ?? "";
+  };
+
+  it("day 3 accrues at 4% with the base line", () => {
+    expect(interestLineAfterJump(3)).toBe("The Syndicate compounds: +60cr.");
+  });
+
+  it("day 6 accrues at 6% and grows impatient", () => {
+    expect(interestLineAfterJump(6)).toBe("The Syndicate compounds: +90cr. It grows impatient.");
+  });
+
+  it("day 9 accrues at 8% and loses patience", () => {
+    expect(interestLineAfterJump(9)).toBe(
+      "The Syndicate compounds: +120cr. It is losing patience with you."
+    );
   });
 });

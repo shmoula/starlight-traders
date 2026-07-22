@@ -29,6 +29,38 @@ export interface Mission {
   deadlineDay: number; // absolute game day by which cargo must arrive
 }
 
+export type RunEndStatus = "lost" | "audited" | "retired";
+
+/** What killed a lost run — typed so surfaces branch on this, not the prose in `cause`. */
+export type LossCause = "hull" | "fuel";
+
+/** Fields shared by every finished run, whether banked or lost. */
+interface RunEndBase {
+  cause: string; // player-facing line naming what ended the run
+  daysSurvived: number; // capped at RUN_LENGTH
+  netWorthAtEnd: number; // banked runs: full net worth; death: credits − debt (cargo is lost)
+  survivalBonus: number; // 0 on death
+  score: number; // max(0, netWorthAtEnd) + survivalBonus
+}
+
+/** A run that ended in death — always carries the typed loss cause. */
+export interface LostRunEnd extends RunEndBase {
+  status: "lost";
+  lossCause: LossCause; // discriminates the loss headline (hull breach vs. stranding)
+}
+
+/** A run banked by the Day-12 audit or a voluntary retire — never a loss cause. */
+export interface BankedRunEnd extends RunEndBase {
+  status: "audited" | "retired";
+  lossCause?: never;
+}
+
+/**
+ * Banked summary of a finished run — the single source of truth for end-of-run surfaces.
+ * Discriminated on `status`: only a lost run carries (and must carry) a `lossCause`.
+ */
+export type RunEnd = LostRunEnd | BankedRunEnd;
+
 export interface GameState {
   seed: number;
   day: number;
@@ -43,7 +75,8 @@ export interface GameState {
   cargoCapacity: number;
   activeMissions: Mission[];
   peakNetWorth: number;
-  status: "playing" | "lost";
+  status: "playing" | RunEndStatus;
+  runEnd?: RunEnd; // present exactly when status !== "playing"
   log: string[]; // recent player-facing messages, newest last
   bootDate: string; // ISO instant the run was created — names the UTC day `seed` hashes; "" for seed-only sim runs
 }

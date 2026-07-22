@@ -13,8 +13,8 @@ import {
   deliver,
   resolveChoice,
   missionsHere,
+  retire,
 } from "./engine/game";
-import { score as scoreFn } from "./engine/economy";
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
 import { render } from "./ui/render";
 import { copyShare, formatDateLabel } from "./ui/share";
@@ -44,8 +44,13 @@ let pendingEvent: GameEvent | null = null;
 let turnReport: string[] = [];
 let logMarkBeforeJump = 0;
 
+// Two-click retire confirm: armed by "retire", consumed by "retireConfirm",
+// cancelled by "retireCancel" (the ✕), and disarmed by any other action too
+// (including a re-render for an unrelated click).
+let retireArmed = false;
+
 function paint() {
-  render(app, { state, pendingEvent, turnReport, dateLabel: dateLabelOf(state) });
+  render(app, { state, pendingEvent, turnReport, dateLabel: dateLabelOf(state), retireArmed });
 }
 
 function applyAction(act: string | undefined, id: string | undefined, qty: number) {
@@ -91,6 +96,14 @@ function applyAction(act: string | undefined, id: string | undefined, qty: numbe
       turnReport = state.log.slice(logMarkBeforeJump);
       break;
     }
+    case "retire":
+      retireArmed = true;
+      break;
+    case "retireConfirm":
+      state = retire(state);
+      break;
+    // "retireCancel" (the ✕) needs no case here: the click handler clears
+    // retireArmed for every non-"retire" action, which re-renders unarmed.
     case "restart": {
       state = bootDailyGame();
       pendingEvent = null;
@@ -111,13 +124,16 @@ app.addEventListener("click", async (e) => {
 
   // The turn report clears on any new action; it is re-populated when a jump settles.
   turnReport = [];
+  if (act !== "retire") retireArmed = false;
 
   if (act === "share") {
-    await copyShare({
-      dateLabel: dateLabelOf(state),
-      score: scoreFn(state.peakNetWorth, state.day),
-      daysSurvived: state.day,
-    });
+    if (state.runEnd) {
+      await copyShare({
+        dateLabel: dateLabelOf(state),
+        score: state.runEnd.score,
+        daysSurvived: state.runEnd.daysSurvived,
+      });
+    }
   } else {
     applyAction(act, id, qty);
   }

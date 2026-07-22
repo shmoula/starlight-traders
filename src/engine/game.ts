@@ -7,6 +7,8 @@ import {
   dockingFee,
   taxOnSale,
   loanInterest,
+  LOAN_STEP_IMPATIENT,
+  LOAN_STEP_DESPERATE,
   cargoUsed,
   netWorth,
 } from "./economy";
@@ -24,6 +26,7 @@ import {
   SALVAGE_TRAP_DAMAGE,
   salvageAmount,
 } from "./preview";
+import { RUN_LENGTH, endRun } from "./run-end";
 
 export const STARTING = {
   credits: 800,
@@ -60,7 +63,7 @@ export function createGame(seed: number, bootDate = ""): GameState {
     peakNetWorth: 0,
     status: "playing",
     log: [
-      `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Score = your peak fortune. Everyone flies today's sky.`,
+      `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Bank your fortune before the Day ${RUN_LENGTH} audit. Everyone flies today's sky.`,
     ],
   };
 }
@@ -72,9 +75,31 @@ function withLog(state: GameState, msg: string): GameState {
   return { ...state, log: [...state.log, msg] };
 }
 
+/** The lender's voice escalates with its rate tier (E0-4). */
+function interestLine(interest: number, day: number): string {
+  const base = `The Syndicate compounds: +${interest}cr.`;
+  if (day >= LOAN_STEP_DESPERATE) return `${base} It is losing patience with you.`;
+  if (day >= LOAN_STEP_IMPATIENT) return `${base} It grows impatient.`;
+  return base;
+}
+
 function trackPeak(state: GameState): GameState {
   const nw = netWorth(state);
   return nw > state.peakNetWorth ? { ...state, peakNetWorth: nw } : state;
+}
+
+/**
+ * Hull 0 destroys the ship (B-6): the run ends as a loss and cargo goes down with it.
+ * The four damage sites (resolvePirates/resolveSalvage/resolveEngine/resolveDerelict)
+ * intentionally subtract hull unclamped — always floor here, regardless of run status,
+ * so a negative hull never leaks past this point; only end the run from a live state.
+ */
+function checkHullDeath(s: GameState): GameState {
+  if (s.hull > 0) return s;
+  const floored = { ...s, hull: 0 };
+  return s.status === "playing"
+    ? endRun(floored, "lost", "Hull breach — your ship broke apart.", "hull")
+    : floored;
 }
 
 export function missionsHere(state: GameState): Mission[] {
@@ -173,6 +198,15 @@ export function payDebt(state: GameState, amount: number): GameState {
   );
 }
 
+/** Voluntarily end the run at dock, banking the score (E0-1). No-op once the run is over. */
+export function retire(state: GameState): GameState {
+  return endRun(
+    state,
+    "retired",
+    `Retired at ${NODES[state.location].name} — the Syndicate banks your score.`
+  );
+}
+
 export function acceptMission(state: GameState, mission: Mission): GameState {
   if (state.activeMissions.some((m) => m.id === mission.id)) return state;
   return withLog(
@@ -221,7 +255,7 @@ function settleMissions(state: GameState): {
 }
 
 export function checkLoss(state: GameState): GameState {
-  if (state.status === "lost") return state;
+  if (state.status !== "playing") return state;
   const cheapest = Math.min(
     ...NODE_IDS.filter((n) => n !== state.location).map((n) => fuelCost(state.location, n))
   );
@@ -229,9 +263,11 @@ export function checkLoss(state: GameState): GameState {
   const fuelShort = Math.max(0, cheapest - state.fuel);
   const canBuyFuel = state.credits >= fuelShort * REFUEL_PRICE;
   if (!canJumpNow && !canBuyFuel) {
-    return withLog(
-      { ...state, status: "lost" },
-      `Stranded at ${NODES[state.location].name} — not enough fuel to jump, and refueling costs more than you have.`
+    return endRun(
+      state,
+      "lost",
+      `Stranded at ${NODES[state.location].name} — not enough fuel to jump, and refueling costs more than you have.`,
+      "fuel"
     );
   }
   return state;
@@ -244,6 +280,7 @@ export function checkLoss(state: GameState): GameState {
  * cargo gained in transit (salvage, derelict loot) counts toward a delivery.
  */
 export function jump(state: GameState, to: NodeId): { state: GameState; event: GameEvent | null } {
+  if (state.status !== "playing") return { state, event: null };
   if (to === state.location) return { state, event: null };
   const cost = fuelCost(state.location, to);
   if (state.fuel < cost) return { state, event: null };
@@ -252,8 +289,8 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
 
   // Interest accrues on a fixed cadence.
   if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
-    const interest = loanInterest(s.debt);
-    s = withLog({ ...s, debt: s.debt + interest }, `Loan interest: debt grows ${interest}cr.`);
+    const interest = loanInterest(s.debt, s.day);
+    s = withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day));
   }
 
   // Docking fee on arrival.
@@ -266,16 +303,26 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
 
 /**
  * Finalize arrival once the in-transit event is resolved: settle deliveries against the
- * cargo actually in the hold, track peak net worth, then run the loss check (so a delivery
- * reward can rescue a player who would otherwise be stranded). Returns what settled.
+ * cargo actually in the hold, track peak net worth, then close the day — the Day-12
+ * audit banks the run (it outranks stranding: you made it), otherwise the loss check
+ * runs (so a delivery reward can rescue a player who would otherwise be stranded).
  */
 export function arrive(state: GameState): {
   state: GameState;
   delivered: Mission[];
   expired: Mission[];
 } {
+  if (state.status !== "playing") return { state, delivered: [], expired: [] };
   const settled = settleMissions(state);
-  const s = checkLoss(trackPeak(settled.state));
+  let s = trackPeak(settled.state);
+  s =
+    s.day >= RUN_LENGTH
+      ? endRun(
+          s,
+          "audited",
+          `Day ${RUN_LENGTH} — the Syndicate audits your books and banks your score.`
+        )
+      : checkLoss(s);
   return { state: s, delivered: settled.delivered, expired: settled.expired };
 }
 
@@ -285,7 +332,7 @@ function resolvePirates(s: GameState, choiceId: string): GameState {
     return withLog({ ...s, credits: s.credits - toll }, `Paid pirates ${toll}cr.`);
   }
   const dmg = fleeDamage(s.day);
-  return withLog({ ...s, hull: Math.max(0, s.hull - dmg) }, `Fled — took ${dmg} hull damage.`);
+  return withLog({ ...s, hull: s.hull - dmg }, `Fled — took ${dmg} hull damage.`);
 }
 
 function resolveSalvage(s: GameState, choiceId: string): GameState {
@@ -294,7 +341,7 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
   // strict every-3rd-day periodicity a raw `(day*7+seed) % 3` produces (B-2 class).
   if (hashSeed(s.seed, s.day) % 3 === 0) {
     return withLog(
-      { ...s, hull: Math.max(0, s.hull - SALVAGE_TRAP_DAMAGE) },
+      { ...s, hull: s.hull - SALVAGE_TRAP_DAMAGE },
       `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`
     );
   }
@@ -314,7 +361,7 @@ function resolveEngine(s: GameState): GameState {
   if (burn > 0) clauses.push(`burned ${burn} fuel`);
   if (strain > 0) clauses.push(`overheated the hull for ${strain}`);
   const msg = `Engine trouble ${clauses.join(" and ")}.`;
-  return withLog({ ...s, fuel: s.fuel - burn, hull: Math.max(0, s.hull - strain) }, msg);
+  return withLog({ ...s, fuel: s.fuel - burn, hull: s.hull - strain }, msg);
 }
 
 function resolveDerelict(s: GameState, choiceId: string): GameState {
@@ -326,7 +373,7 @@ function resolveDerelict(s: GameState, choiceId: string): GameState {
     return withLog({ ...s, credits: s.credits + reward }, `Derelict held ${reward}cr!`);
   }
   return withLog(
-    { ...s, hull: Math.max(0, s.hull - DERELICT_TRAP_DAMAGE) },
+    { ...s, hull: s.hull - DERELICT_TRAP_DAMAGE },
     `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`
   );
 }
@@ -369,7 +416,7 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
     default:
       break;
   }
-  // Loss/peak are evaluated in `arrive`, after deliveries settle against the
-  // post-event cargo — keep this focused on applying the event's effect.
-  return trackPeak(s);
+  // Loss/peak from deliveries are evaluated in `arrive`; hull death is checked here
+  // because a destroyed ship must not reach arrival settlement (cargo is lost).
+  return checkHullDeath(trackPeak(s));
 }

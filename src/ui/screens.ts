@@ -1,8 +1,9 @@
 // src/ui/screens.ts
-import { GameEvent, GameState } from "../engine/types";
+import { GameEvent, GameState, RunEnd } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { buyBlockReason, maxBuyable, missionsHere, netProceeds } from "../engine/game";
+import { RUN_LENGTH } from "../engine/run-end";
 import { choiceStakes } from "../engine/preview";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 
@@ -32,7 +33,7 @@ type Tone = "good" | "bad" | "neutral";
  */
 function toneOf(msg: string): Tone {
   if (
-    /trap|damage|seized|expired|burned|warhead|overheated|Bribed|Paid pirates|Loan interest|Stranded/i.test(
+    /trap|damage|seized|expired|burned|warhead|overheated|Bribed|Paid pirates|Syndicate compounds|Hull breach|Stranded/i.test(
       msg
     )
   ) {
@@ -49,7 +50,7 @@ const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›
 function screenHead(s: GameState, dateLabel = ""): string {
   return `<header class="screen-head">
     <h1 class="st-screen-title">Starlight Traders</h1>
-    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}${dateLabel ? ` · ${dateLabel}` : ""}</p>
+    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH}${dateLabel ? ` · ${dateLabel}` : ""}</p>
   </header>`;
 }
 
@@ -81,7 +82,7 @@ function panel(title: string, body: string, attrs = ""): string {
   </section>`;
 }
 
-function logisticsPanel(s: GameState, fuelClass: string): string {
+function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): string {
   const fuelPct = Math.round((s.fuel / s.fuelCapacity) * 100);
   const hullPct = Math.round((s.hull / s.hullMax) * 100);
   const barMod = fuelClass === "stat-critical" ? "st-bar--critical" : "st-bar--gold";
@@ -108,7 +109,7 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
     `${kv("Credits", cr(s.credits), true, s.credits < 0 ? "credits-negative" : "")}
     ${kv("Debt", cr(s.debt), true)}
     ${kv("Net worth", cr(netWorth(s)), true)}
-    ${kv("Day", String(s.day))}
+    ${kv("Day", `${s.day}/${RUN_LENGTH}`)}
     <div class="st-gauge">
       <div class="st-bar-label"><span class="st-bar-label__name">${fuelIcon()}Fuel</span><span class="st-bar-label__value${fuelClass ? ` ${fuelClass}` : ""}">${s.fuel}/${s.fuelCapacity}</span></div>
       <div class="st-bar st-bar--segmented ${barMod}" role="meter" aria-label="Fuel" aria-valuenow="${s.fuel}" aria-valuemin="0" aria-valuemax="${s.fuelCapacity}" style="--st-value: ${fuelPct}%; --st-segments: ${s.fuelCapacity}"><div class="st-bar__fill"></div></div>
@@ -124,7 +125,16 @@ function logisticsPanel(s: GameState, fuelClass: string): string {
       <button class="st-btn st-btn--ghost" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>${hullIcon()}Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
       <button class="st-btn st-btn--ghost" data-act="payDebt"${disabledAttr(payDisabled, payTitle)}>Pay 200 debt</button>
     </div>
-    <div class="st-kv"><span class="st-kv__label">Docking fee here</span><span class="fee st-kv__value st-kv__value--gold st-num">${cr(dockingFee(s.location))}</span></div>`
+    <div class="st-kv"><span class="st-kv__label">Docking fee here</span><span class="fee st-kv__value st-kv__value--gold st-num">${cr(dockingFee(s.location))}</span></div>
+    <hr class="st-divider" />
+    ${
+      retireArmed
+        ? `<div class="retire-confirm">
+            <button class="st-btn st-btn--sell retire-confirm__go" data-act="retireConfirm">Confirm retire?</button>
+            <button class="st-btn st-btn--ghost retire-confirm__cancel" data-act="retireCancel" aria-label="Cancel retire" title="Cancel">✕</button>
+          </div>`
+        : `<button class="st-btn st-btn--ghost st-btn--block" data-act="retire">Retire &amp; bank score</button>`
+    }`
   );
 }
 
@@ -290,7 +300,12 @@ function tradeHubPanel(s: GameState): string {
   </section>`;
 }
 
-export function stationScreen(s: GameState, turnReport: string[] = [], dateLabel = ""): string {
+export function stationScreen(
+  s: GameState,
+  turnReport: string[] = [],
+  dateLabel = "",
+  retireArmed = false
+): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
       <h2 class="turn-report__title">Since your last jump</h2>
@@ -320,7 +335,7 @@ export function stationScreen(s: GameState, turnReport: string[] = [], dateLabel
         ${cargoPanel(s)}
       </div>
       <div class="st-shell__rail st-shell__rail--right rail-right">
-        ${logisticsPanel(s, fuelClass)}
+        ${logisticsPanel(s, fuelClass, retireArmed)}
         ${logPanel(s)}
       </div>
     </div>
@@ -349,20 +364,28 @@ export function eventScreen(s: GameState, e: GameEvent): string {
   </div>`;
 }
 
-export function runEndScreen(s: GameState, score: number): string {
-  // checkLoss is the only site that sets status "lost", and it appends the cause
-  // message in the same call — so on a lost run the newest log entry names what
-  // ended it. Guarded by status so future non-lost end states never mislabel.
-  const cause = s.status === "lost" ? (s.log[s.log.length - 1] ?? "") : "";
+/** Headline per end status; the two loss causes get their own names. */
+function endHeadline(r: RunEnd): string {
+  if (r.status === "audited") return "Audited";
+  if (r.status === "retired") return "Retired";
+  return r.lossCause === "hull" ? "Ship Destroyed" : "Stranded";
+}
+
+export function runEndScreen(s: GameState, r: RunEnd): string {
+  const banked = r.status !== "lost";
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="run-end">
-          <h1>Run Over</h1>
-          <p>You survived ${s.day} days.</p>
-          ${cause ? `<p class="run-end__cause">${cause}</p>` : ""}
-          <p class="score st-num">Score: ${score.toLocaleString()}</p>
-          <p class="hint">Seed #${s.seed}</p>
+          <h1>${endHeadline(r)}</h1>
+          <p>You survived ${r.daysSurvived} day${r.daysSurvived === 1 ? "" : "s"}.</p>
+          <p class="run-end__cause">${r.cause}</p>
+          <div class="run-end__breakdown">
+            <div class="st-kv"><span class="st-kv__label">Net worth${banked ? "" : " (cargo lost with the ship)"}</span><span class="st-kv__value st-num">${cr(r.netWorthAtEnd)}</span></div>
+            <div class="st-kv"><span class="st-kv__label">Survival bonus</span><span class="st-kv__value st-num">${banked ? `+${r.survivalBonus}` : "forfeited"}</span></div>
+            <div class="st-kv"><span class="st-kv__label">Peak net worth</span><span class="st-kv__value st-num">${cr(s.peakNetWorth)}</span></div>
+          </div>
+          <p class="score st-num">Score: ${r.score.toLocaleString()}</p>
           <button class="st-btn" data-act="share">Copy score card</button>
           <button class="st-btn st-btn--ghost" data-act="restart">New run</button>
         </div>

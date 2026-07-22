@@ -57,6 +57,14 @@
   margin: var(--st-space-2) 0;
   background: var(--st-border);
 }
+/* A button placed directly under a divider reads tighter than a text label
+   does: the label's glyphs sit ~6px below their line-box top (leading), while
+   the button's border starts flush. Nudge the button down so its top edge lines
+   up optically with where a label's text would begin. */
+.st-divider + .st-btn,
+.st-divider + .retire-confirm {
+  margin-top: 6px;
+}
 
 /* Wrapper that lets a glow survive clip-path (box-shadow gets clipped,
  * drop-shadow of the clipped silhouette does not). Wrap chamfered panels. */
@@ -227,8 +235,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--st-space-1);
-  height: var(--st-control-h);
-  padding: 0 var(--st-space-3);
+  min-height: var(--st-control-h);
+  padding: var(--st-space-1) var(--st-space-3);
   background: transparent;
   border: 1px solid var(--btn-dim);
   border-radius: var(--st-radius-sm);
@@ -274,9 +282,28 @@
   --btn-glow: none;
 }
 .st-btn--sm {
-  height: 22px;
+  min-height: 22px;
   padding: 0 var(--st-space-2);
   font-size: var(--st-text-2xs);
+}
+.st-btn--block {
+  width: 100%;
+}
+
+/* Armed retire: the confirm fills the row, the ✕ cancel is a square icon button
+   pinned to its right so the danger action is always escapable. */
+.retire-confirm {
+  display: flex;
+  gap: var(--st-space-2);
+}
+.retire-confirm__go {
+  flex: 1;
+}
+.retire-confirm__cancel {
+  flex: 0 0 auto;
+  width: var(--st-control-h);
+  padding: 0;
+  font-size: var(--st-text-md);
 }
 
 /* ── MarketRow / data grid ───────────────────────────────────────────────
