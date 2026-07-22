@@ -237,7 +237,7 @@ describe("resolveChoice", () => {
 
 describe("ended-run guards", () => {
   it("jump is a no-op on an ended run", () => {
-    const dead = endRun({ ...createGame(42), fuel: 20 }, "lost", "gone");
+    const dead = endRun({ ...createGame(42), fuel: 20 }, "lost", "gone", "hull");
     const r = jump(dead, "kiruna");
     expect(r.state).toBe(dead);
     expect(r.event).toBeNull();
@@ -264,7 +264,7 @@ describe("retire (E0-1)", () => {
   });
 
   it("is a no-op on an ended run", () => {
-    const dead = endRun(createGame(42), "lost", "gone");
+    const dead = endRun(createGame(42), "lost", "gone", "hull");
     expect(retire(dead)).toBe(dead);
   });
 });
@@ -315,7 +315,7 @@ describe("the Daily Audit (E0-1)", () => {
   });
 
   it("arrive early-returns on an ended run without settling deliveries", () => {
-    const dead = endRun(createGame(42), "lost", "gone");
+    const dead = endRun(createGame(42), "lost", "gone", "hull");
     const r = arrive(dead);
     expect(r.state).toBe(dead);
     expect(r.delivered).toEqual([]);

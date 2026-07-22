@@ -10,9 +10,9 @@ import { commodityName, getPrice } from "./world";
 /** Appended to a stake whose worst-case hull roll would destroy the ship (B-6 honesty). */
 export const LETHAL_MARK = " — ⚠ could destroy you";
 
-/** The marker when `worstCaseHull` damage would reduce this ship's hull to 0 or below. */
-function lethalIf(s: GameState, worstCaseHull: number): string {
-  return worstCaseHull >= s.hull ? LETHAL_MARK : "";
+/** The marker when `worstCaseDamage` would reduce this ship's hull to 0 or below. */
+function lethalIf(s: GameState, worstCaseDamage: number): string {
+  return worstCaseDamage >= s.hull ? LETHAL_MARK : "";
 }
 
 /** Pirate toll demanded today, clamped to what the player holds. */

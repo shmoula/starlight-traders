@@ -82,7 +82,11 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
       s = refuel(s, Math.max(0, fuelCost(s.location, to) - s.fuel));
       const r = jump(s, to);
       if (r.event === null) break;
-      s = resolveChoice(r.state, r.event, r.event.choices[0].id);
+      const choice = chooseEventOption(
+        kind,
+        r.event.choices.map((c) => c.id)
+      );
+      s = resolveChoice(r.state, r.event, choice);
       s = arrive(s).state;
       continue;
     }

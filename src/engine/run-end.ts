@@ -19,6 +19,13 @@ export const SURVIVAL_BONUS_PER_DAY = 50;
  */
 export function endRun(
   state: GameState,
+  status: "lost",
+  cause: string,
+  lossCause: LossCause
+): GameState;
+export function endRun(state: GameState, status: "audited" | "retired", cause: string): GameState;
+export function endRun(
+  state: GameState,
   status: RunEndStatus,
   cause: string,
   lossCause?: LossCause
@@ -27,14 +34,16 @@ export function endRun(
   const daysSurvived = Math.min(state.day, RUN_LENGTH);
   const netWorthAtEnd = status === "lost" ? state.credits - state.debt : netWorth(state);
   const survivalBonus = status === "lost" ? 0 : SURVIVAL_BONUS_PER_DAY * daysSurvived;
-  const runEnd: RunEnd = {
-    status,
+  const base = {
     cause,
     daysSurvived,
     netWorthAtEnd,
     survivalBonus,
     score: Math.max(0, netWorthAtEnd) + survivalBonus,
-    ...(lossCause && { lossCause }),
   };
+  const runEnd: RunEnd =
+    status === "lost"
+      ? { status, ...base, lossCause: lossCause as LossCause }
+      : { status, ...base };
   return { ...state, status, runEnd, log: [...state.log, cause] };
 }

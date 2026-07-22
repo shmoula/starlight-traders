@@ -163,11 +163,11 @@ becomes "Day 4 / 12" everywhere it appears.
 
 **Acceptance criteria**
 
-- [ ] `GameState.status` gains `"audited" | "retired"`; `arrive()` triggers audit when `day >= 12`; a `retire(state)` engine function exists and is covered by tests.
-- [ ] Score for audited/retired/lost runs uses the E0-2 formula; `peakNetWorth` still tracked and displayed as a stat.
-- [ ] Station screen shows a Retire button (confirm dialog; disabled during pending event); day counter reads "Day N/12".
-- [ ] Sim harness respects the bound (no `maxDays` cap above 12 needed); updated balance tests assert: median sim run ends by day 12, ≥95% of cautious/balanced runs reach the audit alive, and greedy death rate before day 12 is between 10–40%.
-- [ ] Share/debrief reachable from all three end states; no path exists where a run continues past day 12.
+- [x] `GameState.status` gains `"audited" | "retired"`; `arrive()` triggers audit when `day >= 12`; a `retire(state)` engine function exists and is covered by tests.
+- [x] Score for audited/retired/lost runs uses the E0-2 formula; `peakNetWorth` still tracked and displayed as a stat.
+- [x] Station screen shows a Retire button (confirm dialog; disabled during pending event); day counter reads "Day N/12".
+- [x] Sim harness respects the bound (no `maxDays` cap above 12 needed); updated balance tests assert: median sim run ends by day 12, ≥95% of cautious/balanced runs reach the audit alive, and greedy death rate before day 12 is between 10–40%.
+- [x] Share/debrief reachable from all three end states; no path exists where a run continues past day 12.
 
 ### 4.2 E0-3 — Persistence pack (localStorage)
 

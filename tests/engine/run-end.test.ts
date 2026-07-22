@@ -29,7 +29,7 @@ describe("endRun", () => {
       debt: 100,
       cargo: { water: 10, parts: 0, luxury: 0 },
     };
-    const ended = endRun(s, "lost", "Hull breach — your ship broke apart.");
+    const ended = endRun(s, "lost", "Hull breach — your ship broke apart.", "hull");
     expect(ended.runEnd?.netWorthAtEnd).toBe(800); // credits − debt; cargo excluded
     expect(ended.runEnd?.survivalBonus).toBe(0);
     expect(ended.runEnd?.score).toBe(800);
@@ -43,7 +43,7 @@ describe("endRun", () => {
 
   it("floors a death score at 0", () => {
     const s = { ...createGame(42), day: 3, credits: 100, debt: 2000 };
-    const ended = endRun(s, "lost", "Stranded.");
+    const ended = endRun(s, "lost", "Stranded.", "fuel");
     expect(ended.runEnd?.score).toBe(0);
   });
 
@@ -69,7 +69,7 @@ describe("endRun", () => {
   });
 
   it("is a no-op on an already-ended run", () => {
-    const dead = endRun(createGame(42), "lost", "gone");
+    const dead = endRun(createGame(42), "lost", "gone", "hull");
     expect(endRun(dead, "retired", "again")).toBe(dead);
   });
 });
