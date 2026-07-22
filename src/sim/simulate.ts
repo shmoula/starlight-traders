@@ -61,10 +61,12 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
     if (!pick) {
       s = checkLoss(s);
       if (s.status !== "playing") break;
-      // Cannot act — force a cheap jump to advance and accrue costs.
+      // Cannot trade — checkLoss says a jump is still affordable, so top up to the
+      // cheapest hop and take it to advance the day and accrue costs.
       const to = NODE_IDS.filter((n) => n !== s.location).sort(
         (a, b) => fuelCost(s.location, a) - fuelCost(s.location, b)
       )[0];
+      s = refuel(s, Math.max(0, fuelCost(s.location, to) - s.fuel));
       const r = jump(s, to);
       if (r.event === null) break;
       s = resolveChoice(r.state, r.event, r.event.choices[0].id);
@@ -73,13 +75,10 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
     }
 
     // Buy as much of the chosen commodity as affordable/space allows.
-    let qty = 0;
     while (true) {
       const next = buy(s, pick.id, 1);
       if (next === s) break;
       s = next;
-      qty++;
-      if (qty > s.cargoCapacity) break;
     }
 
     const r = jump(s, pick.to);
