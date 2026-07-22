@@ -307,7 +307,6 @@ describe("event and run-end cards", () => {
     expect(html).toContain('class="event-card"');
     expect(html).toContain('data-act="resolve" data-id="flee"');
   });
-
 });
 
 describe("runEndScreen (E0-1/E0-2)", () => {
@@ -345,7 +344,12 @@ describe("runEndScreen (E0-1/E0-2)", () => {
 
   it("headlines by the typed lossCause, not the cause prose", () => {
     // A reworded hull-loss line must still headline as a destruction, not a stranding.
-    const s = endRun({ ...createGame(42), hull: 0 }, "lost", "Your hull gave out in the dark.", "hull");
+    const s = endRun(
+      { ...createGame(42), hull: 0 },
+      "lost",
+      "Your hull gave out in the dark.",
+      "hull"
+    );
     expect(runEndScreen(s, s.runEnd!)).toContain("<h1>Ship Destroyed</h1>");
   });
 

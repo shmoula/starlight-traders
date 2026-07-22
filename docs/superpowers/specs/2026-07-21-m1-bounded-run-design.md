@@ -26,7 +26,7 @@ E1-4 event-odds display.
 2. **Hull 0 = ship destroyed, run lost** (vs. crippled-until-repaired or forced audit).
    Cleanest rule; makes every advertised "−N hull" stake literally risk the run.
 3. **Death loses cargo + survival bonus** (vs. one formula for all end states, or an
-   audit-completion bonus). Dying rich is a real loss; retiring is how you *bank* a
+   audit-completion bonus). Dying rich is a real loss; retiring is how you _bank_ a
    fortune — the push-your-luck tension E0 wants.
 4. **Structured `RunEnd` object** (vs. status union + pure score function). One source
    of truth for end-of-run data; E0-3 persistence and E1-3 debrief consume it later.
@@ -40,11 +40,11 @@ When a run ends by any path, the engine attaches one structured object to state:
 ```ts
 interface RunEnd {
   status: "lost" | "audited" | "retired";
-  cause: string;            // "Hull breach — your ship broke apart off Vulcan Yards."
-  daysSurvived: number;     // state.day, capped at RUN_LENGTH
-  netWorthAtEnd: number;    // credits + cargo − debt; death: credits − debt (cargo lost)
-  survivalBonus: number;    // 0 for death
-  score: number;            // max(0, netWorthAtEnd) + survivalBonus
+  cause: string; // "Hull breach — your ship broke apart off Vulcan Yards."
+  daysSurvived: number; // state.day, capped at RUN_LENGTH
+  netWorthAtEnd: number; // credits + cargo − debt; death: credits − debt (cargo lost)
+  survivalBonus: number; // 0 for death
+  score: number; // max(0, netWorthAtEnd) + survivalBonus
 }
 ```
 
@@ -64,7 +64,7 @@ retire, stranding, hull breach — go through it.
   still `"playing"` and `day >= RUN_LENGTH`, end as `"audited"` with cause "The
   Syndicate audits your books and banks your score."
 - **Audit wins over stranding.** On a day-12 arrival the fuel/credits loss check is
-  skipped — you made it. (Hull breach *in transit* still wins over the audit because it
+  skipped — you made it. (Hull breach _in transit_ still wins over the audit because it
   resolves before arrival; see §3.)
 - **Retire:** new engine function `retire(state)`. Valid only while
   `status === "playing"`; otherwise a no-op. Ends as `"retired"` with cause
@@ -77,7 +77,7 @@ retire, stranding, hull breach — go through it.
 ## 3. B-6 — Hull death
 
 - Hull ≤ 0 destroys the ship: `endRun(s, "lost", "Hull breach — your ship broke
-  apart.")` (cause may name the route/station for flavor).
+apart.")` (cause may name the route/station for flavor).
 - The check runs inside `resolveChoice()` after applying the event's effect, covering
   all four damage sites: pirate flee (15–24), salvage trap (10), derelict trap (20),
   engine strain. The `Math.max(0, hull − dmg)` clamps are removed in favor of the
@@ -92,10 +92,10 @@ retire, stranding, hull breach — go through it.
 
 ## 4. E0-2 — Scoring
 
-| End state | Formula |
-| :-- | :-- |
-| Audited / Retired | `max(0, netWorth) + SURVIVAL_BONUS_PER_DAY × min(day, 12)` |
-| Lost (stranded or hull breach) | `max(0, credits − debt)` — no bonus, cargo lost |
+| End state                      | Formula                                                    |
+| :----------------------------- | :--------------------------------------------------------- |
+| Audited / Retired              | `max(0, netWorth) + SURVIVAL_BONUS_PER_DAY × min(day, 12)` |
+| Lost (stranded or hull breach) | `max(0, credits − debt)` — no bonus, cargo lost            |
 
 - Proposed `SURVIVAL_BONUS_PER_DAY = 50` (max 600): meaningful next to a cautious
   run's net worth, small next to a strong contract run (~5,600 observed). The final

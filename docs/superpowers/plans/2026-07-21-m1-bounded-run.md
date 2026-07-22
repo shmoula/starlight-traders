@@ -14,19 +14,19 @@
 
 ## File Structure
 
-| File | Change |
-| :-- | :-- |
-| `src/engine/types.ts` | Add `RunEndStatus`, `RunEnd`; extend `GameState.status`, add optional `runEnd` |
-| `src/engine/run-end.ts` | **New** — `RUN_LENGTH`, `SURVIVAL_BONUS_PER_DAY`, `endRun()` |
-| `src/engine/game.ts` | Guards on ended runs; `checkLoss` via `endRun`; `retire()`; audit in `arrive()`; hull death in `resolveChoice()`; Syndicate interest lines; new goal-line copy |
-| `src/engine/economy.ts` | `loanRate(day)`, `loanInterest(debt, day)`; delete `LOAN_RATE` and `score()` |
-| `src/engine/preview.ts` | `LETHAL_MARK` on worst-case-lethal stakes |
-| `src/ui/screens.ts` | `Day N/12`; `runEndScreen(s, runEnd)` rework; retire button; `toneOf` patterns |
-| `src/ui/render.ts` | Branch on `state.runEnd`; `retireArmed` in ViewModel |
-| `src/main.ts` | retire/retireConfirm actions + armed flag; share reads `runEnd`; drop `scoreFn` |
-| `src/sim/simulate.ts` | Drop `maxDays`; call `arrive()`; personas repair; result gains `status` |
-| `tests/engine/run-end.test.ts` | **New** |
-| `tests/engine/game.test.ts`, `tests/engine/economy.test.ts`, `tests/engine/preview.test.ts`, `tests/ui/screens.test.ts`, `tests/sim/simulate.test.ts` | Updated per task |
+| File                                                                                                                                                  | Change                                                                                                                                                         |
+| :---------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/engine/types.ts`                                                                                                                                 | Add `RunEndStatus`, `RunEnd`; extend `GameState.status`, add optional `runEnd`                                                                                 |
+| `src/engine/run-end.ts`                                                                                                                               | **New** — `RUN_LENGTH`, `SURVIVAL_BONUS_PER_DAY`, `endRun()`                                                                                                   |
+| `src/engine/game.ts`                                                                                                                                  | Guards on ended runs; `checkLoss` via `endRun`; `retire()`; audit in `arrive()`; hull death in `resolveChoice()`; Syndicate interest lines; new goal-line copy |
+| `src/engine/economy.ts`                                                                                                                               | `loanRate(day)`, `loanInterest(debt, day)`; delete `LOAN_RATE` and `score()`                                                                                   |
+| `src/engine/preview.ts`                                                                                                                               | `LETHAL_MARK` on worst-case-lethal stakes                                                                                                                      |
+| `src/ui/screens.ts`                                                                                                                                   | `Day N/12`; `runEndScreen(s, runEnd)` rework; retire button; `toneOf` patterns                                                                                 |
+| `src/ui/render.ts`                                                                                                                                    | Branch on `state.runEnd`; `retireArmed` in ViewModel                                                                                                           |
+| `src/main.ts`                                                                                                                                         | retire/retireConfirm actions + armed flag; share reads `runEnd`; drop `scoreFn`                                                                                |
+| `src/sim/simulate.ts`                                                                                                                                 | Drop `maxDays`; call `arrive()`; personas repair; result gains `status`                                                                                        |
+| `tests/engine/run-end.test.ts`                                                                                                                        | **New**                                                                                                                                                        |
+| `tests/engine/game.test.ts`, `tests/engine/economy.test.ts`, `tests/engine/preview.test.ts`, `tests/ui/screens.test.ts`, `tests/sim/simulate.test.ts` | Updated per task                                                                                                                                               |
 
 Dependency check (no cycles): `run-end.ts` imports from `types.ts` + `economy.ts`; `game.ts` imports `run-end.ts`; `economy.ts` imports neither.
 
@@ -35,6 +35,7 @@ Dependency check (no cycles): `run-end.ts` imports from `types.ts` + `economy.ts
 ### Task 1: RunEnd core (`types.ts` + `run-end.ts`)
 
 **Files:**
+
 - Modify: `src/engine/types.ts`
 - Create: `src/engine/run-end.ts`
 - Create: `tests/engine/run-end.test.ts`
@@ -197,6 +198,7 @@ git commit -m "feat(engine): RunEnd core — banked end-of-run summary with E0-2
 ### Task 2: Ended-run guards + stranding via `endRun`
 
 **Files:**
+
 - Modify: `src/engine/game.ts` (imports, `checkLoss`, `jump`)
 - Test: `tests/engine/game.test.ts`
 
@@ -293,6 +295,7 @@ git commit -m "feat(engine): route stranding through endRun; guard jump on ended
 ### Task 3: `retire()`
 
 **Files:**
+
 - Modify: `src/engine/game.ts`
 - Test: `tests/engine/game.test.ts`
 
@@ -308,9 +311,7 @@ describe("retire (E0-1)", () => {
     expect(r.status).toBe("retired");
     expect(r.runEnd?.status).toBe("retired");
     expect(r.runEnd?.daysSurvived).toBe(5);
-    expect(r.log[r.log.length - 1]).toBe(
-      "Retired at Terra Hub — the Syndicate banks your score."
-    );
+    expect(r.log[r.log.length - 1]).toBe("Retired at Terra Hub — the Syndicate banks your score.");
   });
 
   it("is a no-op on an ended run", () => {
@@ -357,6 +358,7 @@ git commit -m "feat(engine): retire() banks the run voluntarily"
 ### Task 4: The Daily Audit in `arrive()`
 
 **Files:**
+
 - Modify: `src/engine/game.ts` (`arrive`)
 - Test: `tests/engine/game.test.ts`
 
@@ -446,7 +448,11 @@ export function arrive(state: GameState): {
   let s = trackPeak(settled.state);
   s =
     s.day >= RUN_LENGTH
-      ? endRun(s, "audited", `Day ${RUN_LENGTH} — the Syndicate audits your books and banks your score.`)
+      ? endRun(
+          s,
+          "audited",
+          `Day ${RUN_LENGTH} — the Syndicate audits your books and banks your score.`
+        )
       : checkLoss(s);
   return { state: s, delivered: settled.delivered, expired: settled.expired };
 }
@@ -469,6 +475,7 @@ git commit -m "feat(engine): Day-12 audit ends the run in arrive(); audit outran
 ### Task 5: Hull 0 destroys the ship (B-6)
 
 **Files:**
+
 - Modify: `src/engine/game.ts` (`resolvePirates`, `resolveSalvage`, `resolveEngine`, `resolveDerelict`, `resolveChoice`, new `checkHullDeath`)
 - Test: `tests/engine/game.test.ts`
 
@@ -595,40 +602,40 @@ negative for one call; `checkHullDeath` floors it back to 0 when it ends the run
 In `resolvePirates`:
 
 ```ts
-  const dmg = fleeDamage(s.day);
-  return withLog({ ...s, hull: s.hull - dmg }, `Fled — took ${dmg} hull damage.`);
+const dmg = fleeDamage(s.day);
+return withLog({ ...s, hull: s.hull - dmg }, `Fled — took ${dmg} hull damage.`);
 ```
 
 In `resolveSalvage` (trap branch):
 
 ```ts
-    return withLog(
-      { ...s, hull: s.hull - SALVAGE_TRAP_DAMAGE },
-      `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`
-    );
+return withLog(
+  { ...s, hull: s.hull - SALVAGE_TRAP_DAMAGE },
+  `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`
+);
 ```
 
 In `resolveEngine`:
 
 ```ts
-  return withLog({ ...s, fuel: s.fuel - burn, hull: s.hull - strain }, msg);
+return withLog({ ...s, fuel: s.fuel - burn, hull: s.hull - strain }, msg);
 ```
 
 In `resolveDerelict` (trap branch):
 
 ```ts
-  return withLog(
-    { ...s, hull: s.hull - DERELICT_TRAP_DAMAGE },
-    `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`
-  );
+return withLog(
+  { ...s, hull: s.hull - DERELICT_TRAP_DAMAGE },
+  `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`
+);
 ```
 
 In `resolveChoice`, replace the final `return trackPeak(s);` with:
 
 ```ts
-  // Loss/peak from deliveries are evaluated in `arrive`; hull death is checked here
-  // because a destroyed ship must not reach arrival settlement (cargo is lost).
-  return checkHullDeath(trackPeak(s));
+// Loss/peak from deliveries are evaluated in `arrive`; hull death is checked here
+// because a destroyed ship must not reach arrival settlement (cargo is lost).
+return checkHullDeath(trackPeak(s));
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -648,6 +655,7 @@ git commit -m "feat(engine): hull 0 destroys the ship — B-6 makes hull stakes 
 ### Task 6: Loan escalation (E0-4)
 
 **Files:**
+
 - Modify: `src/engine/economy.ts`, `src/engine/game.ts` (interest accrual), `src/ui/screens.ts` (`toneOf` only)
 - Test: `tests/engine/economy.test.ts`, `tests/engine/game.test.ts`, `tests/ui/screens.test.ts`
 
@@ -656,15 +664,15 @@ git commit -m "feat(engine): hull 0 destroys the ship — B-6 makes hull stakes 
 In `tests/engine/economy.test.ts`, replace the `loanInterest` test with:
 
 ```ts
-  it("loan interest escalates 4% → 6% → 8% at days 5 and 9 (E0-4)", () => {
-    expect(loanInterest(1000, 1)).toBe(40);
-    expect(loanInterest(1000, 4)).toBe(40);
-    expect(loanInterest(1000, 5)).toBe(60);
-    expect(loanInterest(1000, 8)).toBe(60);
-    expect(loanInterest(1000, 9)).toBe(80);
-    expect(loanInterest(1000, 12)).toBe(80);
-    expect(loanInterest(0, 9)).toBe(0);
-  });
+it("loan interest escalates 4% → 6% → 8% at days 5 and 9 (E0-4)", () => {
+  expect(loanInterest(1000, 1)).toBe(40);
+  expect(loanInterest(1000, 4)).toBe(40);
+  expect(loanInterest(1000, 5)).toBe(60);
+  expect(loanInterest(1000, 8)).toBe(60);
+  expect(loanInterest(1000, 9)).toBe(80);
+  expect(loanInterest(1000, 12)).toBe(80);
+  expect(loanInterest(0, 9)).toBe(0);
+});
 ```
 
 - [ ] **Step 2: Write the failing game tests (Syndicate voice)**
@@ -733,10 +741,10 @@ function interestLine(interest: number, day: number): string {
 and change the accrual block in `jump` to:
 
 ```ts
-  if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
-    const interest = loanInterest(s.debt, s.day);
-    s = withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day));
-  }
+if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
+  const interest = loanInterest(s.debt, s.day);
+  s = withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day));
+}
 ```
 
 - [ ] **Step 5: Update `toneOf` and its test**
@@ -750,13 +758,13 @@ In `src/ui/screens.ts`, the `toneOf` regex no longer matches the interest line a
 In `tests/ui/screens.test.ts`, the turn-report tone test at line ~98 uses the old copy. Change:
 
 ```ts
-    const html = stationScreen(createGame(42), ["Loan interest: debt grows 60cr."]);
+const html = stationScreen(createGame(42), ["Loan interest: debt grows 60cr."]);
 ```
 
 to:
 
 ```ts
-    const html = stationScreen(createGame(42), ["The Syndicate compounds: +60cr."]);
+const html = stationScreen(createGame(42), ["The Syndicate compounds: +60cr."]);
 ```
 
 - [ ] **Step 6: Run the full suite**
@@ -776,6 +784,7 @@ git commit -m "feat(engine): loan escalates 4/6/8% with the Syndicate's voice (E
 ### Task 7: Lethal-stake marker in previews
 
 **Files:**
+
 - Modify: `src/engine/preview.ts`
 - Test: `tests/engine/preview.test.ts`
 
@@ -893,6 +902,7 @@ git commit -m "feat(engine): mark event stakes that could destroy the ship"
 ### Task 8: UI integration — end screen, Day N/12, Retire button, share
 
 **Files:**
+
 - Modify: `src/engine/game.ts` (goal-line copy), `src/ui/screens.ts`, `src/ui/render.ts`, `src/main.ts`
 - Test: `tests/ui/screens.test.ts`, `tests/engine/game.test.ts`
 
@@ -962,7 +972,11 @@ describe("runEndScreen (E0-1/E0-2)", () => {
   });
 
   it("headlines a hull breach as Ship Destroyed and forfeits the bonus", () => {
-    const s = endRun({ ...createGame(42), hull: 0 }, "lost", "Hull breach — your ship broke apart.");
+    const s = endRun(
+      { ...createGame(42), hull: 0 },
+      "lost",
+      "Hull breach — your ship broke apart."
+    );
     const html = runEndScreen(s, s.runEnd!);
     expect(html).toContain("<h1>Ship Destroyed</h1>");
     expect(html).toContain("forfeited");
@@ -1143,23 +1157,23 @@ function paint() {
 - In the click handler, disarm on any other action. After `turnReport = [];` add:
 
 ```ts
-  if (act !== "retire") retireArmed = false;
+if (act !== "retire") retireArmed = false;
 ```
 
 - Replace the share branch:
 
 ```ts
-  if (act === "share") {
-    if (state.runEnd) {
-      await copyShare({
-        dateLabel: dateLabelOf(state),
-        score: state.runEnd.score,
-        daysSurvived: state.runEnd.daysSurvived,
-      });
-    }
-  } else {
-    applyAction(act, id, qty);
+if (act === "share") {
+  if (state.runEnd) {
+    await copyShare({
+      dateLabel: dateLabelOf(state),
+      score: state.runEnd.score,
+      daysSurvived: state.runEnd.daysSurvived,
+    });
   }
+} else {
+  applyAction(act, id, qty);
+}
 ```
 
 (`restart` needs no change: `bootDailyGame()` has no `runEnd`, and the disarm line above resets the confirm.)
@@ -1181,6 +1195,7 @@ git commit -m "feat(ui): per-status end screen, Day N/12, retire confirm, share 
 ### Task 9: Sim rework + balance sweep (delete `economy.score`)
 
 **Files:**
+
 - Modify: `src/sim/simulate.ts`, `src/engine/economy.ts`
 - Test: `tests/sim/simulate.test.ts` (rewrite), `tests/engine/economy.test.ts` (drop score test)
 
@@ -1435,13 +1450,13 @@ git commit -m "docs(planning): mark E0-1/E0-2/E0-4/B-6 shipped in roadmap + back
 
 ## Spec coverage map
 
-| Spec section | Tasks |
-| :-- | :-- |
-| §1 End-state model (`RunEnd`, `run-end.ts`, delete `economy.score`, cause-scrape removal) | 1, 8, 9 |
-| §2 Audit + Retire (RUN_LENGTH, audit-beats-stranding, `retire()`, guards, Day N/12) | 2, 3, 4, 8 |
-| §3 Hull death (all four sites, in-transit skip, lethal preview marker) | 5, 7 |
-| §4 Scoring (formulas, bonus constant as tunable knob) | 1, 9 |
-| §5 Loan escalation (4/6/8%, Syndicate voice) | 6 |
-| §6 UI (retire confirm, per-status end screen, statbar day, share from runEnd) | 8 |
-| §7 Sim & tests (arrive in sim, 100-seed bands, suite updates) | 2–9, sweep in 9 |
-| Error handling (no-op guards, hull floor at 0) | 2, 3, 5 |
+| Spec section                                                                              | Tasks           |
+| :---------------------------------------------------------------------------------------- | :-------------- |
+| §1 End-state model (`RunEnd`, `run-end.ts`, delete `economy.score`, cause-scrape removal) | 1, 8, 9         |
+| §2 Audit + Retire (RUN_LENGTH, audit-beats-stranding, `retire()`, guards, Day N/12)       | 2, 3, 4, 8      |
+| §3 Hull death (all four sites, in-transit skip, lethal preview marker)                    | 5, 7            |
+| §4 Scoring (formulas, bonus constant as tunable knob)                                     | 1, 9            |
+| §5 Loan escalation (4/6/8%, Syndicate voice)                                              | 6               |
+| §6 UI (retire confirm, per-status end screen, statbar day, share from runEnd)             | 8               |
+| §7 Sim & tests (arrive in sim, 100-seed bands, suite updates)                             | 2–9, sweep in 9 |
+| Error handling (no-op guards, hull floor at 0)                                            | 2, 3, 5         |

@@ -260,9 +260,7 @@ describe("retire (E0-1)", () => {
     expect(r.status).toBe("retired");
     expect(r.runEnd?.status).toBe("retired");
     expect(r.runEnd?.daysSurvived).toBe(5);
-    expect(r.log[r.log.length - 1]).toBe(
-      "Retired at Terra Hub — the Syndicate banks your score."
-    );
+    expect(r.log[r.log.length - 1]).toBe("Retired at Terra Hub — the Syndicate banks your score.");
   });
 
   it("is a no-op on an ended run", () => {

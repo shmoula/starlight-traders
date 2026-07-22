@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  dockingFee,
-  taxOnSale,
-  loanInterest,
-  cargoUsed,
-  netWorth,
-} from "../../src/engine/economy";
+import { dockingFee, taxOnSale, loanInterest, cargoUsed, netWorth } from "../../src/engine/economy";
 import { GameState } from "../../src/engine/types";
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
