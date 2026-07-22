@@ -41,15 +41,28 @@ function bestTrade(
   return best ? { to: best.to, id: best.id } : null;
 }
 
+/** Persona → the commodities this archetype is willing to trade. */
+function candidatesFor(kind: Archetype): CommodityId[] {
+  if (kind === "cautious") return ["water"];
+  if (kind === "balanced") return ["water", "parts"];
+  return ["water", "parts", "luxury"];
+}
+
+/** Read the banked run summary into a sim result, falling back if the run
+ *  somehow ended without one. */
+function toResult(s: GameState): SimResult {
+  return {
+    daysSurvived: s.runEnd?.daysSurvived ?? Math.min(s.day, 12),
+    peakNetWorth: s.peakNetWorth,
+    score: s.runEnd?.score ?? 0,
+    status: s.status,
+  };
+}
+
 /** One full bounded run; the engine ends it by audit, stranding, or hull breach. */
 export function runArchetype(kind: Archetype, seed: number): SimResult {
   let s = createGame(seed);
-  const candidates: CommodityId[] =
-    kind === "cautious"
-      ? ["water"]
-      : kind === "balanced"
-        ? ["water", "parts"]
-        : ["water", "parts", "luxury"];
+  const candidates = candidatesFor(kind);
 
   while (s.status === "playing") {
     // Top up fuel modestly each turn; careful personas also maintain the hull now
@@ -102,12 +115,7 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
     s = checkLoss(s);
   }
 
-  return {
-    daysSurvived: s.runEnd?.daysSurvived ?? Math.min(s.day, 12),
-    peakNetWorth: s.peakNetWorth,
-    score: s.runEnd?.score ?? 0,
-    status: s.status,
-  };
+  return toResult(s);
 }
 
 function chooseEventOption(kind: Archetype, ids: string[]): string {
