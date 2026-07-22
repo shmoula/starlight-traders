@@ -52,6 +52,17 @@ describe("endRun", () => {
     expect(endRun(s, "audited", "Audited.").runEnd?.daysSurvived).toBe(RUN_LENGTH);
   });
 
+  it("tags the loss cause so surfaces need not parse the prose", () => {
+    const hull = endRun(createGame(42), "lost", "Hull breach — your ship broke apart.", "hull");
+    expect(hull.runEnd?.lossCause).toBe("hull");
+    const fuel = endRun(createGame(42), "lost", "Stranded.", "fuel");
+    expect(fuel.runEnd?.lossCause).toBe("fuel");
+  });
+
+  it("leaves lossCause undefined on a banked run", () => {
+    expect(endRun(createGame(42), "retired", "Retired.").runEnd?.lossCause).toBeUndefined();
+  });
+
   it("appends the cause to the log", () => {
     const ended = endRun(createGame(42), "retired", "Retired at Terra Hub.");
     expect(ended.log[ended.log.length - 1]).toBe("Retired at Terra Hub.");

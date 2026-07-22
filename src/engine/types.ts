@@ -31,10 +31,14 @@ export interface Mission {
 
 export type RunEndStatus = "lost" | "audited" | "retired";
 
+/** What killed a lost run — typed so surfaces branch on this, not the prose in `cause`. */
+export type LossCause = "hull" | "fuel";
+
 /** Banked summary of a finished run — the single source of truth for end-of-run surfaces. */
 export interface RunEnd {
   status: RunEndStatus;
   cause: string; // player-facing line naming what ended the run
+  lossCause?: LossCause; // present exactly when status === "lost"; discriminates the loss headline
   daysSurvived: number; // capped at RUN_LENGTH
   netWorthAtEnd: number; // banked runs: full net worth; death: credits − debt (cargo is lost)
   survivalBonus: number; // 0 on death

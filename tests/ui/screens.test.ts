@@ -331,11 +331,22 @@ describe("runEndScreen (E0-1/E0-2)", () => {
   });
 
   it("headlines a hull breach as Ship Destroyed and forfeits the bonus", () => {
-    const s = endRun({ ...createGame(42), hull: 0 }, "lost", "Hull breach — your ship broke apart.");
+    const s = endRun(
+      { ...createGame(42), hull: 0 },
+      "lost",
+      "Hull breach — your ship broke apart.",
+      "hull"
+    );
     const html = runEndScreen(s, s.runEnd!);
     expect(html).toContain("<h1>Ship Destroyed</h1>");
     expect(html).toContain("forfeited");
     expect(html).toContain("Hull breach — your ship broke apart.");
+  });
+
+  it("headlines by the typed lossCause, not the cause prose", () => {
+    // A reworded hull-loss line must still headline as a destruction, not a stranding.
+    const s = endRun({ ...createGame(42), hull: 0 }, "lost", "Your hull gave out in the dark.", "hull");
+    expect(runEndScreen(s, s.runEnd!)).toContain("<h1>Ship Destroyed</h1>");
   });
 
   it("headlines a stranding as Stranded", () => {

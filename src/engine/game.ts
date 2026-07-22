@@ -98,7 +98,7 @@ function checkHullDeath(s: GameState): GameState {
   if (s.hull > 0) return s;
   const floored = { ...s, hull: 0 };
   return s.status === "playing"
-    ? endRun(floored, "lost", "Hull breach — your ship broke apart.")
+    ? endRun(floored, "lost", "Hull breach — your ship broke apart.", "hull")
     : floored;
 }
 
@@ -266,7 +266,8 @@ export function checkLoss(state: GameState): GameState {
     return endRun(
       state,
       "lost",
-      `Stranded at ${NODES[state.location].name} — not enough fuel to jump, and refueling costs more than you have.`
+      `Stranded at ${NODES[state.location].name} — not enough fuel to jump, and refueling costs more than you have.`,
+      "fuel"
     );
   }
   return state;

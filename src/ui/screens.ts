@@ -365,7 +365,7 @@ export function eventScreen(s: GameState, e: GameEvent): string {
 function endHeadline(r: RunEnd): string {
   if (r.status === "audited") return "Audited";
   if (r.status === "retired") return "Retired";
-  return r.cause.startsWith("Hull breach") ? "Ship Destroyed" : "Stranded";
+  return r.lossCause === "hull" ? "Ship Destroyed" : "Stranded";
 }
 
 export function runEndScreen(s: GameState, r: RunEnd): string {
