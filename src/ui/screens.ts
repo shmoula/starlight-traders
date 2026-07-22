@@ -129,8 +129,11 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
     <hr class="st-divider" />
     ${
       retireArmed
-        ? `<button class="st-btn st-btn--sell" data-act="retireConfirm">Retire — sure? This banks your score</button>`
-        : `<button class="st-btn st-btn--ghost" data-act="retire">Retire &amp; bank score</button>`
+        ? `<div class="retire-confirm">
+            <button class="st-btn st-btn--sell retire-confirm__go" data-act="retireConfirm">Confirm retire?</button>
+            <button class="st-btn st-btn--ghost retire-confirm__cancel" data-act="retireCancel" aria-label="Cancel retire" title="Cancel">✕</button>
+          </div>`
+        : `<button class="st-btn st-btn--ghost st-btn--block" data-act="retire">Retire &amp; bank score</button>`
     }`
   );
 }

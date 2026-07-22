@@ -45,7 +45,8 @@ let turnReport: string[] = [];
 let logMarkBeforeJump = 0;
 
 // Two-click retire confirm: armed by "retire", consumed by "retireConfirm",
-// disarmed by any other action (including a re-render for an unrelated click).
+// cancelled by "retireCancel" (the ✕), and disarmed by any other action too
+// (including a re-render for an unrelated click).
 let retireArmed = false;
 
 function paint() {
@@ -101,6 +102,8 @@ function applyAction(act: string | undefined, id: string | undefined, qty: numbe
     case "retireConfirm":
       state = retire(state);
       break;
+    // "retireCancel" (the ✕) needs no case here: the click handler clears
+    // retireArmed for every non-"retire" action, which re-renders unarmed.
     case "restart": {
       state = bootDailyGame();
       pendingEvent = null;
