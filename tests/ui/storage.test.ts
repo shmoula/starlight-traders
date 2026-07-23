@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { emptySave, labelForDay, recordRunEnd } from "../../src/ui/storage";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { emptySave, labelForDay, recordRunEnd, loadSave, persist } from "../../src/ui/storage";
 import { RunEnd } from "../../src/engine/types";
 
 const KEY = "2026-07-22";
@@ -73,5 +73,47 @@ describe("recordRunEnd", () => {
     expect(r.isFirstEver).toBe(true);
     expect(r.isNewPB).toBe(false); // no "New PB!" celebration on the very first banked run
     expect(r.save.allTimePB).toBe(500);
+  });
+});
+
+function memStore() {
+  const m = new Map<string, string>();
+  return {
+    getItem: (k: string) => m.get(k) ?? null,
+    setItem: (k: string, v: string) => void m.set(k, v),
+    removeItem: (k: string) => void m.delete(k),
+    clear: () => m.clear(),
+  };
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("loadSave / persist", () => {
+  it("round-trips a save", () => {
+    vi.stubGlobal("localStorage", memStore());
+    const s = recordRunEnd(emptySave(), KEY, banked(250)).save;
+    persist(s);
+    expect(loadSave()).toEqual(s);
+  });
+
+  it("returns null when nothing is stored", () => {
+    vi.stubGlobal("localStorage", memStore());
+    expect(loadSave()).toBeNull();
+  });
+
+  it("returns null on a version mismatch", () => {
+    const store = memStore();
+    store.setItem("starlight.save.v1", JSON.stringify({ version: 2, days: {}, allTimePB: 0, daysFlownCount: 0 }));
+    vi.stubGlobal("localStorage", store);
+    expect(loadSave()).toBeNull();
+  });
+
+  it("degrades silently when storage throws", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => { throw new Error("private mode"); },
+      setItem: () => { throw new Error("quota"); },
+    });
+    expect(loadSave()).toBeNull();
+    expect(() => persist(emptySave())).not.toThrow();
   });
 });

@@ -80,3 +80,26 @@ export function recordRunEnd(save: StarlightSave, dateKey: string, runEnd: RunEn
     isFirstEver,
   };
 }
+
+const STORAGE_KEY = "starlight.save.v1";
+
+/** Read the save, or null on absence / parse error / unknown version / private-mode throw. */
+export function loadSave(): StarlightSave | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StarlightSave;
+    return parsed.version === 1 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Write the save; a failure (private mode, quota) means the run simply isn't remembered. */
+export function persist(save: StarlightSave): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(save));
+  } catch {
+    /* intentionally ignored — degrade to no-memory behaviour */
+  }
+}
