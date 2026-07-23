@@ -55,10 +55,20 @@ function toneOf(msg: string): Tone {
 
 const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›" };
 
-function screenHead(s: GameState, dateLabel = ""): string {
+function screenHead(s: GameState, dateLabel = "", meta?: RunMeta): string {
+  const sub = meta
+    ? `${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH} · Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}`
+    : `${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH}${dateLabel ? ` · ${dateLabel}` : ""}`;
+  const stats =
+    meta?.bootStats && s.day === 1
+      ? `<p class="screen-head__stats">Today: ${meta.bootStats.attemptsToday} flown · best ${
+          meta.bootStats.bestToday === null ? "—" : meta.bootStats.bestToday.toLocaleString()
+        } · all-time PB ${meta.bootStats.allTimePB.toLocaleString()}</p>`
+      : "";
   return `<header class="screen-head">
-    <h1 class="st-screen-title">Starlight Traders</h1>
-    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH}${dateLabel ? ` · ${dateLabel}` : ""}</p>
+    <h1 class="st-screen-title" tabindex="-1">Starlight Traders</h1>
+    <p class="screen-head__sub">${sub}</p>
+    ${stats}
   </header>`;
 }
 
@@ -312,7 +322,8 @@ export function stationScreen(
   s: GameState,
   turnReport: string[] = [],
   dateLabel = "",
-  retireArmed = false
+  retireArmed = false,
+  meta?: RunMeta
 ): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
@@ -328,7 +339,7 @@ export function stationScreen(
   const fuelClass = fuelWarnClass(s);
 
   return `
-    ${screenHead(s, dateLabel)}
+    ${screenHead(s, dateLabel, meta)}
     ${statbar(s, fuelClass)}
     <div class="st-shell station-shell">
       <!-- DOM order leads with the stage so single-column mobile reads

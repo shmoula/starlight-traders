@@ -122,6 +122,33 @@ describe("stationScreen day identity", () => {
   });
 });
 
+describe("stationScreen header identity (E0-3)", () => {
+  it("shows run number and Daily/Practice label when meta is present", () => {
+    const html = stationScreen(createGame(42), [], "Jul 22", false, META);
+    expect(html).toContain("#22");
+    expect(html).toContain("The Daily");
+  });
+
+  it("shows today's attempts / best / PB on day 1", () => {
+    const meta: RunMeta = { ...META, bootStats: { attemptsToday: 2, bestToday: 2140, allTimePB: 3010 } };
+    const html = stationScreen(createGame(42), [], "Jul 22", false, meta);
+    expect(html).toContain("3,010"); // all-time PB
+    expect(html).toContain("2,140"); // today's best
+  });
+
+  it("hides boot stats after day 1", () => {
+    const meta: RunMeta = { ...META, bootStats: { attemptsToday: 2, bestToday: 2140, allTimePB: 3010 } };
+    const html = stationScreen({ ...createGame(42), day: 5 }, [], "Jul 22", false, meta);
+    expect(html).not.toContain("all-time PB");
+  });
+
+  it("renders an em dash for today's best when there is no completed run yet", () => {
+    const meta: RunMeta = { ...META, bootStats: { attemptsToday: 0, bestToday: null, allTimePB: 3010 } };
+    const html = stationScreen(createGame(42), [], "Jul 22", false, meta);
+    expect(html).toContain("best —"); // em dash, not a number, when bestToday is null
+  });
+});
+
 describe("stationScreen ship's log", () => {
   it("renders a titled, labelled log section", () => {
     const html = stationScreen(createGame(42));
