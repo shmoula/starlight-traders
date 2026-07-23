@@ -9,6 +9,14 @@ import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
 
+export interface RunMeta {
+  runNumber: number;
+  runLabel: "The Daily" | "Practice";
+  dateLabel: string;
+  bootStats?: { attemptsToday: number; bestToday: number | null; allTimePB: number };
+  debrief?: { pbDelta: number; isNewPB: boolean; prevBest: number; isFirstEver: boolean };
+}
+
 /** Renders ` disabled title="…"` for a control, or nothing when it is enabled. */
 const disabledAttr = (disabled: boolean, title: string): string =>
   disabled ? ` disabled title="${title}"` : "";
@@ -365,29 +373,56 @@ export function eventScreen(s: GameState, e: GameEvent): string {
 }
 
 /** Headline per end status; the two loss causes get their own names. */
-function endHeadline(r: RunEnd): string {
+export function endHeadline(r: RunEnd): string {
   if (r.status === "audited") return "Audited";
   if (r.status === "retired") return "Retired";
   return r.lossCause === "hull" ? "Ship Destroyed" : "Stranded";
 }
 
-export function runEndScreen(s: GameState, r: RunEnd): string {
+function pbDeltaLine(d: NonNullable<RunMeta["debrief"]>, score: number): string {
+  if (d.isFirstEver) {
+    return `<p class="run-end__pb">Your first banked run — ${score.toLocaleString()} to beat.</p>`;
+  }
+  if (d.isNewPB) {
+    return `<p class="run-end__pb run-end__pb--best">🏆 New personal best!  ▲ +${d.pbDelta.toLocaleString()}</p>`;
+  }
+  const sign = d.pbDelta >= 0 ? `▲ +${d.pbDelta.toLocaleString()}` : `▼ ${Math.abs(d.pbDelta).toLocaleString()}`;
+  return `<p class="run-end__pb">${sign} vs your best (${d.prevBest.toLocaleString()})</p>`;
+}
+
+export function runEndScreen(s: GameState, r: RunEnd, restartArmed = false, meta?: RunMeta): string {
   const banked = r.status !== "lost";
+  const identity = meta
+    ? `<p class="run-end__id">🚀 Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}</p>`
+    : "";
+  const pb = meta?.debrief ? pbDeltaLine(meta.debrief, r.score) : "";
+  const haul = s.biggestPayday
+    ? `<div class="st-kv"><span class="st-kv__label">Best haul</span><span class="st-kv__value st-num">+${cr(s.biggestPayday.amount)} · ${s.biggestPayday.label}</span></div>`
+    : "";
+  const restart = restartArmed
+    ? `<div class="retire-confirm">
+            <button class="st-btn st-btn--ghost retire-confirm__go" data-act="restartConfirm">Start a Practice run?</button>
+            <button class="st-btn st-btn--ghost retire-confirm__cancel" data-act="restartCancel" aria-label="Cancel new run" title="Cancel">✕</button>
+          </div>`
+    : `<button class="st-btn st-btn--ghost" data-act="restart">New run</button>`;
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="run-end">
-          <h1>${endHeadline(r)}</h1>
+          <h1 tabindex="-1">${endHeadline(r)}</h1>
+          ${identity}
           <p>You survived ${r.daysSurvived} day${r.daysSurvived === 1 ? "" : "s"}.</p>
           <p class="run-end__cause">${r.cause}</p>
           <div class="run-end__breakdown">
             <div class="st-kv"><span class="st-kv__label">Net worth${banked ? "" : " (cargo lost with the ship)"}</span><span class="st-kv__value st-num">${cr(r.netWorthAtEnd)}</span></div>
             <div class="st-kv"><span class="st-kv__label">Survival bonus</span><span class="st-kv__value st-num">${banked ? `+${r.survivalBonus}` : "forfeited"}</span></div>
             <div class="st-kv"><span class="st-kv__label">Peak net worth</span><span class="st-kv__value st-num">${cr(s.peakNetWorth)}</span></div>
+            ${haul}
           </div>
+          ${pb}
           <p class="score st-num">Score: ${r.score.toLocaleString()}</p>
           <button class="st-btn" data-act="share">Copy score card</button>
-          <button class="st-btn st-btn--ghost" data-act="restart">New run</button>
+          ${restart}
         </div>
       </div></div>
     </div>
