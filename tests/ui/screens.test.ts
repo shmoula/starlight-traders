@@ -419,6 +419,23 @@ describe("runEndScreen debrief (E1-3)", () => {
   });
 });
 
+describe("runEndScreen restart confirm (P3-3)", () => {
+  it("offers a plain New run button when disarmed", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toContain('data-act="restart"');
+    expect(html).not.toContain('data-act="restartConfirm"');
+  });
+
+  it("asks for confirmation when armed", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, true, META);
+    expect(html).toContain('data-act="restartConfirm"');
+    expect(html).toContain('data-act="restartCancel"');
+    expect(html).toContain("Start a Practice run?");
+  });
+});
+
 describe("retire button (E0-1)", () => {
   it("offers Retire at dock", () => {
     const html = stationScreen(createGame(42));
