@@ -75,6 +75,8 @@ export interface GameState {
   cargoCapacity: number;
   activeMissions: Mission[];
   peakNetWorth: number;
+  /** Largest single credit inflow of the run (sale net proceeds or delivery reward) — the debrief's "best haul". */
+  biggestPayday?: { amount: number; label: string };
   status: "playing" | RunEndStatus;
   runEnd?: RunEnd; // present exactly when status !== "playing"
   log: string[]; // recent player-facing messages, newest last
