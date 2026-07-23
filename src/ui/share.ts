@@ -14,15 +14,32 @@ export function formatDateLabel(date: Date): string {
   return DATE_FMT.format(date);
 }
 
+/** Fixed epoch for the shared daily index — the game's first daily. */
+const RUN_NUMBER_EPOCH_UTC = Date.UTC(2026, 6, 1); // 2026-07-01
+
+/** UTC "YYYY-MM-DD" for an ISO instant — the human-facing key for a day's runs. */
+export function utcDateKey(bootISO: string): string {
+  return new Date(bootISO).toISOString().slice(0, 10);
+}
+
+/** Shared daily index: #1 on 2026-07-01, +1 per UTC day. Identical for all players on a date. */
+export function runNumber(bootISO: string): number {
+  const d = new Date(bootISO);
+  const midnightUTC = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  return Math.floor((midnightUTC - RUN_NUMBER_EPOCH_UTC) / 86_400_000) + 1;
+}
+
 export interface ShareData {
   dateLabel: string;
   score: number;
   daysSurvived: number;
+  runNumber: number;
+  label: "The Daily" | "Practice";
 }
 
 export function shareText(d: ShareData): string {
   return [
-    `🚀 Starlight Traders — ${d.dateLabel}`,
+    `🚀 Starlight #${d.runNumber} — ${d.dateLabel} · ${d.label}`,
     `Score ${d.score} · survived ${d.daysSurvived} days`,
     `Beat my run: ${GAME_URL}`,
   ].join("\n");
