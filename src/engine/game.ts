@@ -250,7 +250,11 @@ function settleMissions(state: GameState): {
         cargo: { ...s.cargo, [m.commodity]: s.cargo[m.commodity] - m.qty },
         credits: s.credits + m.reward,
       };
-      s = trackPayday(s, m.reward, `${commodityName(m.commodity)} contract → ${NODES[m.destination].name}`);
+      s = trackPayday(
+        s,
+        m.reward,
+        `${commodityName(m.commodity)} contract → ${NODES[m.destination].name}`
+      );
       s = withLog(s, `Delivery complete: +${m.reward}cr.`);
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {

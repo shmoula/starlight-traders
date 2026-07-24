@@ -3,7 +3,13 @@ import { GAME_URL, formatDateLabel, shareText, utcDateKey, runNumber } from "../
 
 describe("shareText", () => {
   it("includes the score, day count, date, run number, label, and game URL", () => {
-    const txt = shareText({ dateLabel: "Jul 20", score: 84210, daysSurvived: 12, runNumber: 20, label: "The Daily" });
+    const txt = shareText({
+      dateLabel: "Jul 20",
+      score: 84210,
+      daysSurvived: 12,
+      runNumber: 20,
+      label: "The Daily",
+    });
     expect(txt).toContain("84210");
     expect(txt).toContain("12");
     expect(txt).toContain("Jul 20");
@@ -13,13 +19,25 @@ describe("shareText", () => {
   });
 
   it("no longer exposes a raw seed integer", () => {
-    const txt = shareText({ dateLabel: "Jul 20", score: 100, daysSurvived: 1, runNumber: 20, label: "Practice" });
+    const txt = shareText({
+      dateLabel: "Jul 20",
+      score: 100,
+      daysSurvived: 1,
+      runNumber: 20,
+      label: "Practice",
+    });
     expect(txt).not.toContain("Seed #");
     expect(txt).toContain("Practice");
   });
 
   it("is a single shareable blurb with the game name", () => {
-    const txt = shareText({ dateLabel: "Jul 20", score: 100, daysSurvived: 1, runNumber: 20, label: "Practice" });
+    const txt = shareText({
+      dateLabel: "Jul 20",
+      score: 100,
+      daysSurvived: 1,
+      runNumber: 20,
+      label: "Practice",
+    });
     expect(txt.toLowerCase()).toContain("starlight");
   });
 });

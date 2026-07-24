@@ -73,7 +73,12 @@ function recordIfEnded() {
   const res = recordRunEnd(save, utcDateKey(state.bootDate), state.runEnd);
   save = res.save;
   persist(save);
-  lastDebrief = { pbDelta: res.pbDelta, isNewPB: res.isNewPB, prevBest: res.prevBest, isFirstEver: res.isFirstEver };
+  lastDebrief = {
+    pbDelta: res.pbDelta,
+    isNewPB: res.isNewPB,
+    prevBest: res.prevBest,
+    isFirstEver: res.isFirstEver,
+  };
   recorded = true;
 }
 
@@ -102,7 +107,8 @@ function restoreFocus() {
   if (!act) return;
   const sel = id ? `[data-act="${act}"][data-id="${id}"]` : `[data-act="${act}"]`;
   const el = app.querySelector<HTMLElement>(sel);
-  const usable = el && el.getAttribute("aria-disabled") !== "true" && !(el as HTMLButtonElement).disabled;
+  const usable =
+    el && el.getAttribute("aria-disabled") !== "true" && !(el as HTMLButtonElement).disabled;
   if (usable) el!.focus();
   else app.querySelector<HTMLElement>("h1")?.focus();
 }

@@ -8,7 +8,15 @@ function banked(score: number, status: "audited" | "retired" = "audited"): RunEn
   return { status, cause: "x", daysSurvived: 12, netWorthAtEnd: score, survivalBonus: 0, score };
 }
 function lost(score: number): RunEnd {
-  return { status: "lost", cause: "x", daysSurvived: 3, netWorthAtEnd: score, survivalBonus: 0, score, lossCause: "fuel" };
+  return {
+    status: "lost",
+    cause: "x",
+    daysSurvived: 3,
+    netWorthAtEnd: score,
+    survivalBonus: 0,
+    score,
+    lossCause: "fuel",
+  };
 }
 
 describe("labelForDay", () => {
@@ -103,15 +111,22 @@ describe("loadSave / persist", () => {
 
   it("returns null on a version mismatch", () => {
     const store = memStore();
-    store.setItem("starlight.save.v1", JSON.stringify({ version: 2, days: {}, allTimePB: 0, daysFlownCount: 0 }));
+    store.setItem(
+      "starlight.save.v1",
+      JSON.stringify({ version: 2, days: {}, allTimePB: 0, daysFlownCount: 0 })
+    );
     vi.stubGlobal("localStorage", store);
     expect(loadSave()).toBeNull();
   });
 
   it("degrades silently when storage throws", () => {
     vi.stubGlobal("localStorage", {
-      getItem: () => { throw new Error("private mode"); },
-      setItem: () => { throw new Error("quota"); },
+      getItem: () => {
+        throw new Error("private mode");
+      },
+      setItem: () => {
+        throw new Error("quota");
+      },
     });
     expect(loadSave()).toBeNull();
     expect(() => persist(emptySave())).not.toThrow();

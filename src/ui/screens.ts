@@ -397,11 +397,19 @@ function pbDeltaLine(d: NonNullable<RunMeta["debrief"]>, score: number): string 
   if (d.isNewPB) {
     return `<p class="run-end__pb run-end__pb--best">🏆 New personal best!  ▲ +${d.pbDelta.toLocaleString()}</p>`;
   }
-  const sign = d.pbDelta >= 0 ? `▲ +${d.pbDelta.toLocaleString()}` : `▼ ${Math.abs(d.pbDelta).toLocaleString()}`;
+  const sign =
+    d.pbDelta >= 0
+      ? `▲ +${d.pbDelta.toLocaleString()}`
+      : `▼ ${Math.abs(d.pbDelta).toLocaleString()}`;
   return `<p class="run-end__pb">${sign} vs your best (${d.prevBest.toLocaleString()})</p>`;
 }
 
-export function runEndScreen(s: GameState, r: RunEnd, restartArmed = false, meta?: RunMeta): string {
+export function runEndScreen(
+  s: GameState,
+  r: RunEnd,
+  restartArmed = false,
+  meta?: RunMeta
+): string {
   const banked = r.status !== "lost";
   const identity = meta
     ? `<p class="run-end__id">🚀 Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}</p>`

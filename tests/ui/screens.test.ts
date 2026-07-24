@@ -130,20 +130,29 @@ describe("stationScreen header identity (E0-3)", () => {
   });
 
   it("shows today's attempts / best / PB on day 1", () => {
-    const meta: RunMeta = { ...META, bootStats: { attemptsToday: 2, bestToday: 2140, allTimePB: 3010 } };
+    const meta: RunMeta = {
+      ...META,
+      bootStats: { attemptsToday: 2, bestToday: 2140, allTimePB: 3010 },
+    };
     const html = stationScreen(createGame(42), [], "Jul 22", false, meta);
     expect(html).toContain("3,010"); // all-time PB
     expect(html).toContain("2,140"); // today's best
   });
 
   it("hides boot stats after day 1", () => {
-    const meta: RunMeta = { ...META, bootStats: { attemptsToday: 2, bestToday: 2140, allTimePB: 3010 } };
+    const meta: RunMeta = {
+      ...META,
+      bootStats: { attemptsToday: 2, bestToday: 2140, allTimePB: 3010 },
+    };
     const html = stationScreen({ ...createGame(42), day: 5 }, [], "Jul 22", false, meta);
     expect(html).not.toContain("all-time PB");
   });
 
   it("renders an em dash for today's best when there is no completed run yet", () => {
-    const meta: RunMeta = { ...META, bootStats: { attemptsToday: 0, bestToday: null, allTimePB: 3010 } };
+    const meta: RunMeta = {
+      ...META,
+      bootStats: { attemptsToday: 0, bestToday: null, allTimePB: 3010 },
+    };
     const html = stationScreen(createGame(42), [], "Jul 22", false, meta);
     expect(html).toContain("best —"); // em dash, not a number, when bestToday is null
   });
@@ -413,13 +422,20 @@ describe("runEndScreen debrief (E1-3)", () => {
   it("shows the first-banked-run line when isFirstEver", () => {
     const s = { ...createGame(42), day: 12 };
     const ended = endRun(s, "audited", "Audited.");
-    const meta: RunMeta = { ...META, debrief: { pbDelta: 0, isNewPB: false, prevBest: 0, isFirstEver: true } };
+    const meta: RunMeta = {
+      ...META,
+      debrief: { pbDelta: 0, isNewPB: false, prevBest: 0, isFirstEver: true },
+    };
     const html = runEndScreen(ended, ended.runEnd!, false, meta);
     expect(html).toContain("first banked run");
   });
 
   it("shows the best haul when the run had a payday", () => {
-    const base = { ...createGame(42), day: 12, biggestPayday: { amount: 2140, label: "Luxury Goods at Meridian" } };
+    const base = {
+      ...createGame(42),
+      day: 12,
+      biggestPayday: { amount: 2140, label: "Luxury Goods at Meridian" },
+    };
     const ended = endRun(base, "audited", "Audited.");
     const html = runEndScreen(ended, ended.runEnd!, false, META);
     expect(html).toContain("2,140cr");
@@ -429,7 +445,10 @@ describe("runEndScreen debrief (E1-3)", () => {
   it("shows an up-delta vs best on an ordinary improving run", () => {
     const s = { ...createGame(42), day: 12 };
     const ended = endRun(s, "audited", "Audited.");
-    const meta: RunMeta = { ...META, debrief: { pbDelta: 150, isNewPB: false, prevBest: 2440, isFirstEver: false } };
+    const meta: RunMeta = {
+      ...META,
+      debrief: { pbDelta: 150, isNewPB: false, prevBest: 2440, isFirstEver: false },
+    };
     const html = runEndScreen(ended, ended.runEnd!, false, meta);
     expect(html).toContain("▲ +150");
     expect(html).toContain("2,440"); // prevBest shown
@@ -439,7 +458,10 @@ describe("runEndScreen debrief (E1-3)", () => {
   it("shows a down-delta vs best when the run fell short", () => {
     const s = { ...createGame(42), day: 12 };
     const ended = endRun(s, "audited", "Audited.");
-    const meta: RunMeta = { ...META, debrief: { pbDelta: -300, isNewPB: false, prevBest: 2440, isFirstEver: false } };
+    const meta: RunMeta = {
+      ...META,
+      debrief: { pbDelta: -300, isNewPB: false, prevBest: 2440, isFirstEver: false },
+    };
     const html = runEndScreen(ended, ended.runEnd!, false, meta);
     expect(html).toContain("▼ 300"); // absolute value, no minus sign
     expect(html).not.toContain("New personal best");

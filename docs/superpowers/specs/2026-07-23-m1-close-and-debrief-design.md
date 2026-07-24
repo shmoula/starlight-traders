@@ -20,7 +20,7 @@ the debrief (E1-3) is the item that most directly cashes the persistence in.
 - **B-5** Delete the false README luxury-modifier claim.
 
 **Explicitly out of scope (deferred):** E1-2 full share card v2 (emoji run-strip,
-cause line) — this round only adds the Daily/Practice label + run # to the *existing*
+cause line) — this round only adds the Daily/Practice label + run # to the _existing_
 card, which E0-3's AC requires. E1-3's "left on the table" tease. Cost-basis / P&L
 (P2-2). The full DOM-patching re-render (P1-1 stretch) — focus restore is the cheap
 fix, not a render rework. No economy tuning → **no 100-seed sweep re-run** this round.
@@ -32,14 +32,14 @@ fix, not a render rework. No economy tuning → **no 100-seed sweep re-run** thi
    Rationale: E0-3 is the hard dependency for every M2 hook; shipping it with the
    debrief proves the persistence layer against the simplest consumer before the
    heavier share-card v2 (which needs new per-day event-summary state).
-2. **"The Daily" = the first *completed* run of a UTC day, any outcome** (audit, retire,
+2. **"The Daily" = the first _completed_ run of a UTC day, any outcome** (audit, retire,
    **or death**) — vs. death-is-forgiving or lock-at-boot. Reload-safe (a mid-run reload
    consumes nothing), and no scum vector (you can't abandon-by-death and re-roll your
    official result). Attempts/scores are recorded at run end, never at boot.
 3. **Best-trade only** on the debrief; **"left on the table" deferred.** The latter is
    fiddlier tracking (watch every board reroll + a declined-set) and leans into the
    guilt/FOMO framing the brief rejects.
-4. **"Best trade" = biggest single *payday* (gross), not profit-margin.** Margin needs
+4. **"Best trade" = biggest single _payday_ (gross), not profit-margin.** Margin needs
    cost-basis tracking, which is a separate M3 item (P2-2). One running max field keeps
    E1-3 cheap.
 5. **PB delta is computed vs the all-time PB** (the number that matters), not a split
@@ -60,17 +60,17 @@ on the play→ended transition.
 
 ```ts
 interface DayRecord {
-  attempts: number;            // completed runs this UTC day
-  bestScore: number;           // best score across attempts this day
-  bestOutcome: RunEndStatus;   // outcome of that best run
-  firstTryScore: number;       // "The Daily" result — first completed run, any outcome
+  attempts: number; // completed runs this UTC day
+  bestScore: number; // best score across attempts this day
+  bestOutcome: RunEndStatus; // outcome of that best run
+  firstTryScore: number; // "The Daily" result — first completed run, any outcome
   firstTryOutcome: RunEndStatus;
 }
 interface StarlightSave {
   version: 1;
   days: Record<string, DayRecord>; // key = UTC "YYYY-MM-DD" derived from bootDate
   allTimePB: number;
-  daysFlownCount: number;          // distinct UTC days with ≥1 completed run
+  daysFlownCount: number; // distinct UTC days with ≥1 completed run
 }
 ```
 
@@ -109,7 +109,7 @@ Key is the **UTC date string**, not the raw seed — it is the human-facing day 
 - **Module state:** `let save = loadSave() ?? emptySave();` and
   `let runLabel: "The Daily" | "Practice";` and `let recorded = false;`.
 - **On boot and on restart:** recompute `runLabel = labelForDay(save, utcDateKey(bootDate))`
-  from the *current* save and set `recorded = false`. (Finishing your Daily then hitting
+  from the _current_ save and set `recorded = false`. (Finishing your Daily then hitting
   "New run" correctly yields "Practice".)
 - **Detect the play→ended transition:** after `applyAction(...)`, if
   `state.runEnd && !recorded`: call `recordRunEnd`, assign the returned save, `persist`,
@@ -121,7 +121,7 @@ Key is the **UTC date string**, not the raw seed — it is the human-facing day 
 ### Engine: best-haul tracking
 
 Add to `GameState`: `biggestPayday?: { amount: number; label: string }`. Initialised
-`undefined` in `createGame`. Updated where credits are *earned*:
+`undefined` in `createGame`. Updated where credits are _earned_:
 
 - `sell(state, id, qty)`: candidate `amount` = the sale's **net proceeds** (after tax);
   `label` = `` `${commodityName} at ${stationName}` ``.
@@ -138,7 +138,7 @@ screen.
 
 - **Identity line:** `` `🚀 Starlight #${runNumber} · ${dateLabel} · ${runLabel}` ``.
 - **PB delta row:** `isFirstEver` → "Your first banked run — {score} to beat.";
-  else `isNewPB` → "🏆 New personal best!  ▲ +{pbDelta}"; else →
+  else `isNewPB` → "🏆 New personal best! ▲ +{pbDelta}"; else →
   "▲/▼ {±pbDelta} vs your best ({prevBest})".
 - **Best haul row** (when `biggestPayday` set): "Best haul: +{amount}cr · {label}".
 
@@ -206,7 +206,7 @@ danger is per-destination.
 
 - [ ] Reloading mid-run starts a fresh run (unchanged), and the boot screen shows
       today's attempts + best-so-far and all-time PB.
-- [ ] The first *completed* run of a UTC day (audit, retire, or death) is labelled
+- [ ] The first _completed_ run of a UTC day (audit, retire, or death) is labelled
       **The Daily** in header, debrief, and share card; every later run that day is
       **Practice** in all three.
 - [ ] Attempts and PB are recorded exactly once per run, at run end; a mid-run reload
