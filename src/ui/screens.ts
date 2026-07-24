@@ -376,7 +376,7 @@ export function eventScreen(s: GameState, e: GameEvent): string {
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="event-card">
           ${statbar(s, fuelWarnClass(s), { presentation: false, extra: "st-statbar--event" })}
-          <h1>${e.title}</h1><p>${e.description}</p><div class="choices">${choices}</div>
+          <h1 tabindex="-1">${e.title}</h1><p>${e.description}</p><div class="choices">${choices}</div>
         </div>
       </div></div>
     </div>

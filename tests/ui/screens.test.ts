@@ -515,7 +515,7 @@ describe("eventScreen vitals and stakes (P0-1)", () => {
 
   it("uses a top-level heading for the event title", () => {
     const html = eventScreen(createGame(42), pirates);
-    expect(html).toContain("<h1>Pirate Ambush</h1>");
+    expect(html).toContain('<h1 tabindex="-1">Pirate Ambush</h1>');
   });
 });
 
