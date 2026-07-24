@@ -17,7 +17,11 @@ import {
 } from "./engine/game";
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
 import { render } from "./ui/render";
-import { copyShare, formatDateLabel } from "./ui/share";
+import { copyShare, formatDateLabel, utcDateKey, runNumber } from "./ui/share";
+import { loadSave, persist, recordRunEnd, labelForDay, emptySave } from "./ui/storage";
+import { NODES } from "./engine/world";
+import { RUN_LENGTH } from "./engine/run-end";
+import { endHeadline, type RunMeta } from "./ui/screens";
 import { BACKDROP_SVG } from "./ui/art";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -37,23 +41,112 @@ function dateLabelOf(s: GameState): string {
   return s.bootDate ? formatDateLabel(new Date(s.bootDate)) : "";
 }
 
+let save = loadSave() ?? emptySave();
+let recorded = false;
+let lastDebrief: RunMeta["debrief"];
+let runLabel: "The Daily" | "Practice" = "The Daily";
+
 let state: GameState = bootDailyGame();
 let pendingEvent: GameEvent | null = null;
 // Log length captured just before a jump, so the station screen can surface every
 // entry the jump produced (fee, interest, event outcome, deliveries) as a turn report.
 let turnReport: string[] = [];
 let logMarkBeforeJump = 0;
-
-// Two-click retire confirm: armed by "retire", consumed by "retireConfirm",
-// cancelled by "retireCancel" (the ✕), and disarmed by any other action too
-// (including a re-render for an unrelated click).
+// Two-click retire confirm (see applyAction/click handler).
 let retireArmed = false;
+// Two-click restart confirm on the end screen.
+let restartArmed = false;
+// Last action dispatched, used to restore focus after the innerHTML re-render.
+let lastAct: { act?: string; id?: string } = {};
+
+function startNewRun() {
+  state = bootDailyGame();
+  pendingEvent = null;
+  recorded = false;
+  lastDebrief = undefined;
+  runLabel = labelForDay(save, utcDateKey(state.bootDate));
+}
+startNewRun();
+
+function recordIfEnded() {
+  if (!state.runEnd || recorded) return;
+  const res = recordRunEnd(save, utcDateKey(state.bootDate), state.runEnd);
+  save = res.save;
+  persist(save);
+  lastDebrief = { pbDelta: res.pbDelta, isNewPB: res.isNewPB, prevBest: res.prevBest, isFirstEver: res.isFirstEver };
+  recorded = true;
+}
+
+function buildMeta(): RunMeta {
+  const today = save.days[utcDateKey(state.bootDate)];
+  return {
+    runNumber: runNumber(state.bootDate),
+    runLabel,
+    dateLabel: dateLabelOf(state),
+    bootStats: {
+      attemptsToday: today?.attempts ?? 0,
+      bestToday: today?.bestScore ?? null,
+      allTimePB: save.allTimePB,
+    },
+    debrief: state.runEnd ? lastDebrief : undefined,
+  };
+}
+
+function titleFor(s: GameState): string {
+  if (s.runEnd) return `${endHeadline(s.runEnd)} · Score ${s.runEnd.score} — Starlight Traders`;
+  return `Day ${s.day}/${RUN_LENGTH} · ${NODES[s.location].name} — Starlight Traders`;
+}
+
+function restoreFocus() {
+  const { act, id } = lastAct;
+  if (!act) return;
+  const sel = id ? `[data-act="${act}"][data-id="${id}"]` : `[data-act="${act}"]`;
+  const el = app.querySelector<HTMLElement>(sel);
+  const usable = el && el.getAttribute("aria-disabled") !== "true" && !(el as HTMLButtonElement).disabled;
+  if (usable) el!.focus();
+  else app.querySelector<HTMLElement>("h1")?.focus();
+}
 
 function paint() {
-  render(app, { state, pendingEvent, turnReport, dateLabel: dateLabelOf(state), retireArmed });
+  render(app, {
+    state,
+    pendingEvent,
+    turnReport,
+    dateLabel: dateLabelOf(state),
+    retireArmed,
+    restartArmed,
+    meta: buildMeta(),
+  });
+  document.title = titleFor(state);
+  restoreFocus();
+}
+
+const RUN_LIFECYCLE_ACTIONS = new Set(["retire", "retireConfirm", "restart", "restartConfirm"]);
+
+// "retireCancel"/"restartCancel" (the ✕) need no case here: the click handler
+// disarms retireArmed/restartArmed for every other action, which re-renders unarmed.
+function applyRunLifecycleAction(act: string): void {
+  switch (act) {
+    case "retire":
+      retireArmed = true;
+      break;
+    case "retireConfirm":
+      state = retire(state);
+      break;
+    case "restart":
+      restartArmed = true;
+      break;
+    case "restartConfirm":
+      startNewRun();
+      break;
+  }
 }
 
 function applyAction(act: string | undefined, id: string | undefined, qty: number) {
+  if (act && RUN_LIFECYCLE_ACTIONS.has(act)) {
+    applyRunLifecycleAction(act);
+    return;
+  }
   switch (act) {
     case "buy":
       state = buy(state, id as CommodityId, qty);
@@ -96,19 +189,6 @@ function applyAction(act: string | undefined, id: string | undefined, qty: numbe
       turnReport = state.log.slice(logMarkBeforeJump);
       break;
     }
-    case "retire":
-      retireArmed = true;
-      break;
-    case "retireConfirm":
-      state = retire(state);
-      break;
-    // "retireCancel" (the ✕) needs no case here: the click handler clears
-    // retireArmed for every non-"retire" action, which re-renders unarmed.
-    case "restart": {
-      state = bootDailyGame();
-      pendingEvent = null;
-      break;
-    }
   }
 }
 
@@ -125,6 +205,8 @@ app.addEventListener("click", async (e) => {
   // The turn report clears on any new action; it is re-populated when a jump settles.
   turnReport = [];
   if (act !== "retire") retireArmed = false;
+  if (act !== "restart") restartArmed = false;
+  lastAct = { act, id };
 
   if (act === "share") {
     if (state.runEnd) {
@@ -132,10 +214,13 @@ app.addEventListener("click", async (e) => {
         dateLabel: dateLabelOf(state),
         score: state.runEnd.score,
         daysSurvived: state.runEnd.daysSurvived,
+        runNumber: runNumber(state.bootDate),
+        label: runLabel,
       });
     }
   } else {
     applyAction(act, id, qty);
+    recordIfEnded();
   }
   paint();
 });
