@@ -37,6 +37,7 @@ Cashes in the E0 pivot: the ending becomes retention.
 | **P1-2** | Forecast sinks (costs on jump buttons, interest chip, tax display)   | Same forecast-forward surfaces as E1-1 — build together.                  |
 | **E1-2** | Share card v2 (date-branded, emoji run-strip, cause line, URL)       | The viral artifact. Needs E0-1 + E0-3.                                    |
 | **E1-3** | Run debrief screen (cause, breakdown, PB delta, "left on the table") | Next-run decision surface. Needs E0-3.                                    |
+| **E0-5** | Resume an in-progress run on a **same-day** refresh (fresh run only once the UTC day rolls over) | Robustness follow-up to E0-3. Snapshot live `GameState` keyed by UTC day; rehydrate at boot if same-day, else start fresh. Snapshot **post-decision** state only, so a refresh resumes rather than re-rolls (upholds E0-3's anti-scum rule). Needs E0-3. Spec in ENGAGEMENT §4.4. |
 | **E1-4** | Honest events pass (show odds/stakes, fix degenerate math)           | Honesty + balance-bug detector. Pairs with UIUX P0-1 surfaces.            |
 | **B-2**  | Fix event-hash aliasing (`vulcan`/`verge` → 'v')                     | Same code as E1-4 — do together.                                          |
 | **P2-1** | Structured log entries `{msg, tone, delta}`                          | Foundational — feeds debrief + event tone/delta.                          |

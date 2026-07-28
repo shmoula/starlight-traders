@@ -190,6 +190,12 @@ launch). No accounts, no server, no telemetry.
 - [ ] Storage failures (private mode) degrade silently to current behavior.
 - [ ] A "days flown" counter increments at most once per UTC day; no negative/guilt copy anywhere when a day is missed (copy review is part of the AC).
 
+> **Follow-up (E0-5, §4.4):** the "fresh run on mid-run reload" behavior above is
+> deliberate save-scum safety, but an _accidental_ same-day refresh also loses
+> in-progress progress. E0-5 resumes the in-progress run when its snapshot's UTC day
+> matches today, and only starts fresh once the day has rolled over — snapshotting
+> post-decision state so a refresh resumes rather than re-rolls.
+
 ### 4.3 E1-1 — Today's Trade Bulletin
 
 **Problem.** All prices are invisible except at the current dock, so routing decisions
@@ -210,6 +216,33 @@ not an oracle.
 - [ ] Rendered on the launch/intro surface and at dock (collapsed by default after day 1); no layout shift in the cockpit (respects UIUX P0-1 space).
 - [ ] At least one line always references a tradable opportunity that is actually profitable on day 1 (test-asserted), so the first-90-seconds player has a stated first move.
 - [ ] Copy is fiction-flavored ("word on the docks") and ≤70 chars/line.
+
+### 4.4 E0-5 — Resume an in-progress run on same-day refresh
+
+**Problem.** E0-3 deliberately starts a fresh run on any mid-run reload (save-scum
+safety). But an _accidental_ tab-close or refresh mid-run silently discards the
+in-progress run — for a ~12-"day" session that's a real frustration and a retention
+leak, and it's indistinguishable to the player from the deliberate wipe.
+
+**Design.** Snapshot the live `GameState` to localStorage (its own key, separate from
+the E0-3 results ledger), stamped with the run's UTC day. On boot: if a snapshot exists
+and its UTC day equals today's, **rehydrate it** (resume the exact run); otherwise
+discard it and start a fresh daily run. Clear the snapshot on run end (it's already
+folded into the results ledger) and when starting a Practice run. Reuse E0-3's
+silent-fail I/O wrapper and versioning; `GameState` is plain serializable data.
+
+The one hard constraint: the snapshot must capture **post-decision** state (written
+after an in-transit event is resolved, never before), so a refresh resumes where the
+player was and can never re-roll a bad event outcome. This keeps E0-3 decision #2
+(no save-scum vector) intact — resume ≠ retry.
+
+**Acceptance criteria**
+
+- [ ] A refresh within the same UTC day resumes the in-progress run (day, location, credits, cargo, missions, log) rather than starting over.
+- [ ] A refresh after the UTC day has rolled over starts a fresh daily run and discards the stale snapshot.
+- [ ] Resuming cannot re-roll a resolved event (snapshot is post-decision); the E0-3 anti-scum guarantee holds.
+- [ ] The snapshot is cleared on run end and on starting a Practice run; a completed run still records exactly once (unchanged from E0-3).
+- [ ] Storage failures (private mode) degrade silently to today's fresh-run behavior.
 
 ## 5. Quick wins (≤2h each)
 
