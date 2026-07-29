@@ -61,6 +61,7 @@ export function createGame(seed: number, bootDate = ""): GameState {
     cargoCapacity: STARTING.cargoCapacity,
     activeMissions: [],
     peakNetWorth: 0,
+    dayHighlights: {},
     status: "playing",
     log: [
       `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Bank your fortune before the Day ${RUN_LENGTH} audit. Everyone flies today's sky.`,

@@ -5,6 +5,8 @@ import { NODES, getPrice } from "./world";
 export const BASE_DOCKING_FEE = 25;
 export const REFUEL_PRICE = 8; // credits per fuel unit
 export const REPAIR_PRICE = 6; // credits per hull point
+/** A single credit inflow at or above this marks the day 💰 on the share strip (E1-2). */
+export const BIG_TRADE_CR = 500;
 /** Days on which the Syndicate's patience steps down a tier (E0-4 tuning knob). */
 export const LOAN_STEP_IMPATIENT = 5; // rate → 6%
 export const LOAN_STEP_DESPERATE = 9; // rate → 8%

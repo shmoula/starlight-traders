@@ -17,6 +17,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     cargoCapacity: 30,
     activeMissions: [],
     peakNetWorth: 0,
+    dayHighlights: {},
     status: "playing",
     log: [],
     bootDate: "",

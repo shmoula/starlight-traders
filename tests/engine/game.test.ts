@@ -460,3 +460,9 @@ describe("loan escalation voice (E0-4)", () => {
     );
   });
 });
+
+describe("dayHighlights", () => {
+  it("starts empty in createGame", () => {
+    expect(createGame(42).dayHighlights).toEqual({});
+  });
+});
