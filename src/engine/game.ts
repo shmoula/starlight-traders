@@ -1,7 +1,8 @@
 // src/engine/game.ts
-import { CommodityId, GameEvent, GameState, Mission, NodeId } from "./types";
+import { CommodityId, DayHighlightKind, GameEvent, GameState, Mission, NodeId } from "./types";
 import { NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "./world";
 import {
+  BIG_TRADE_CR,
   REFUEL_PRICE,
   REPAIR_PRICE,
   dockingFee,
@@ -96,6 +97,15 @@ function trackPayday(state: GameState, amount: number, label: string): GameState
   return { ...state, biggestPayday: { amount, label } };
 }
 
+const HIGHLIGHT_RANK: Record<DayHighlightKind, number> = { pirates: 3, bigTrade: 2, delivery: 1 };
+
+/** Record the current day's notable moment for the share strip (E1-2). Upgrade-only. */
+function markDay(s: GameState, kind: DayHighlightKind): GameState {
+  const cur = s.dayHighlights[s.day];
+  if (cur && HIGHLIGHT_RANK[cur] >= HIGHLIGHT_RANK[kind]) return s;
+  return { ...s, dayHighlights: { ...s.dayHighlights, [s.day]: kind } };
+}
+
 /**
  * Hull 0 destroys the ship (B-6): the run ends as a loss and cargo goes down with it.
  * The four damage sites (resolvePirates/resolveSalvage/resolveEngine/resolveDerelict)
@@ -139,6 +149,7 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
     cargo: { ...state.cargo, [id]: state.cargo[id] - qty },
   };
   next = trackPayday(next, proceeds - tax, `${commodityName(id)} at ${NODES[state.location].name}`);
+  if (proceeds - tax >= BIG_TRADE_CR) next = markDay(next, "bigTrade");
   return trackPeak(
     withLog(next, `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`)
   );
@@ -257,6 +268,8 @@ function settleMissions(state: GameState): {
         `${commodityName(m.commodity)} contract → ${NODES[m.destination].name}`
       );
       s = withLog(s, `Delivery complete: +${m.reward}cr.`);
+      s = markDay(s, "delivery");
+      if (m.reward >= BIG_TRADE_CR) s = markDay(s, "bigTrade");
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {
       s = withLog(s, `Delivery to ${NODES[m.destination].name} expired.`);
@@ -341,12 +354,13 @@ export function arrive(state: GameState): {
 }
 
 function resolvePirates(s: GameState, choiceId: string): GameState {
+  const marked = markDay(s, "pirates");
   if (choiceId === "pay") {
-    const toll = pirateToll(s);
-    return withLog({ ...s, credits: s.credits - toll }, `Paid pirates ${toll}cr.`);
+    const toll = pirateToll(marked);
+    return withLog({ ...marked, credits: marked.credits - toll }, `Paid pirates ${toll}cr.`);
   }
-  const dmg = fleeDamage(s.day);
-  return withLog({ ...s, hull: s.hull - dmg }, `Fled — took ${dmg} hull damage.`);
+  const dmg = fleeDamage(marked.day);
+  return withLog({ ...marked, hull: marked.hull - dmg }, `Fled — took ${dmg} hull damage.`);
 }
 
 function resolveSalvage(s: GameState, choiceId: string): GameState {

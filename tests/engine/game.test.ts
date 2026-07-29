@@ -465,4 +465,75 @@ describe("dayHighlights", () => {
   it("starts empty in createGame", () => {
     expect(createGame(42).dayHighlights).toEqual({});
   });
+
+  const piratesEvt: GameEvent = {
+    kind: "pirates",
+    title: "",
+    description: "",
+    choices: [
+      { id: "pay", label: "" },
+      { id: "flee", label: "" },
+    ],
+  };
+
+  it("marks a pirate day whether paying or fleeing", () => {
+    let s = createGame(42);
+    s = { ...s, fuel: 20, credits: 5000 };
+    s = jump(s, "kiruna").state; // day 2
+    expect(resolveChoice(s, piratesEvt, "pay").dayHighlights[2]).toBe("pirates");
+    expect(resolveChoice(s, piratesEvt, "flee").dayHighlights[2]).toBe("pirates");
+  });
+
+  it("marks a big sale as bigTrade", () => {
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, luxury: 5 } };
+    s = sell(s, "luxury", 5); // ≥ ~1,170cr net — always over BIG_TRADE_CR
+    expect(s.dayHighlights[1]).toBe("bigTrade");
+  });
+
+  it("does not mark a small sale", () => {
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, water: 1 } };
+    s = sell(s, "water", 1); // ≤ ~32cr net — always under BIG_TRADE_CR
+    expect(s.dayHighlights[1]).toBeUndefined();
+  });
+
+  it("marks a modest delivery as delivery", () => {
+    let s = createGame(42);
+    s = acceptMission(s, {
+      id: "d1",
+      commodity: "water",
+      qty: 2,
+      destination: "terra",
+      reward: 100,
+      deadlineDay: 99,
+    });
+    s = { ...s, cargo: { ...s.cargo, water: 2 } };
+    s = deliver(s);
+    expect(s.dayHighlights[1]).toBe("delivery");
+  });
+
+  it("upgrades a whale delivery to bigTrade", () => {
+    let s = createGame(42);
+    s = acceptMission(s, {
+      id: "w1",
+      commodity: "water",
+      qty: 2,
+      destination: "terra",
+      reward: 5000,
+      deadlineDay: 99,
+    });
+    s = { ...s, cargo: { ...s.cargo, water: 2 } };
+    s = deliver(s);
+    expect(s.dayHighlights[1]).toBe("bigTrade");
+  });
+
+  it("never downgrades a day's highlight", () => {
+    let s = createGame(42);
+    s = { ...s, fuel: 20, credits: 5000, cargo: { ...s.cargo, luxury: 5 } };
+    s = jump(s, "kiruna").state; // day 2
+    s = resolveChoice(s, piratesEvt, "pay"); // pirates on day 2
+    s = sell(s, "luxury", 5); // big sale, same day
+    expect(s.dayHighlights[2]).toBe("pirates"); // pirates outranks bigTrade
+  });
 });
