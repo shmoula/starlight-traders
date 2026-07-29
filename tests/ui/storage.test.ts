@@ -119,6 +119,19 @@ describe("loadSave / persist", () => {
     expect(loadSave()).toBeNull();
   });
 
+  it.each([
+    ["a missing days map", { version: 1, allTimePB: 0, daysFlownCount: 0 }],
+    ["a null days map", { version: 1, days: null, allTimePB: 0, daysFlownCount: 0 }],
+    ["a non-numeric allTimePB", { version: 1, days: {}, allTimePB: "0", daysFlownCount: 0 }],
+    ["a missing daysFlownCount", { version: 1, days: {}, allTimePB: 0 }],
+    ["a bare JSON literal", 1],
+  ])("returns null on %s", (_why, stored) => {
+    const store = memStore();
+    store.setItem("starlight.save.v1", JSON.stringify(stored));
+    vi.stubGlobal("localStorage", store);
+    expect(loadSave()).toBeNull();
+  });
+
   it("degrades silently when storage throws", () => {
     vi.stubGlobal("localStorage", {
       getItem: () => {

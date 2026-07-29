@@ -390,12 +390,15 @@ export function endHeadline(r: RunEnd): string {
   return r.lossCause === "hull" ? "Ship Destroyed" : "Stranded";
 }
 
-function pbDeltaLine(d: NonNullable<RunMeta["debrief"]>, score: number): string {
+function pbDeltaLine(d: NonNullable<RunMeta["debrief"]>, score: number, banked: boolean): string {
   if (d.isFirstEver) {
-    return `<p class="run-end__pb">Your first banked run — ${score.toLocaleString()} to beat.</p>`;
+    // A first-ever loss still sets the PB, but nothing was banked — don't say it was.
+    return banked
+      ? `<p class="run-end__pb">Your first banked run — ${score.toLocaleString()} to beat.</p>`
+      : `<p class="run-end__pb">Your first run on the board — ${score.toLocaleString()} to beat.</p>`;
   }
   if (d.isNewPB) {
-    return `<p class="run-end__pb run-end__pb--best">🏆 New personal best!  ▲ +${d.pbDelta.toLocaleString()}</p>`;
+    return `<p class="run-end__pb run-end__pb--best">🏆 New personal best! ▲ +${d.pbDelta.toLocaleString()}</p>`;
   }
   const sign =
     d.pbDelta >= 0
@@ -414,7 +417,7 @@ export function runEndScreen(
   const identity = meta
     ? `<p class="run-end__id">🚀 Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}</p>`
     : "";
-  const pb = meta?.debrief ? pbDeltaLine(meta.debrief, r.score) : "";
+  const pb = meta?.debrief ? pbDeltaLine(meta.debrief, r.score, banked) : "";
   const haul = s.biggestPayday
     ? `<div class="st-kv"><span class="st-kv__label">Best haul</span><span class="st-kv__value st-num">+${cr(s.biggestPayday.amount)} · ${s.biggestPayday.label}</span></div>`
     : "";

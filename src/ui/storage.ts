@@ -83,13 +83,27 @@ export function recordRunEnd(save: StarlightSave, dateKey: string, runEnd: RunEn
 
 const STORAGE_KEY = "starlight.save.v1";
 
-/** Read the save, or null on absence / parse error / unknown version / private-mode throw. */
+/**
+ * Read the save, or null on absence / parse error / unknown version / private-mode throw.
+ * The shape is validated field by field, not just by version: a truncated write or a
+ * hand-edited entry would otherwise reach `save.days[key]` at boot and blank the app.
+ */
 export function loadSave(): StarlightSave | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as StarlightSave;
-    return parsed.version === 1 ? parsed : null;
+    const parsed = JSON.parse(raw) as Partial<StarlightSave> | null;
+    if (
+      !parsed ||
+      parsed.version !== 1 ||
+      typeof parsed.days !== "object" ||
+      parsed.days === null ||
+      typeof parsed.allTimePB !== "number" ||
+      typeof parsed.daysFlownCount !== "number"
+    ) {
+      return null;
+    }
+    return parsed as StarlightSave;
   } catch {
     return null;
   }

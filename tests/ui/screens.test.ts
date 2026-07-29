@@ -430,6 +430,22 @@ describe("runEndScreen debrief (E1-3)", () => {
     expect(html).toContain("first banked run");
   });
 
+  it("does not claim a banked first run when the first-ever run was a loss", () => {
+    const lost = endRun(
+      { ...createGame(42), day: 6, hull: 0 },
+      "lost",
+      "Hull breach — your ship broke apart.",
+      "hull"
+    );
+    const meta: RunMeta = {
+      ...META,
+      debrief: { pbDelta: 0, isNewPB: false, prevBest: 0, isFirstEver: true },
+    };
+    const html = runEndScreen(lost, lost.runEnd!, false, meta);
+    expect(html).not.toContain("first banked run");
+    expect(html).toContain("first run on the board");
+  });
+
   it("shows the best haul when the run had a payday", () => {
     const base = {
       ...createGame(42),
