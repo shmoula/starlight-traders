@@ -415,6 +415,30 @@ describe("hull death (B-6)", () => {
   });
 });
 
+describe("biggestPayday (E1-3 best haul)", () => {
+  it("records a sale's net proceeds as the biggest payday", () => {
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, water: 10 }, location: "vulcan" }; // Vulcan demands water
+    s = sell(s, "water", 10);
+    expect(s.biggestPayday).toBeDefined();
+    expect(s.biggestPayday!.amount).toBeGreaterThan(0);
+    expect(s.biggestPayday!.label).toContain("Water / Ice");
+  });
+
+  it("keeps the larger of two paydays", () => {
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, water: 20 }, location: "vulcan" };
+    const first = sell(s, "water", 1);
+    const small = first.biggestPayday!.amount;
+    const big = sell(first, "water", 19);
+    expect(big.biggestPayday!.amount).toBeGreaterThan(small);
+  });
+
+  it("leaves biggestPayday undefined when nothing was earned", () => {
+    expect(createGame(42).biggestPayday).toBeUndefined();
+  });
+});
+
 describe("loan escalation voice (E0-4)", () => {
   const interestLineAfterJump = (day: number): string => {
     const s = { ...createGame(42), day: day - 1, fuel: 20 };

@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit review configuration. Read from the *feature branch* under review,
+# so a change here applies to the PR that introduces it — no need to land on
+# master first.
+
+language: en-US
+
+reviews:
+  # Skip Markdown. All the prose in this repo is README.md plus docs/ — roadmaps,
+  # backlogs, and the superpowers plans/specs, which are dated working records
+  # rather than shipped artifacts. Reviewing them yields stale-plan nitpicks and
+  # MD040 fence warnings instead of findings about the game.
+  #
+  # Exclusions only: any path not matched by a `!` pattern stays under review, so
+  # src/, tests/, and config files are unaffected.
+  path_filters:
+    - "!**/*.md"
+
+  tools:
+    # markdownlint-cli2 has nothing left to lint once Markdown is filtered out.
+    markdownlint:
+      enabled: false
+    # Grammar/style checker — in this repo it only has Markdown prose to chew on.
+    languagetool:
+      enabled: false

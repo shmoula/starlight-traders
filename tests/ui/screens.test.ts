@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stationScreen, eventScreen, runEndScreen } from "../../src/ui/screens";
+import { stationScreen, eventScreen, runEndScreen, RunMeta } from "../../src/ui/screens";
 import { createGame, missionsHere, refuel, checkLoss, retire } from "../../src/engine/game";
 import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
 import { GameEvent, Mission } from "../../src/engine/types";
@@ -119,6 +119,42 @@ describe("stationScreen day identity", () => {
   it("omits the date segment when no label is given", () => {
     const html = stationScreen(createGame(42));
     expect(html).toContain("Terra Hub · Day 1/12</p>");
+  });
+});
+
+describe("stationScreen header identity (E0-3)", () => {
+  it("shows run number and Daily/Practice label when meta is present", () => {
+    const html = stationScreen(createGame(42), [], "Jul 22", false, META);
+    expect(html).toContain("#22");
+    expect(html).toContain("The Daily");
+  });
+
+  it("shows today's attempts / best / PB on day 1", () => {
+    const meta: RunMeta = {
+      ...META,
+      bootStats: { attemptsToday: 2, bestToday: 2140, allTimePB: 3010 },
+    };
+    const html = stationScreen(createGame(42), [], "Jul 22", false, meta);
+    expect(html).toContain("3,010"); // all-time PB
+    expect(html).toContain("2,140"); // today's best
+  });
+
+  it("hides boot stats after day 1", () => {
+    const meta: RunMeta = {
+      ...META,
+      bootStats: { attemptsToday: 2, bestToday: 2140, allTimePB: 3010 },
+    };
+    const html = stationScreen({ ...createGame(42), day: 5 }, [], "Jul 22", false, meta);
+    expect(html).not.toContain("all-time PB");
+  });
+
+  it("renders an em dash for today's best when there is no completed run yet", () => {
+    const meta: RunMeta = {
+      ...META,
+      bootStats: { attemptsToday: 0, bestToday: null, allTimePB: 3010 },
+    };
+    const html = stationScreen(createGame(42), [], "Jul 22", false, meta);
+    expect(html).toContain("best —"); // em dash, not a number, when bestToday is null
   });
 });
 
@@ -315,7 +351,7 @@ describe("runEndScreen (E0-1/E0-2)", () => {
     const s = retire({ ...createGame(42), credits: 2000 });
     const html = runEndScreen(s, s.runEnd!);
     expect(html).toContain("st-panel--chamfer");
-    expect(html).toContain("<h1>Retired</h1>");
+    expect(html).toContain('<h1 tabindex="-1">Retired</h1>');
     expect(html).toContain("Retired at Terra Hub — the Syndicate banks your score.");
     expect(html).toContain("Survival bonus");
     expect(html).toContain("Score: 550");
@@ -326,7 +362,7 @@ describe("runEndScreen (E0-1/E0-2)", () => {
 
   it("headlines an audited run", () => {
     const s = endRun({ ...createGame(42), day: 12 }, "audited", "Day 12 — audited.");
-    expect(runEndScreen(s, s.runEnd!)).toContain("<h1>Audited</h1>");
+    expect(runEndScreen(s, s.runEnd!)).toContain('<h1 tabindex="-1">Audited</h1>');
   });
 
   it("headlines a hull breach as Ship Destroyed and forfeits the bonus", () => {
@@ -337,7 +373,7 @@ describe("runEndScreen (E0-1/E0-2)", () => {
       "hull"
     );
     const html = runEndScreen(s, s.runEnd!);
-    expect(html).toContain("<h1>Ship Destroyed</h1>");
+    expect(html).toContain('<h1 tabindex="-1">Ship Destroyed</h1>');
     expect(html).toContain("forfeited");
     expect(html).toContain("Hull breach — your ship broke apart.");
   });
@@ -350,12 +386,118 @@ describe("runEndScreen (E0-1/E0-2)", () => {
       "Your hull gave out in the dark.",
       "hull"
     );
-    expect(runEndScreen(s, s.runEnd!)).toContain("<h1>Ship Destroyed</h1>");
+    expect(runEndScreen(s, s.runEnd!)).toContain('<h1 tabindex="-1">Ship Destroyed</h1>');
   });
 
   it("headlines a stranding as Stranded", () => {
     const s = checkLoss({ ...createGame(42), location: "vulcan" as const, fuel: 0, credits: 0 });
-    expect(runEndScreen(s, s.runEnd!)).toContain("<h1>Stranded</h1>");
+    expect(runEndScreen(s, s.runEnd!)).toContain('<h1 tabindex="-1">Stranded</h1>');
+  });
+});
+
+const META: RunMeta = {
+  runNumber: 22,
+  runLabel: "The Daily",
+  dateLabel: "Jul 22",
+  debrief: { pbDelta: 300, isNewPB: true, prevBest: 2440, isFirstEver: false },
+};
+
+describe("runEndScreen debrief (E1-3)", () => {
+  it("shows the run identity line", () => {
+    const s = { ...createGame(42), day: 12 };
+    const ended = endRun(s, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toContain("Starlight #22");
+    expect(html).toContain("Jul 22");
+    expect(html).toContain("The Daily");
+  });
+
+  it("shows a new-personal-best line when isNewPB", () => {
+    const s = { ...createGame(42), day: 12 };
+    const ended = endRun(s, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toContain("New personal best");
+  });
+
+  it("shows the first-banked-run line when isFirstEver", () => {
+    const s = { ...createGame(42), day: 12 };
+    const ended = endRun(s, "audited", "Audited.");
+    const meta: RunMeta = {
+      ...META,
+      debrief: { pbDelta: 0, isNewPB: false, prevBest: 0, isFirstEver: true },
+    };
+    const html = runEndScreen(ended, ended.runEnd!, false, meta);
+    expect(html).toContain("first banked run");
+  });
+
+  it("does not claim a banked first run when the first-ever run was a loss", () => {
+    const lost = endRun(
+      { ...createGame(42), day: 6, hull: 0 },
+      "lost",
+      "Hull breach — your ship broke apart.",
+      "hull"
+    );
+    const meta: RunMeta = {
+      ...META,
+      debrief: { pbDelta: 0, isNewPB: false, prevBest: 0, isFirstEver: true },
+    };
+    const html = runEndScreen(lost, lost.runEnd!, false, meta);
+    expect(html).not.toContain("first banked run");
+    expect(html).toContain("first run on the board");
+  });
+
+  it("shows the best haul when the run had a payday", () => {
+    const base = {
+      ...createGame(42),
+      day: 12,
+      biggestPayday: { amount: 2140, label: "Luxury Goods at Meridian" },
+    };
+    const ended = endRun(base, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toContain("2,140cr");
+    expect(html).toContain("Luxury Goods at Meridian");
+  });
+
+  it("shows an up-delta vs best on an ordinary improving run", () => {
+    const s = { ...createGame(42), day: 12 };
+    const ended = endRun(s, "audited", "Audited.");
+    const meta: RunMeta = {
+      ...META,
+      debrief: { pbDelta: 150, isNewPB: false, prevBest: 2440, isFirstEver: false },
+    };
+    const html = runEndScreen(ended, ended.runEnd!, false, meta);
+    expect(html).toContain("▲ +150");
+    expect(html).toContain("2,440"); // prevBest shown
+    expect(html).not.toContain("New personal best");
+  });
+
+  it("shows a down-delta vs best when the run fell short", () => {
+    const s = { ...createGame(42), day: 12 };
+    const ended = endRun(s, "audited", "Audited.");
+    const meta: RunMeta = {
+      ...META,
+      debrief: { pbDelta: -300, isNewPB: false, prevBest: 2440, isFirstEver: false },
+    };
+    const html = runEndScreen(ended, ended.runEnd!, false, meta);
+    expect(html).toContain("▼ 300"); // absolute value, no minus sign
+    expect(html).not.toContain("New personal best");
+  });
+});
+
+describe("runEndScreen restart confirm (P3-3)", () => {
+  it("offers a plain New run button when disarmed", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toContain('data-act="restart"');
+    expect(html).not.toContain('data-act="restartConfirm"');
+  });
+
+  it("asks for confirmation when armed", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, true, META);
+    expect(html).toContain('data-act="restartConfirm"');
+    expect(html).toContain('data-act="restartCancel"');
+    expect(html).toContain("Start a Practice run?");
   });
 });
 
@@ -411,7 +553,7 @@ describe("eventScreen vitals and stakes (P0-1)", () => {
 
   it("uses a top-level heading for the event title", () => {
     const html = eventScreen(createGame(42), pirates);
-    expect(html).toContain("<h1>Pirate Ambush</h1>");
+    expect(html).toContain('<h1 tabindex="-1">Pirate Ambush</h1>');
   });
 });
 

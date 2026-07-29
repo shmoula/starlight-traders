@@ -233,6 +233,15 @@ body {
   text-transform: uppercase;
   color: var(--st-text-dim);
 }
+.screen-head__stats {
+  flex-basis: 100%;
+  margin: 0;
+  font-family: var(--st-font-display);
+  font-size: var(--st-text-xs);
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--st-text-dim);
+}
 .st-statbar {
   position: sticky;
   top: 0;

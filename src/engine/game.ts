@@ -88,6 +88,13 @@ function trackPeak(state: GameState): GameState {
   return nw > state.peakNetWorth ? { ...state, peakNetWorth: nw } : state;
 }
 
+/** Keep the single largest credit inflow of the run (E1-3 "best haul"). */
+function trackPayday(state: GameState, amount: number, label: string): GameState {
+  if (amount <= 0) return state;
+  if (state.biggestPayday && state.biggestPayday.amount >= amount) return state;
+  return { ...state, biggestPayday: { amount, label } };
+}
+
 /**
  * Hull 0 destroys the ship (B-6): the run ends as a loss and cargo goes down with it.
  * The four damage sites (resolvePirates/resolveSalvage/resolveEngine/resolveDerelict)
@@ -125,11 +132,12 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
   const price = getPrice(state.seed, state.day, state.location, id);
   const proceeds = price * qty;
   const tax = taxOnSale(state.location, proceeds);
-  const next = {
+  let next: GameState = {
     ...state,
     credits: state.credits + proceeds - tax,
     cargo: { ...state.cargo, [id]: state.cargo[id] - qty },
   };
+  next = trackPayday(next, proceeds - tax, `${commodityName(id)} at ${NODES[state.location].name}`);
   return trackPeak(
     withLog(next, `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`)
   );
@@ -242,6 +250,11 @@ function settleMissions(state: GameState): {
         cargo: { ...s.cargo, [m.commodity]: s.cargo[m.commodity] - m.qty },
         credits: s.credits + m.reward,
       };
+      s = trackPayday(
+        s,
+        m.reward,
+        `${commodityName(m.commodity)} contract → ${NODES[m.destination].name}`
+      );
       s = withLog(s, `Delivery complete: +${m.reward}cr.`);
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {

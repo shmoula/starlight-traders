@@ -1,23 +1,44 @@
 import { describe, it, expect } from "vitest";
-import { GAME_URL, formatDateLabel, shareText } from "../../src/ui/share";
+import { GAME_URL, formatDateLabel, shareText, utcDateKey, runNumber } from "../../src/ui/share";
 
 describe("shareText", () => {
-  it("includes the score, day count, date, and game URL", () => {
-    const txt = shareText({ dateLabel: "Jul 20", score: 84210, daysSurvived: 12 });
+  it("includes the score, day count, date, run number, label, and game URL", () => {
+    const txt = shareText({
+      dateLabel: "Jul 20",
+      score: 84210,
+      daysSurvived: 12,
+      runNumber: 20,
+      label: "The Daily",
+    });
     expect(txt).toContain("84210");
     expect(txt).toContain("12");
     expect(txt).toContain("Jul 20");
+    expect(txt).toContain("#20");
+    expect(txt).toContain("The Daily");
     expect(txt).toContain(GAME_URL);
   });
 
   it("no longer exposes a raw seed integer", () => {
-    const txt = shareText({ dateLabel: "Jul 20", score: 100, daysSurvived: 1 });
+    const txt = shareText({
+      dateLabel: "Jul 20",
+      score: 100,
+      daysSurvived: 1,
+      runNumber: 20,
+      label: "Practice",
+    });
     expect(txt).not.toContain("Seed #");
+    expect(txt).toContain("Practice");
   });
 
   it("is a single shareable blurb with the game name", () => {
-    const txt = shareText({ dateLabel: "Jul 20", score: 100, daysSurvived: 1 });
-    expect(txt.toLowerCase()).toContain("starlight traders");
+    const txt = shareText({
+      dateLabel: "Jul 20",
+      score: 100,
+      daysSurvived: 1,
+      runNumber: 20,
+      label: "Practice",
+    });
+    expect(txt.toLowerCase()).toContain("starlight");
   });
 });
 
@@ -26,5 +47,24 @@ describe("formatDateLabel", () => {
     // 23:30 UTC is still Jul 20 in UTC even when local time has rolled over.
     expect(formatDateLabel(new Date(Date.UTC(2026, 6, 20, 23, 30)))).toBe("Jul 20");
     expect(formatDateLabel(new Date(Date.UTC(2026, 0, 1)))).toBe("Jan 1");
+  });
+});
+
+describe("utcDateKey", () => {
+  it("returns the UTC calendar day as YYYY-MM-DD", () => {
+    expect(utcDateKey(new Date(Date.UTC(2026, 6, 20, 23, 30)).toISOString())).toBe("2026-07-20");
+    expect(utcDateKey(new Date(Date.UTC(2026, 0, 1, 0, 0)).toISOString())).toBe("2026-01-01");
+  });
+});
+
+describe("runNumber", () => {
+  it("is #1 on the epoch day and +1 per UTC day", () => {
+    expect(runNumber(new Date(Date.UTC(2026, 6, 1)).toISOString())).toBe(1);
+    expect(runNumber(new Date(Date.UTC(2026, 6, 22, 18, 0)).toISOString())).toBe(22);
+  });
+  it("is stable across the whole UTC day", () => {
+    expect(runNumber(new Date(Date.UTC(2026, 6, 22, 0, 0)).toISOString())).toBe(
+      runNumber(new Date(Date.UTC(2026, 6, 22, 23, 59)).toISOString())
+    );
   });
 });

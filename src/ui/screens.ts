@@ -9,6 +9,14 @@ import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
 
+export interface RunMeta {
+  runNumber: number;
+  runLabel: "The Daily" | "Practice";
+  dateLabel: string;
+  bootStats?: { attemptsToday: number; bestToday: number | null; allTimePB: number };
+  debrief?: { pbDelta: number; isNewPB: boolean; prevBest: number; isFirstEver: boolean };
+}
+
 /** Renders ` disabled title="…"` for a control, or nothing when it is enabled. */
 const disabledAttr = (disabled: boolean, title: string): string =>
   disabled ? ` disabled title="${title}"` : "";
@@ -47,10 +55,20 @@ function toneOf(msg: string): Tone {
 
 const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›" };
 
-function screenHead(s: GameState, dateLabel = ""): string {
+function screenHead(s: GameState, dateLabel = "", meta?: RunMeta): string {
+  const sub = meta
+    ? `${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH} · Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}`
+    : `${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH}${dateLabel ? ` · ${dateLabel}` : ""}`;
+  const stats =
+    meta?.bootStats && s.day === 1
+      ? `<p class="screen-head__stats">Today: ${meta.bootStats.attemptsToday} flown · best ${
+          meta.bootStats.bestToday === null ? "—" : meta.bootStats.bestToday.toLocaleString()
+        } · all-time PB ${meta.bootStats.allTimePB.toLocaleString()}</p>`
+      : "";
   return `<header class="screen-head">
-    <h1 class="st-screen-title">Starlight Traders</h1>
-    <p class="screen-head__sub">${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH}${dateLabel ? ` · ${dateLabel}` : ""}</p>
+    <h1 class="st-screen-title" tabindex="-1">Starlight Traders</h1>
+    <p class="screen-head__sub">${sub}</p>
+    ${stats}
   </header>`;
 }
 
@@ -304,7 +322,8 @@ export function stationScreen(
   s: GameState,
   turnReport: string[] = [],
   dateLabel = "",
-  retireArmed = false
+  retireArmed = false,
+  meta?: RunMeta
 ): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
@@ -320,7 +339,7 @@ export function stationScreen(
   const fuelClass = fuelWarnClass(s);
 
   return `
-    ${screenHead(s, dateLabel)}
+    ${screenHead(s, dateLabel, meta)}
     ${statbar(s, fuelClass)}
     <div class="st-shell station-shell">
       <!-- DOM order leads with the stage so single-column mobile reads
@@ -357,7 +376,7 @@ export function eventScreen(s: GameState, e: GameEvent): string {
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="event-card">
           ${statbar(s, fuelWarnClass(s), { presentation: false, extra: "st-statbar--event" })}
-          <h1>${e.title}</h1><p>${e.description}</p><div class="choices">${choices}</div>
+          <h1 tabindex="-1">${e.title}</h1><p>${e.description}</p><div class="choices">${choices}</div>
         </div>
       </div></div>
     </div>
@@ -365,29 +384,67 @@ export function eventScreen(s: GameState, e: GameEvent): string {
 }
 
 /** Headline per end status; the two loss causes get their own names. */
-function endHeadline(r: RunEnd): string {
+export function endHeadline(r: RunEnd): string {
   if (r.status === "audited") return "Audited";
   if (r.status === "retired") return "Retired";
   return r.lossCause === "hull" ? "Ship Destroyed" : "Stranded";
 }
 
-export function runEndScreen(s: GameState, r: RunEnd): string {
+function pbDeltaLine(d: NonNullable<RunMeta["debrief"]>, score: number, banked: boolean): string {
+  if (d.isFirstEver) {
+    // A first-ever loss still sets the PB, but nothing was banked — don't say it was.
+    return banked
+      ? `<p class="run-end__pb">Your first banked run — ${score.toLocaleString()} to beat.</p>`
+      : `<p class="run-end__pb">Your first run on the board — ${score.toLocaleString()} to beat.</p>`;
+  }
+  if (d.isNewPB) {
+    return `<p class="run-end__pb run-end__pb--best">🏆 New personal best! ▲ +${d.pbDelta.toLocaleString()}</p>`;
+  }
+  const sign =
+    d.pbDelta >= 0
+      ? `▲ +${d.pbDelta.toLocaleString()}`
+      : `▼ ${Math.abs(d.pbDelta).toLocaleString()}`;
+  return `<p class="run-end__pb">${sign} vs your best (${d.prevBest.toLocaleString()})</p>`;
+}
+
+export function runEndScreen(
+  s: GameState,
+  r: RunEnd,
+  restartArmed = false,
+  meta?: RunMeta
+): string {
   const banked = r.status !== "lost";
+  const identity = meta
+    ? `<p class="run-end__id">🚀 Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}</p>`
+    : "";
+  const pb = meta?.debrief ? pbDeltaLine(meta.debrief, r.score, banked) : "";
+  const haul = s.biggestPayday
+    ? `<div class="st-kv"><span class="st-kv__label">Best haul</span><span class="st-kv__value st-num">+${cr(s.biggestPayday.amount)} · ${s.biggestPayday.label}</span></div>`
+    : "";
+  const restart = restartArmed
+    ? `<div class="retire-confirm">
+            <button class="st-btn st-btn--ghost retire-confirm__go" data-act="restartConfirm">Start a Practice run?</button>
+            <button class="st-btn st-btn--ghost retire-confirm__cancel" data-act="restartCancel" aria-label="Cancel new run" title="Cancel">✕</button>
+          </div>`
+    : `<button class="st-btn st-btn--ghost" data-act="restart">New run</button>`;
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="run-end">
-          <h1>${endHeadline(r)}</h1>
+          <h1 tabindex="-1">${endHeadline(r)}</h1>
+          ${identity}
           <p>You survived ${r.daysSurvived} day${r.daysSurvived === 1 ? "" : "s"}.</p>
           <p class="run-end__cause">${r.cause}</p>
           <div class="run-end__breakdown">
             <div class="st-kv"><span class="st-kv__label">Net worth${banked ? "" : " (cargo lost with the ship)"}</span><span class="st-kv__value st-num">${cr(r.netWorthAtEnd)}</span></div>
             <div class="st-kv"><span class="st-kv__label">Survival bonus</span><span class="st-kv__value st-num">${banked ? `+${r.survivalBonus}` : "forfeited"}</span></div>
             <div class="st-kv"><span class="st-kv__label">Peak net worth</span><span class="st-kv__value st-num">${cr(s.peakNetWorth)}</span></div>
+            ${haul}
           </div>
+          ${pb}
           <p class="score st-num">Score: ${r.score.toLocaleString()}</p>
           <button class="st-btn" data-act="share">Copy score card</button>
-          <button class="st-btn st-btn--ghost" data-act="restart">New run</button>
+          ${restart}
         </div>
       </div></div>
     </div>
