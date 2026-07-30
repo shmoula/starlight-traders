@@ -97,6 +97,7 @@ function trackPayday(state: GameState, amount: number, label: string): GameState
   return { ...state, biggestPayday: { amount, label } };
 }
 
+/** When a day earns several highlights, the highest rank is the one the strip shows. */
 const HIGHLIGHT_RANK: Record<DayHighlightKind, number> = { pirates: 3, bigTrade: 2, delivery: 1 };
 
 /** Record the current day's notable moment for the share strip (E1-2). Upgrade-only. */
@@ -268,8 +269,7 @@ function settleMissions(state: GameState): {
         `${commodityName(m.commodity)} contract → ${NODES[m.destination].name}`
       );
       s = withLog(s, `Delivery complete: +${m.reward}cr.`);
-      s = markDay(s, "delivery");
-      if (m.reward >= BIG_TRADE_CR) s = markDay(s, "bigTrade");
+      s = markDay(s, m.reward >= BIG_TRADE_CR ? "bigTrade" : "delivery");
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {
       s = withLog(s, `Delivery to ${NODES[m.destination].name} expired.`);

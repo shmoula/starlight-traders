@@ -487,14 +487,16 @@ describe("dayHighlights", () => {
   it("marks a big sale as bigTrade", () => {
     let s = createGame(42);
     s = { ...s, cargo: { ...s.cargo, luxury: 5 } };
-    s = sell(s, "luxury", 5); // ≥ ~1,170cr net — always over BIG_TRADE_CR
+    // Nets 1,373cr on this seed. Luxury at Terra floors at 192cr/unit, so 5 units net
+    // ≥912cr on *any* seed — the ceiling BIG_TRADE_CR must stay under to keep this sound.
+    s = sell(s, "luxury", 5);
     expect(s.dayHighlights[1]).toBe("bigTrade");
   });
 
   it("does not mark a small sale", () => {
     let s = createGame(42);
     s = { ...s, cargo: { ...s.cargo, water: 1 } };
-    s = sell(s, "water", 1); // ≤ ~32cr net — always under BIG_TRADE_CR
+    s = sell(s, "water", 1); // nets 16cr; water tops out at 22cr/unit — never a big trade
     expect(s.dayHighlights[1]).toBeUndefined();
   });
 
@@ -525,6 +527,14 @@ describe("dayHighlights", () => {
     });
     s = { ...s, cargo: { ...s.cargo, water: 2 } };
     s = deliver(s);
+    expect(s.dayHighlights[1]).toBe("bigTrade");
+  });
+
+  it("leaves the highlight alone when the same rank is marked twice", () => {
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, luxury: 10 } };
+    s = sell(s, "luxury", 5);
+    s = sell(s, "luxury", 5); // second big sale, same day — no-op, not a re-mark
     expect(s.dayHighlights[1]).toBe("bigTrade");
   });
 
