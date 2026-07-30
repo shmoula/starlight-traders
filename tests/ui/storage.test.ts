@@ -194,6 +194,11 @@ describe("parseSnapshot", () => {
     expect(parseSnapshot(JSON.stringify(snap), TODAY)).toEqual(snap);
   });
 
+  it("round-trips a Practice-labelled snapshot", () => {
+    const snap = liveSnapshot({ label: "Practice" });
+    expect(parseSnapshot(JSON.stringify(snap), TODAY)).toEqual(snap);
+  });
+
   it("rejects a snapshot from another UTC day (stale — day rolled over)", () => {
     const snap = liveSnapshot({ dateKey: "2026-07-28" });
     expect(parseSnapshot(JSON.stringify(snap), TODAY)).toBeNull();
@@ -228,7 +233,7 @@ describe("parseSnapshot", () => {
     ],
     ["a missing pendingEvent field", { pendingEvent: undefined }],
   ] as [string, Record<string, unknown>][])("rejects %s", (_why, override) => {
-    const snap = { ...liveSnapshot(), ...(override as object) };
+    const snap = { ...liveSnapshot(), ...override };
     expect(parseSnapshot(JSON.stringify(snap), TODAY)).toBeNull();
   });
 

@@ -138,9 +138,14 @@ export interface RunSnapshot {
 
 const SNAPSHOT_KEY = "starlight.run.v1";
 
+/**
+ * Shallow by design: only `choices[].id` is load-bearing (resolveChoice keys off it).
+ * `kind`/`title`/`description` are cosmetic, so a malformed one is left to the try/catch
+ * around the rehydrating first paint rather than costing a resume here.
+ */
 function isValidEvent(e: unknown): e is GameEvent | null {
   if (e === null) return true;
-  if (typeof e !== "object" || e === undefined) return false;
+  if (typeof e !== "object") return false;
   const ev = e as Partial<GameEvent>;
   return (
     typeof ev.kind === "string" &&
