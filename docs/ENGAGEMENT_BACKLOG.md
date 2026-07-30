@@ -189,7 +189,7 @@ launch). No accounts, no server, no telemetry.
 
 **Acceptance criteria**
 
-- [x] Reloading mid-run still starts a fresh run (unchanged), but the boot screen shows today's attempts + best so far and all-time PB.
+- [x] Reloading mid-run started a fresh run, and the boot screen shows today's attempts + best so far and all-time PB. **Superseded by E0-5 (§4.4):** a same-day reload now resumes the run instead — see the follow-up note below.
 - [x] First run of a UTC day is labeled "The Daily" in header, debrief, and share card; practice runs labeled "Practice" in all three.
 - [x] Debrief shows PB delta ("▲ +300 vs your best") for the relevant scope (daily vs practice).
 - [x] Storage failures (private mode) degrade silently to current behavior.
