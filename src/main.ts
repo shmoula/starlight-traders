@@ -71,6 +71,9 @@ let lastAct: { act?: string; id?: string } = {};
 function startNewRun() {
   state = bootDailyGame();
   pendingEvent = null;
+  // Inert today (a jump always overwrites it before the only reader runs), but a stale
+  // mark would otherwise be persisted into the new run's snapshot and mislead debugging.
+  logMarkBeforeJump = 0;
   recorded = false;
   lastDebrief = undefined;
   runLabel = labelForDay(save, utcDateKey(state.bootDate));
@@ -283,9 +286,12 @@ app.addEventListener("click", async (e) => {
 
 try {
   paint();
-} catch {
-  // A structurally-valid but internally-corrupt snapshot can only surface here —
-  // discard it and reboot today's fresh daily instead of a blank screen.
+} catch (err) {
+  // The only place a structurally-valid but internally-corrupt snapshot's fallout can
+  // land — discard it and reboot today's fresh daily instead of a blank screen. Logged
+  // because, unlike the storage layer's expected quota/private-mode failures, reaching
+  // here means something got past parseSnapshot: a real corruption or a render bug.
+  console.warn("Discarded an unusable run snapshot; starting a fresh daily.", err);
   clearSnapshot();
   startNewRun();
   paint();
