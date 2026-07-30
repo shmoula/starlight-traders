@@ -64,12 +64,17 @@ export interface ShareData {
   daysSurvived: number;
   runNumber: number;
   label: "The Daily" | "Practice";
+  /** Emoji run-strip from runStrip() — one glyph per day. */
+  strip: string;
+  /** Short end headline ("Audited" / "Retired" / "Ship Destroyed" / "Stranded"). */
+  cause: string;
 }
 
 export function shareText(d: ShareData): string {
   return [
-    `🚀 Starlight #${d.runNumber} — ${d.dateLabel} · ${d.label}`,
-    `Score ${d.score} · survived ${d.daysSurvived} days`,
+    `🚀 Starlight #${d.runNumber} · ${d.dateLabel} · ${d.label}`,
+    `Score ${d.score.toLocaleString("en-US")} · survived ${d.daysSurvived} days — ${d.cause}`,
+    d.strip,
     `Beat my run: ${GAME_URL}`,
   ].join("\n");
 }

@@ -16,8 +16,10 @@ describe("shareText", () => {
       daysSurvived: 12,
       runNumber: 20,
       label: "The Daily",
+      strip: "🟦",
+      cause: "Audited",
     });
-    expect(txt).toContain("84210");
+    expect(txt).toContain("84,210");
     expect(txt).toContain("12");
     expect(txt).toContain("Jul 20");
     expect(txt).toContain("#20");
@@ -32,6 +34,8 @@ describe("shareText", () => {
       daysSurvived: 1,
       runNumber: 20,
       label: "Practice",
+      strip: "🟦",
+      cause: "Audited",
     });
     expect(txt).not.toContain("Seed #");
     expect(txt).toContain("Practice");
@@ -44,8 +48,28 @@ describe("shareText", () => {
       daysSurvived: 1,
       runNumber: 20,
       label: "Practice",
+      strip: "🟦",
+      cause: "Audited",
     });
     expect(txt.toLowerCase()).toContain("starlight");
+  });
+
+  it("is the four-line v2 card: identity, score+cause, strip, URL", () => {
+    const txt = shareText({
+      dateLabel: "Jul 29",
+      score: 2140,
+      daysSurvived: 12,
+      runNumber: 29,
+      label: "The Daily",
+      strip: "🟦🟦🟥💰🟦🟨🟦🟦💰🟦🟦🟦",
+      cause: "Audited",
+    });
+    const lines = txt.split("\n");
+    expect(lines).toHaveLength(4);
+    expect(lines[0]).toBe("🚀 Starlight #29 · Jul 29 · The Daily");
+    expect(lines[1]).toBe("Score 2,140 · survived 12 days — Audited");
+    expect(lines[2]).toBe("🟦🟦🟥💰🟦🟨🟦🟦💰🟦🟦🟦");
+    expect(lines[3]).toBe(`Beat my run: ${GAME_URL}`);
   });
 });
 
