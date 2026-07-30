@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { GAME_URL, formatDateLabel, shareText, utcDateKey, runNumber } from "../../src/ui/share";
+import {
+  GAME_URL,
+  formatDateLabel,
+  shareText,
+  utcDateKey,
+  runNumber,
+  runStrip,
+} from "../../src/ui/share";
 
 describe("shareText", () => {
   it("includes the score, day count, date, run number, label, and game URL", () => {
@@ -66,5 +73,23 @@ describe("runNumber", () => {
     expect(runNumber(new Date(Date.UTC(2026, 6, 22, 0, 0)).toISOString())).toBe(
       runNumber(new Date(Date.UTC(2026, 6, 22, 23, 59)).toISOString())
     );
+  });
+});
+
+describe("runStrip", () => {
+  it("renders one default glyph per day survived", () => {
+    expect(runStrip({}, 12, "audited")).toBe("🟦".repeat(12));
+  });
+
+  it("maps highlights to their glyphs", () => {
+    expect(runStrip({ 2: "pirates", 3: "bigTrade", 4: "delivery" }, 5, "retired")).toBe(
+      "🟦🟥💰🟨🟦"
+    );
+  });
+
+  it("stamps 💀 on the final day of a lost run only", () => {
+    expect(runStrip({ 3: "pirates" }, 3, "lost")).toBe("🟦🟦💀"); // 💀 outranks the day's own mark
+    expect(runStrip({}, 1, "lost")).toBe("💀"); // day-1 death is a single skull
+    expect(runStrip({}, 3, "audited")).toBe("🟦🟦🟦"); // banked runs never show 💀
   });
 });

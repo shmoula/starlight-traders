@@ -1,5 +1,7 @@
 // src/ui/share.ts
 
+import { DayHighlightKind, RunEndStatus } from "../engine/types";
+
 /** Public home of the game — the share card's call to action. Swap once an itch.io page exists. */
 export const GAME_URL = "https://github.com/shmoula/starlight-traders";
 
@@ -27,6 +29,33 @@ export function runNumber(bootISO: string): number {
   const d = new Date(bootISO);
   const midnightUTC = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   return Math.floor((midnightUTC - RUN_NUMBER_EPOCH_UTC) / 86_400_000) + 1;
+}
+
+const STRIP_GLYPHS: Record<DayHighlightKind, string> = {
+  pirates: "🟥",
+  bigTrade: "💰",
+  delivery: "🟨",
+};
+
+/**
+ * One glyph per day survived — the spoiler-free story of the run (E1-2). 💀 stamps the
+ * final day of a lost run (derived from RunEnd, not recorded); unmarked days are 🟦.
+ */
+export function runStrip(
+  highlights: Partial<Record<number, DayHighlightKind>>,
+  daysSurvived: number,
+  status: RunEndStatus
+): string {
+  let out = "";
+  for (let day = 1; day <= daysSurvived; day++) {
+    if (day === daysSurvived && status === "lost") {
+      out += "💀";
+      continue;
+    }
+    const kind = highlights[day];
+    out += kind ? STRIP_GLYPHS[kind] : "🟦";
+  }
+  return out;
 }
 
 export interface ShareData {
