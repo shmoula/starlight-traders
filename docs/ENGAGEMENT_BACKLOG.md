@@ -150,7 +150,7 @@ design, retention, and meaning_; where they touch UI/UX items they cross-referen
 > **Shipped 2026-07-21 — E0-1, E0-2, E0-4.** Bounded 12-day run with audit/retire/loss
 > end states through `endRun()`, net-worth + capped survival-bonus scoring, and loan
 > escalation with the Syndicate's voice all landed together. The 100-seed sweep asserts
-> the death-rate bands below. E0-3 (persistence) remains open.
+> the death-rate bands below. E0-3 (persistence) shipped 2026-07-29 — see §4.2.
 
 **Problem.** Runs are unbounded; the run→score→restart loop never fires for competent
 players (sim: 100% of balanced runs alive at day 60).
@@ -171,6 +171,11 @@ becomes "Day 4 / 12" everywhere it appears.
 
 ### 4.2 E0-3 — Persistence pack (localStorage)
 
+> **Shipped 2026-07-29 — E0-3, E1-3.** The versioned save ledger (PB, attempts,
+> Daily/Practice labeling) landed via the storage module's field-validated parse with
+> silent degradation on read failure, and the run debrief screen (E1-3) shipped
+> alongside it, consuming the ledger for PB-delta and "New personal best!" copy.
+
 **Problem.** Nothing survives a reload or a day change: no PB, no attempt labeling, no
 identity. The daily-habit thesis has no mechanism, and covert retries make shared
 scores incomparable.
@@ -184,11 +189,11 @@ launch). No accounts, no server, no telemetry.
 
 **Acceptance criteria**
 
-- [ ] Reloading mid-run still starts a fresh run (unchanged), but the boot screen shows today's attempts + best so far and all-time PB.
-- [ ] First run of a UTC day is labeled "The Daily" in header, debrief, and share card; practice runs labeled "Practice" in all three.
-- [ ] Debrief shows PB delta ("▲ +300 vs your best") for the relevant scope (daily vs practice).
-- [ ] Storage failures (private mode) degrade silently to current behavior.
-- [ ] A "days flown" counter increments at most once per UTC day; no negative/guilt copy anywhere when a day is missed (copy review is part of the AC).
+- [x] Reloading mid-run still starts a fresh run (unchanged), but the boot screen shows today's attempts + best so far and all-time PB.
+- [x] First run of a UTC day is labeled "The Daily" in header, debrief, and share card; practice runs labeled "Practice" in all three.
+- [x] Debrief shows PB delta ("▲ +300 vs your best") for the relevant scope (daily vs practice).
+- [x] Storage failures (private mode) degrade silently to current behavior.
+- [x] A "days flown" counter increments at most once per UTC day; no negative/guilt copy anywhere when a day is missed (copy review is part of the AC).
 
 > **Follow-up (E0-5, §4.4):** the "fresh run on mid-run reload" behavior above is
 > deliberate save-scum safety, but an _accidental_ same-day refresh also loses
@@ -219,6 +224,19 @@ not an oracle.
 
 ### 4.4 E0-5 — Resume an in-progress run on same-day refresh
 
+> **Shipped 2026-07-30 — E0-5, E1-2.** The live-run snapshot lands under its own key
+> (`starlight.run.v1`, separate from the E0-3 results ledger), written post-decision
+> after every settled action so a refresh resumes into a pending in-transit event
+> rather than re-rolling it, and is rejected at boot when its UTC day isn't today's or
+> cleared outright once a run ends. Share card v2 (E1-2) ships alongside it: a
+> four-line card — identity, score + end-cause, an emoji run-strip (one glyph per day
+> survived, with 💀 derived from the run's end status to mark the final day of a lost
+> run), and the URL. The 💰 big-trade threshold (`BIG_TRADE_CR`) was tuned to 900cr
+> against a 100-seed sweep; the `balanced` archetype still lands a median of 4
+> 💰-days against a 1–3 target, a gap that can't close further without exceeding the
+> 912cr guaranteed floor of a 5-luxury-unit sale (past which an engine test becomes
+> seed-dependent) — noted here rather than overstated as fully tuned.
+
 **Problem.** E0-3 deliberately starts a fresh run on any mid-run reload (save-scum
 safety). But an _accidental_ tab-close or refresh mid-run silently discards the
 in-progress run — for a ~12-"day" session that's a real frustration and a retention
@@ -238,11 +256,11 @@ player was and can never re-roll a bad event outcome. This keeps E0-3 decision #
 
 **Acceptance criteria**
 
-- [ ] A refresh within the same UTC day resumes the in-progress run (day, location, credits, cargo, missions, log) rather than starting over.
-- [ ] A refresh after the UTC day has rolled over starts a fresh daily run and discards the stale snapshot.
-- [ ] Resuming cannot re-roll a resolved event (snapshot is post-decision); the E0-3 anti-scum guarantee holds.
-- [ ] The snapshot is cleared on run end and on starting a Practice run; a completed run still records exactly once (unchanged from E0-3).
-- [ ] Storage failures (private mode) degrade silently to today's fresh-run behavior.
+- [x] A refresh within the same UTC day resumes the in-progress run (day, location, credits, cargo, missions, log) rather than starting over.
+- [x] A refresh after the UTC day has rolled over starts a fresh daily run and discards the stale snapshot.
+- [x] Resuming cannot re-roll a resolved event (snapshot is post-decision); the E0-3 anti-scum guarantee holds.
+- [x] The snapshot is cleared on run end and on starting a Practice run; a completed run still records exactly once (unchanged from E0-3).
+- [x] Storage failures (private mode) degrade silently to today's fresh-run behavior.
 
 ## 5. Quick wins (≤2h each)
 
