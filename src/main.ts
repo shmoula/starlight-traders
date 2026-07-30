@@ -17,7 +17,7 @@ import {
 } from "./engine/game";
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
 import { render } from "./ui/render";
-import { copyShare, formatDateLabel, utcDateKey, runNumber } from "./ui/share";
+import { copyShare, formatDateLabel, utcDateKey, runNumber, runStrip } from "./ui/share";
 import { loadSave, persist, recordRunEnd, labelForDay, emptySave } from "./ui/storage";
 import { NODES } from "./engine/world";
 import { RUN_LENGTH } from "./engine/run-end";
@@ -222,6 +222,8 @@ app.addEventListener("click", async (e) => {
         daysSurvived: state.runEnd.daysSurvived,
         runNumber: runNumber(state.bootDate),
         label: runLabel,
+        strip: runStrip(state.dayHighlights, state.runEnd.daysSurvived, state.runEnd.status),
+        cause: endHeadline(state.runEnd),
       });
     }
   } else {
