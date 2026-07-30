@@ -18,7 +18,16 @@ import {
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
 import { render } from "./ui/render";
 import { copyShare, formatDateLabel, utcDateKey, runNumber, runStrip } from "./ui/share";
-import { loadSave, persist, recordRunEnd, labelForDay, emptySave } from "./ui/storage";
+import {
+  loadSave,
+  persist,
+  recordRunEnd,
+  labelForDay,
+  emptySave,
+  loadSnapshot,
+  persistSnapshot,
+  clearSnapshot,
+} from "./ui/storage";
 import { NODES } from "./engine/world";
 import { RUN_LENGTH } from "./engine/run-end";
 import { endHeadline, type RunMeta } from "./ui/screens";
@@ -66,7 +75,45 @@ function startNewRun() {
   lastDebrief = undefined;
   runLabel = labelForDay(save, utcDateKey(state.bootDate));
 }
-startNewRun();
+
+/**
+ * E0-5: rehydrate a same-day live run from the snapshot. Boot-only — a hit restores
+ * the exact post-decision state (including a pending in-transit event), a miss/stale/
+ * corrupt snapshot falls through to a fresh daily. Never called on "New run".
+ */
+function tryResume(): boolean {
+  const snap = loadSnapshot(utcDateKey(new Date().toISOString()));
+  if (!snap) return false;
+  state = snap.state;
+  pendingEvent = snap.pendingEvent;
+  logMarkBeforeJump = snap.logMarkBeforeJump;
+  runLabel = snap.label;
+  recorded = false;
+  lastDebrief = undefined;
+  return true;
+}
+
+/**
+ * E0-5: mirror the live run to storage after every settled action — always
+ * post-decision by construction. An ended run clears the snapshot in the same tick
+ * recordIfEnded banks it, so no finished run can ever rehydrate.
+ */
+function syncSnapshot(): void {
+  if (state.status === "playing") {
+    persistSnapshot({
+      version: 1,
+      dateKey: utcDateKey(state.bootDate),
+      label: runLabel,
+      state,
+      pendingEvent,
+      logMarkBeforeJump,
+    });
+  } else {
+    clearSnapshot();
+  }
+}
+
+if (!tryResume()) startNewRun();
 
 function recordIfEnded() {
   if (!state.runEnd || recorded) return;
@@ -229,8 +276,17 @@ app.addEventListener("click", async (e) => {
   } else {
     applyAction(act, id, qty);
     recordIfEnded();
+    syncSnapshot();
   }
   paint();
 });
 
-paint();
+try {
+  paint();
+} catch {
+  // A structurally-valid but internally-corrupt snapshot can only surface here —
+  // discard it and reboot today's fresh daily instead of a blank screen.
+  clearSnapshot();
+  startNewRun();
+  paint();
+}
