@@ -223,7 +223,7 @@ app.addEventListener("click", async (e) => {
         runNumber: runNumber(state.bootDate),
         label: runLabel,
         strip: runStrip(state.dayHighlights, state.runEnd.daysSurvived, state.runEnd.status),
-        cause: endHeadline(state.runEnd),
+        endLabel: endHeadline(state.runEnd),
       });
     }
   } else {

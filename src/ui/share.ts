@@ -66,14 +66,19 @@ export interface ShareData {
   label: "The Daily" | "Practice";
   /** Emoji run-strip from runStrip() — one glyph per day. */
   strip: string;
-  /** Short end headline ("Audited" / "Retired" / "Ship Destroyed" / "Stranded"). */
-  cause: string;
+  /**
+   * Short end headline from endHeadline() — "Audited" / "Retired" / "Ship Destroyed" /
+   * "Stranded". Deliberately not RunEnd.cause, which is a full player-facing sentence.
+   */
+  endLabel: string;
 }
 
 export function shareText(d: ShareData): string {
+  // The locale is pinned rather than the player's: the card is a cross-audience artifact,
+  // so its thousands separator must not shift depending on who generated it.
   return [
     `🚀 Starlight #${d.runNumber} · ${d.dateLabel} · ${d.label}`,
-    `Score ${d.score.toLocaleString("en-US")} · survived ${d.daysSurvived} days — ${d.cause}`,
+    `Score ${d.score.toLocaleString("en-US")} · survived ${d.daysSurvived} days — ${d.endLabel}`,
     d.strip,
     `Beat my run: ${GAME_URL}`,
   ].join("\n");

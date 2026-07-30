@@ -17,7 +17,7 @@ describe("shareText", () => {
       runNumber: 20,
       label: "The Daily",
       strip: "🟦",
-      cause: "Audited",
+      endLabel: "Audited",
     });
     expect(txt).toContain("84,210");
     expect(txt).toContain("12");
@@ -35,7 +35,7 @@ describe("shareText", () => {
       runNumber: 20,
       label: "Practice",
       strip: "🟦",
-      cause: "Audited",
+      endLabel: "Audited",
     });
     expect(txt).not.toContain("Seed #");
     expect(txt).toContain("Practice");
@@ -49,7 +49,7 @@ describe("shareText", () => {
       runNumber: 20,
       label: "Practice",
       strip: "🟦",
-      cause: "Audited",
+      endLabel: "Audited",
     });
     expect(txt.toLowerCase()).toContain("starlight");
   });
@@ -62,7 +62,7 @@ describe("shareText", () => {
       runNumber: 29,
       label: "The Daily",
       strip: "🟦🟦🟥💰🟦🟨🟦🟦💰🟦🟦🟦",
-      cause: "Audited",
+      endLabel: "Audited",
     });
     const lines = txt.split("\n");
     expect(lines).toHaveLength(4);
@@ -70,6 +70,22 @@ describe("shareText", () => {
     expect(lines[1]).toBe("Score 2,140 · survived 12 days — Audited");
     expect(lines[2]).toBe("🟦🟦🟥💰🟦🟨🟦🟦💰🟦🟦🟦");
     expect(lines[3]).toBe(`Beat my run: ${GAME_URL}`);
+  });
+
+  it("reads correctly for a lost run — 💀-tipped strip and the death headline", () => {
+    const txt = shareText({
+      dateLabel: "Jul 29",
+      score: 0,
+      daysSurvived: 4,
+      runNumber: 29,
+      label: "Practice",
+      strip: runStrip({ 2: "bigTrade", 3: "pirates" }, 4, "lost"),
+      endLabel: "Ship Destroyed",
+    });
+    const lines = txt.split("\n");
+    expect(lines).toHaveLength(4);
+    expect(lines[1]).toBe("Score 0 · survived 4 days — Ship Destroyed");
+    expect(lines[2]).toBe("🟦💰🟥💀"); // one glyph per day, death stamped on the last
   });
 });
 
