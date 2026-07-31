@@ -81,8 +81,13 @@ body {
   margin: var(--st-space-3) 0 var(--st-space-2);
   font-size: var(--st-text-lg);
   line-height: 1.5;
-  letter-spacing: 0.08em;
-  word-break: break-all;
+}
+/* One fixed box per day. The glyph set is not uniform in width (💰/💀 are narrower than
+ * the squares), so centring each in an equal cell is what keeps the row a grid. */
+.run-end__day {
+  display: inline-block;
+  width: 1.15em;
+  text-align: center;
 }
 /* Legacy contract classes — names are load-bearing (tests/markup), values tokenized. */
 .hint {

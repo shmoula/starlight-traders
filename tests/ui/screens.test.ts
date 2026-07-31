@@ -419,9 +419,14 @@ describe("runEndScreen debrief (E1-3)", () => {
     const ended = endRun(s, "audited", "Audited.");
     const html = runEndScreen(ended, ended.runEnd!, false, META);
     expect(html).toContain('class="run-end__strip"');
-    expect(html).toContain("🟦🟥🟦🟦");
     expect(html).toContain("4 days: 1 pirate encounter.");
     expect(html).toContain('aria-hidden="true"'); // the glyphs themselves are not read out
+    // One fixed-width cell per day, so the uneven glyph widths still line up as a grid.
+    expect(html).toContain(
+      '<span class="run-end__day">🟦</span><span class="run-end__day">🟥</span>' +
+        '<span class="run-end__day">🟦</span><span class="run-end__day">🟦</span>'
+    );
+    expect(html.match(/class="run-end__day"/g)).toHaveLength(4);
   });
 
   it("shows a new-personal-best line when isNewPB", () => {

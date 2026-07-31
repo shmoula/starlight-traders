@@ -391,6 +391,22 @@ export function endHeadline(r: RunEnd): string {
   return r.lossCause === "hull" ? "Ship Destroyed" : "Stranded";
 }
 
+/**
+ * The run-strip as fixed-width cells. The glyphs have different intrinsic widths — 💰 and
+ * 💀 are narrower than the solid squares — so a bare string renders as a ragged row. One
+ * box per day restores the grid without flattening the glyphs into meaningless colours.
+ * Splitting with the spread operator is safe: every strip glyph is a single code point.
+ */
+function stripCells(
+  highlights: GameState["dayHighlights"],
+  daysSurvived: number,
+  status: RunEnd["status"]
+): string {
+  return [...runStrip(highlights, daysSurvived, status)]
+    .map((glyph) => `<span class="run-end__day">${glyph}</span>`)
+    .join("");
+}
+
 function pbDeltaLine(d: NonNullable<RunMeta["debrief"]>, score: number, banked: boolean): string {
   if (d.isFirstEver) {
     // A first-ever loss still sets the PB, but nothing was banked — don't say it was.
@@ -447,7 +463,7 @@ export function runEndScreen(
           <p class="run-end__strip">
             <span class="st-sr-only"
               >Your run, one glyph per day — ${stripSummary(s.dayHighlights, r.daysSurvived, r.status)}</span
-            ><span aria-hidden="true">${runStrip(s.dayHighlights, r.daysSurvived, r.status)}</span>
+            ><span aria-hidden="true">${stripCells(s.dayHighlights, r.daysSurvived, r.status)}</span>
           </p>
           <button class="st-btn" data-act="share">Copy score card</button>
           ${restart}
