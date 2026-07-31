@@ -20,6 +20,8 @@ export interface SimResult {
   peakNetWorth: number;
   score: number;
   status: GameState["status"];
+  /** Days whose highlight is 💰 — observability for E1-2's BIG_TRADE_CR tuning. */
+  bigTradeDays: number;
 }
 
 /** Pick the destination + commodity that maximizes naive expected margin this turn. */
@@ -56,6 +58,7 @@ function toResult(s: GameState): SimResult {
     peakNetWorth: s.peakNetWorth,
     score: s.runEnd?.score ?? 0,
     status: s.status,
+    bigTradeDays: Object.values(s.dayHighlights).filter((k) => k === "bigTrade").length,
   };
 }
 

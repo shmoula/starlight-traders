@@ -17,8 +17,17 @@ import {
 } from "./engine/game";
 import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
 import { render } from "./ui/render";
-import { copyShare, formatDateLabel, utcDateKey, runNumber } from "./ui/share";
-import { loadSave, persist, recordRunEnd, labelForDay, emptySave } from "./ui/storage";
+import { copyShare, formatDateLabel, utcDateKey, runNumber, runStrip } from "./ui/share";
+import {
+  loadSave,
+  persist,
+  recordRunEnd,
+  labelForDay,
+  emptySave,
+  loadSnapshot,
+  persistSnapshot,
+  clearSnapshot,
+} from "./ui/storage";
 import { NODES } from "./engine/world";
 import { RUN_LENGTH } from "./engine/run-end";
 import { endHeadline, type RunMeta } from "./ui/screens";
@@ -58,15 +67,61 @@ let retireArmed = false;
 let restartArmed = false;
 // Last action dispatched, used to restore focus after the innerHTML re-render.
 let lastAct: { act?: string; id?: string } = {};
+// Whether the live run came out of storage rather than being created here. Gates
+// safePaint's recovery: only a restored run has a snapshot worth blaming.
+let resumedFromSnapshot = false;
 
 function startNewRun() {
   state = bootDailyGame();
   pendingEvent = null;
+  // Inert today (a jump always overwrites it before the only reader runs), but a stale
+  // mark would otherwise be persisted into the new run's snapshot and mislead debugging.
+  logMarkBeforeJump = 0;
   recorded = false;
   lastDebrief = undefined;
+  resumedFromSnapshot = false;
   runLabel = labelForDay(save, utcDateKey(state.bootDate));
 }
-startNewRun();
+
+/**
+ * E0-5: rehydrate a same-day live run from the snapshot. Boot-only — a hit restores
+ * the exact post-decision state (including a pending in-transit event), a miss/stale/
+ * corrupt snapshot falls through to a fresh daily. Never called on "New run".
+ */
+function tryResume(): boolean {
+  const snap = loadSnapshot(utcDateKey(new Date().toISOString()));
+  if (!snap) return false;
+  state = snap.state;
+  pendingEvent = snap.pendingEvent;
+  logMarkBeforeJump = snap.logMarkBeforeJump;
+  runLabel = snap.label;
+  recorded = false;
+  lastDebrief = undefined;
+  resumedFromSnapshot = true;
+  return true;
+}
+
+/**
+ * E0-5: mirror the live run to storage after every settled action — always
+ * post-decision by construction. An ended run clears the snapshot in the same tick
+ * recordIfEnded banks it, so no finished run can ever rehydrate.
+ */
+function syncSnapshot(): void {
+  if (state.status === "playing") {
+    persistSnapshot({
+      version: 1,
+      dateKey: utcDateKey(state.bootDate),
+      label: runLabel,
+      state,
+      pendingEvent,
+      logMarkBeforeJump,
+    });
+  } else {
+    clearSnapshot();
+  }
+}
+
+if (!tryResume()) startNewRun();
 
 function recordIfEnded() {
   if (!state.runEnd || recorded) return;
@@ -125,6 +180,32 @@ function paint() {
   });
   document.title = titleFor(state);
   restoreFocus();
+}
+
+/**
+ * Render, treating a throw as "this run is unrenderable": discard its snapshot, reboot
+ * today's fresh daily, and paint that rather than leave a dead screen. Wraps *every*
+ * paint, not just the first — parseSnapshot's shape check is deliberately shallow, so a
+ * snapshot missing a field that only some later screen reads would otherwise sail
+ * through boot and throw mid-run, with no reload ever recovering it. Logged because,
+ * unlike storage's expected quota/private-mode failures, reaching here means real
+ * corruption. A throw from the recovery paint propagates — by then there is nothing
+ * left to fall back to.
+ *
+ * A run this process created is correct by construction, so a throw painting it is a
+ * render bug: rethrow it rather than launder it into a snapshot warning and a pointless
+ * reset.
+ */
+function safePaint(): void {
+  try {
+    paint();
+  } catch (err) {
+    if (!resumedFromSnapshot) throw err;
+    console.warn("Discarded an unusable run snapshot; starting a fresh daily.", err);
+    clearSnapshot();
+    startNewRun();
+    paint();
+  }
 }
 
 const RUN_LIFECYCLE_ACTIONS = new Set(["retire", "retireConfirm", "restart", "restartConfirm"]);
@@ -222,13 +303,16 @@ app.addEventListener("click", async (e) => {
         daysSurvived: state.runEnd.daysSurvived,
         runNumber: runNumber(state.bootDate),
         label: runLabel,
+        strip: runStrip(state.dayHighlights, state.runEnd.daysSurvived, state.runEnd.status),
+        endLabel: endHeadline(state.runEnd),
       });
     }
   } else {
     applyAction(act, id, qty);
     recordIfEnded();
+    syncSnapshot();
   }
-  paint();
+  safePaint();
 });
 
-paint();
+safePaint();
