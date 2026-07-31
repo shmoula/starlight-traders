@@ -18,7 +18,7 @@ import {
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
 import { dockingFee } from "../../src/engine/economy";
-import { GameEvent, Mission } from "../../src/engine/types";
+import { GameEvent, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
 
@@ -613,5 +613,29 @@ describe("interestForecast (P1-2)", () => {
   it("is null with no debt or a finished run", () => {
     expect(interestForecast({ ...createGame(42), debt: 0 })).toBeNull();
     expect(interestForecast({ ...createGame(42), status: "retired" as const })).toBeNull();
+  });
+
+  // Coupling guard: the forecast matches jump()'s accrual only because both reimplement
+  // the same cadence/phase. Pin them together through the REAL engine — capture the
+  // forecast, then advance the run with real jumps and watch the debt. Events never touch
+  // debt (they hit credits/hull/fuel/cargo), so the debt delta isolates the interest tick:
+  // it must stay flat on every intermediate day and jump by exactly fc.amount on the tick
+  // day, fc.inDays hops out. This fails loudly if jump's cadence drifts from interestForecast.
+  it("realizes exactly the forecast on the tick day and nothing before it (no-drift)", () => {
+    const startDebt = 1140;
+    const start = { ...createGame(42), day: 4, debt: startDebt, fuel: 20 };
+    const fc = interestForecast(start)!;
+    // Two reachable stations to bounce between; refuel to the cap each hop so every jump lands.
+    const bounce: NodeId[] = ["vulcan", "verge"];
+    let cur = start;
+    for (let step = 1; step <= fc.inDays; step++) {
+      const to = bounce.find((d) => d !== cur.location)!;
+      cur = jump({ ...cur, fuel: 20 }, to).state;
+      if (step < fc.inDays) {
+        expect(cur.debt).toBe(startDebt); // no accrual on an intermediate, non-tick day
+      }
+    }
+    expect(cur.day).toBe(start.day + fc.inDays); // the run actually reached the forecast day
+    expect(cur.debt - startDebt).toBe(fc.amount); // and accrued exactly what the chip promised
   });
 });
