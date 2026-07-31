@@ -2,7 +2,14 @@
 import { CommodityId, GameEvent, GameState, LogEntry, RunEnd } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
-import { buyBlockReason, maxBuyable, missionsHere, netProceeds } from "../engine/game";
+import {
+  buyBlockReason,
+  interestForecast,
+  maxBuyable,
+  missionsHere,
+  netProceeds,
+} from "../engine/game";
+import { pirateChance } from "../engine/events";
 import { RUN_LENGTH } from "../engine/run-end";
 import { choiceOdds, choiceStakes } from "../engine/preview";
 import { bulletin } from "../engine/bulletin";
@@ -114,10 +121,12 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
   const payTitle = noDebt ? "No debt to pay" : "No credits to pay with";
   const kv = (label: string, value: string, gold = false, extra = "") =>
     `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""}${extra ? ` ${extra}` : ""} st-num">${value}</span></div>`;
+  const fc = interestForecast(s);
+  const debtValue = `${cr(s.debt)}${fc ? ` <span class="debt-forecast">+${fc.amount}cr in ${fc.inDays}d</span>` : ""}`;
   return panel(
     "Ship Logistics",
     `${kv("Credits", cr(s.credits), true, s.credits < 0 ? "credits-negative" : "")}
-    ${kv("Debt", cr(s.debt), true)}
+    ${kv("Debt", debtValue, true)}
     ${kv("Net worth", cr(netWorth(s)), true)}
     ${kv("Day", `${s.day}/${RUN_LENGTH}`)}
     <div class="st-gauge">
@@ -168,15 +177,19 @@ function navigatorPanel(s: GameState): string {
   const orbs = NODE_IDS.filter((n) => n !== s.location)
     .map((n) => {
       const cost = fuelCost(s.location, n);
-      const danger = Math.round(NODES[n].danger * 100);
+      const fee = dockingFee(n);
+      const raid = Math.round(pirateChance(n) * 100);
+      const taxPct = Math.round(NODES[n].taxRate * 100);
+      const customsNote = n === "meridian" ? " · customs patrol this approach" : "";
       const disabled = s.fuel < cost;
       const reason = disabled ? ` — need ${cost}, have ${s.fuel}` : "";
+      const detail = `${cost} fuel · dock ${cr(fee)} · ${raid}% raid risk · sells taxed ${taxPct}%${customsNote}`;
       return `<button class="st-orb" data-act="jump" data-id="${n}"${disabledAttr(disabled, `Need ${cost}⛽, have ${s.fuel}`)}>
         <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
         <span class="st-orb__label">${NODES[n].name}</span>
-        <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${danger}%</span>
-        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${cost} fuel · ${danger}% danger${reason}</span>
-        <span class="st-sr-only"> — jump here, ${cost} fuel, danger ${danger}%${reason}</span>
+        <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${cr(fee)} · ${raid}%</span>
+        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${detail}${reason}</span>
+        <span class="st-sr-only"> — jump here, ${detail}${reason}</span>
       </button>`;
     })
     .join("");
@@ -228,8 +241,8 @@ function tradeHubPanel(s: GameState): string {
       <span class="st-market__actions">
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="1" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="5" aria-label="Buy ×5 ${c.name} for ${cr(5 * price)}"${disabledAttr(buy5Disabled, buy5Title)}>×5</button>
-        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="1" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
-        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="5" aria-label="Sell ×5 ${c.name} for ${cr(netProceeds(s, c.id, 5))}"${disabledAttr(sell5Disabled, sell5Title)}>×5</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="1" aria-label="Sell 1 ${c.name} for ${cr(netProceeds(s, c.id, 1))} net"${disabledAttr(sellDisabled, "None in hold")}>Sell 1 (${cr(netProceeds(s, c.id, 1))})</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="5" aria-label="Sell ×5 ${c.name} for ${cr(netProceeds(s, c.id, 5))} net"${disabledAttr(sell5Disabled, sell5Title)}>×5 (${cr(netProceeds(s, c.id, 5))})</button>
       </span>
     </div>`;
   }).join("");

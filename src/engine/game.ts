@@ -200,6 +200,17 @@ export function netProceeds(state: GameState, id: CommodityId, qty: number): num
   return gross - taxOnSale(state.location, gross);
 }
 
+/**
+ * The Syndicate's next interest tick (P1-2 forecast): how many days away, and how much
+ * at THAT day's escalated rate — the same INTEREST_EVERY cadence and loanInterest math
+ * jump() applies, so the chip can never disagree with the accrual.
+ */
+export function interestForecast(s: GameState): { inDays: number; amount: number } | null {
+  if (s.debt <= 0 || s.status !== "playing") return null;
+  const inDays = INTEREST_EVERY - (s.day % INTEREST_EVERY);
+  return { inDays, amount: loanInterest(s.debt, s.day + inDays) };
+}
+
 /** Why buying `qty` of `id` here is blocked — "" when it would succeed. Mirrors buy()'s guard order. */
 export type BuyBlock = "" | "credits" | "room";
 export function buyBlockReason(state: GameState, id: CommodityId, qty: number): BuyBlock {

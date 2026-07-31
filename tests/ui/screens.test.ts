@@ -1,9 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { stationScreen, eventScreen, runEndScreen, RunMeta } from "../../src/ui/screens";
-import { createGame, missionsHere, refuel, checkLoss, retire } from "../../src/engine/game";
+import {
+  createGame,
+  missionsHere,
+  refuel,
+  checkLoss,
+  retire,
+  netProceeds,
+} from "../../src/engine/game";
 import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
+import { dockingFee } from "../../src/engine/economy";
 import { GameEvent, Mission } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
+
+const cr2 = (n: number) => `${n.toLocaleString()}cr`;
 
 function withMission(mission: Mission, overrides: Partial<ReturnType<typeof createGame>> = {}) {
   const s = createGame(42);
@@ -17,10 +27,13 @@ function withMission(mission: Mission, overrides: Partial<ReturnType<typeof crea
 
 describe("stationScreen accessibility", () => {
   it("gives each buy/sell button an accessible name that includes the commodity", () => {
-    const html = stationScreen(createGame(42));
+    const s = createGame(42);
+    const html = stationScreen(s);
     for (const c of COMMODITIES) {
       expect(html).toContain(`aria-label="Buy 1 ${c.name}"`);
-      expect(html).toContain(`aria-label="Sell 1 ${c.name}"`);
+      expect(html).toContain(
+        `aria-label="Sell 1 ${c.name} for ${cr2(netProceeds(s, c.id, 1))} net"`
+      );
     }
   });
 
@@ -216,11 +229,15 @@ describe("stationScreen navigator and cargo", () => {
       expect(html).toContain(`data-act="jump" data-id="${id}"`);
     }
     // The visible label + meta form the accessible name; an sr-only clarifier
-    // expands the fuel/danger figures for screen readers (kept a substring-suffix
+    // expands the fuel/fee/raid figures for screen readers (kept a substring-suffix
     // so the visible text still matches the accessible name — WCAG 2.5.3).
     expect(html).toContain('<span class="st-orb__label">Kiruna Belt</span>');
-    expect(html).toContain('<span class="st-sr-only"> — jump here, 4 fuel, danger 0%</span>');
-    expect(html).toContain('<span class="st-sr-only"> — jump here, 6 fuel, danger 50%</span>');
+    expect(html).toContain(
+      '<span class="st-sr-only"> — jump here, 4 fuel · dock 15cr · 10% raid risk · sells taxed 2%</span>'
+    );
+    expect(html).toContain(
+      '<span class="st-sr-only"> — jump here, 6 fuel · dock 18cr · 33% raid risk · sells taxed 0%</span>'
+    );
     // No jump control targets the current station (mission ids may contain node
     // names, so scope the assertion to the jump prefix).
     expect(html).not.toContain('data-act="jump" data-id="terra"');
@@ -755,6 +772,39 @@ describe("exchange ticker (E1-1 + P2-2a)", () => {
     expect(html).toContain("Produces Machine Parts (−30%)");
     expect(html).toContain("Buys Water / Ice (+40%)");
     expect(html).toContain("Sales taxed 4%");
+  });
+});
+
+describe("forecast sinks (P1-2)", () => {
+  it("jump orbs carry fuel, destination dock fee, and the true raid chance", () => {
+    const html = stationScreen(createGame(42)); // docked at terra
+    expect(html).toContain(`${cr2(dockingFee("verge"))} · 33%`);
+    expect(html).toContain("10%"); // kiruna's floor, never "0%"
+    // Raw danger×100 for verge is gone. Scoped to the orb-meta "· N%" format so a
+    // legitimate "▲ 50%" in the EXCH lane can't false-positive this assertion.
+    expect(html).not.toContain("· 50%");
+  });
+
+  it("meridian's tooltip mentions the sales tax and customs", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("sells taxed 18%");
+    expect(html).toContain("customs patrol this approach");
+  });
+
+  it("the debt row shows the interest countdown chip", () => {
+    const s = { ...createGame(42), day: 4, debt: 1140 };
+    expect(stationScreen(s)).toContain("+69cr in 2d");
+  });
+
+  it("no chip at zero debt", () => {
+    const s = { ...createGame(42), debt: 0 };
+    expect(stationScreen(s)).not.toContain("debt-forecast");
+  });
+
+  it("sell buttons state net (post-tax) proceeds", () => {
+    const s = { ...createGame(42), cargo: { water: 5, parts: 0, luxury: 0 } };
+    const net1 = netProceeds(s, "water", 1);
+    expect(stationScreen(s)).toContain(`Sell 1 (${net1.toLocaleString()}cr)`);
   });
 });
 

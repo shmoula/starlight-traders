@@ -13,6 +13,7 @@ import {
   deliver,
   retire,
   payDebt,
+  interestForecast,
   STARTING,
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
@@ -594,5 +595,23 @@ describe("structured log entries (P2-1)", () => {
   it("paying debt logs a good entry with the negative credit delta", () => {
     const after = payDebt(createGame(42), 200);
     expect(last(after)).toEqual({ msg: "Paid down 200cr of debt.", tone: "good", delta: -200 });
+  });
+});
+
+describe("interestForecast (P1-2)", () => {
+  it("prices the next tick with the escalated rate for that day", () => {
+    // Day 4, debt 1,140: next tick day 6, rate 6% (day >= LOAN_STEP_IMPATIENT) -> ceil(68.4).
+    const s = { ...createGame(42), day: 4, debt: 1140 };
+    expect(interestForecast(s)).toEqual({ inDays: 2, amount: 69 });
+  });
+
+  it("a tick day forecasts the following tick, not itself", () => {
+    const s = { ...createGame(42), day: 6, debt: 1000 };
+    expect(interestForecast(s)).toEqual({ inDays: 3, amount: Math.ceil(1000 * 0.08) });
+  });
+
+  it("is null with no debt or a finished run", () => {
+    expect(interestForecast({ ...createGame(42), debt: 0 })).toBeNull();
+    expect(interestForecast({ ...createGame(42), status: "retired" as const })).toBeNull();
   });
 });

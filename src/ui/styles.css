@@ -469,3 +469,9 @@ body {
   font-size: 0.8em;
   opacity: 0.75;
 }
+
+.debt-forecast {
+  font-size: 0.75em;
+  opacity: 0.8;
+  white-space: nowrap;
+}
