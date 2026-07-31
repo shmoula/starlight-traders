@@ -403,6 +403,12 @@ body {
 .ticker__body--scroll {
   flex: 1;
 }
+/* The static EXCH quote row can't scroll like the marquee, so on a narrow phone let it
+   scroll horizontally rather than silently clipping the tail (tax/dock fee). Scoped to the
+   EXCH lane so the DOCK TALK body keeps overflow:hidden and clips its scrolling strip. */
+.ticker__lane--exch .ticker__body {
+  overflow-x: auto;
+}
 .ticker__marquee {
   display: inline-block;
   padding-right: 2rem;
