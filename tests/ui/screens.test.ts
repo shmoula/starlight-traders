@@ -412,6 +412,18 @@ describe("runEndScreen debrief (E1-3)", () => {
     expect(html).toContain("The Daily");
   });
 
+  // E1-2: the debrief previews the strip that "Copy score card" puts on the clipboard,
+  // so a player can see their run's story without pasting it somewhere first.
+  it("previews the emoji run-strip, with a spoken summary for assistive tech", () => {
+    const s = { ...createGame(42), day: 4, dayHighlights: { 2: "pirates" as const } };
+    const ended = endRun(s, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toContain('class="run-end__strip"');
+    expect(html).toContain("🟦🟥🟦🟦");
+    expect(html).toContain("4 days: 1 pirate encounter.");
+    expect(html).toContain('aria-hidden="true"'); // the glyphs themselves are not read out
+  });
+
   it("shows a new-personal-best line when isNewPB", () => {
     const s = { ...createGame(42), day: 12 };
     const ended = endRun(s, "audited", "Audited.");

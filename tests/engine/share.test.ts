@@ -6,6 +6,7 @@ import {
   utcDateKey,
   runNumber,
   runStrip,
+  stripSummary,
 } from "../../src/ui/share";
 
 describe("shareText", () => {
@@ -124,6 +125,19 @@ describe("runStrip", () => {
   it("maps highlights to their glyphs", () => {
     expect(runStrip({ 2: "pirates", 3: "bigTrade", 4: "delivery" }, 5, "retired")).toBe(
       "🟦🟥💰🟨🟦"
+    );
+  });
+
+  it("summarises the strip in words for assistive tech", () => {
+    expect(stripSummary({}, 12, "audited")).toBe("12 days, all uneventful.");
+    expect(stripSummary({}, 1, "retired")).toBe("1 day, all uneventful.");
+    expect(stripSummary({ 2: "pirates", 3: "pirates", 5: "bigTrade" }, 6, "audited")).toBe(
+      "6 days: 2 pirate encounters, 1 big trade."
+    );
+    // The final day of a lost run counts as the death, not as its own highlight.
+    expect(stripSummary({ 3: "pirates" }, 3, "lost")).toBe("3 days: lost on the final day.");
+    expect(stripSummary({ 2: "delivery" }, 3, "lost")).toBe(
+      "3 days: 1 delivery, lost on the final day."
     );
   });
 

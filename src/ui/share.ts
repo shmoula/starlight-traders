@@ -58,6 +58,40 @@ export function runStrip(
   return out;
 }
 
+const STRIP_NOUNS: Record<DayHighlightKind, [one: string, many: string]> = {
+  pirates: ["pirate encounter", "pirate encounters"],
+  bigTrade: ["big trade", "big trades"],
+  delivery: ["delivery", "deliveries"],
+};
+
+/**
+ * The run-strip in words, for assistive tech — the glyphs themselves read as a useless
+ * run of "blue square, blue square". Counts only days inside the strip, and treats a lost
+ * run's final day as the death rather than whatever else it held, exactly as runStrip does.
+ */
+export function stripSummary(
+  highlights: Partial<Record<number, DayHighlightKind>>,
+  daysSurvived: number,
+  status: RunEndStatus
+): string {
+  const lost = status === "lost";
+  const tally = new Map<DayHighlightKind, number>();
+  for (let day = 1; day <= daysSurvived; day++) {
+    if (day === daysSurvived && lost) continue;
+    const kind = highlights[day];
+    if (kind) tally.set(kind, (tally.get(kind) ?? 0) + 1);
+  }
+  const parts = (Object.keys(STRIP_NOUNS) as DayHighlightKind[])
+    .filter((k) => tally.has(k))
+    .map((k) => {
+      const n = tally.get(k)!;
+      return `${n} ${STRIP_NOUNS[k][n === 1 ? 0 : 1]}`;
+    });
+  if (lost) parts.push("lost on the final day");
+  const days = `${daysSurvived} day${daysSurvived === 1 ? "" : "s"}`;
+  return parts.length ? `${days}: ${parts.join(", ")}.` : `${days}, all uneventful.`;
+}
+
 export interface ShareData {
   dateLabel: string;
   score: number;

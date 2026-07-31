@@ -6,6 +6,7 @@ import { buyBlockReason, maxBuyable, missionsHere, netProceeds } from "../engine
 import { RUN_LENGTH } from "../engine/run-end";
 import { choiceStakes } from "../engine/preview";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
+import { runStrip, stripSummary } from "./share";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
 
@@ -443,6 +444,11 @@ export function runEndScreen(
           </div>
           ${pb}
           <p class="score st-num">Score: ${r.score.toLocaleString()}</p>
+          <p class="run-end__strip">
+            <span class="st-sr-only"
+              >Your run, one glyph per day — ${stripSummary(s.dayHighlights, r.daysSurvived, r.status)}</span
+            ><span aria-hidden="true">${runStrip(s.dayHighlights, r.daysSurvived, r.status)}</span>
+          </p>
           <button class="st-btn" data-act="share">Copy score card</button>
           ${restart}
         </div>
