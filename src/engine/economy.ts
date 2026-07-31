@@ -5,6 +5,14 @@ import { NODES, getPrice } from "./world";
 export const BASE_DOCKING_FEE = 25;
 export const REFUEL_PRICE = 8; // credits per fuel unit
 export const REPAIR_PRICE = 6; // credits per hull point
+/**
+ * A single credit inflow at or above this marks the day 💰 on the share strip (E1-2).
+ * Keep it at or below 912 — that is the guaranteed floor of the 5-luxury-unit fixture in
+ * tests/engine/game.test.ts ("marks a big sale as bigTrade"), so a higher value would make
+ * that test seed-dependent while still passing on seed 42. Tuned against the sim's 100-seed
+ * 💰-day band (see SimResult.bigTradeDays).
+ */
+export const BIG_TRADE_CR = 900;
 /** Days on which the Syndicate's patience steps down a tier (E0-4 tuning knob). */
 export const LOAN_STEP_IMPATIENT = 5; // rate → 6%
 export const LOAN_STEP_DESPERATE = 9; // rate → 8%

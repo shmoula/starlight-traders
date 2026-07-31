@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { emptySave, labelForDay, recordRunEnd, loadSave, persist } from "../../src/ui/storage";
-import { RunEnd } from "../../src/engine/types";
+import {
+  emptySave,
+  labelForDay,
+  recordRunEnd,
+  loadSave,
+  persist,
+  parseSnapshot,
+  loadSnapshot,
+  persistSnapshot,
+  clearSnapshot,
+  RunSnapshot,
+} from "../../src/ui/storage";
+import { RunEnd, GameEvent } from "../../src/engine/types";
+import { createGame } from "../../src/engine/game";
+import { utcDateKey, runStrip } from "../../src/ui/share";
 
 const KEY = "2026-07-22";
 
@@ -143,5 +156,157 @@ describe("loadSave / persist", () => {
     });
     expect(loadSave()).toBeNull();
     expect(() => persist(emptySave())).not.toThrow();
+  });
+});
+
+const BOOT = new Date(Date.UTC(2026, 6, 29, 10, 0)).toISOString();
+const TODAY = utcDateKey(BOOT); // "2026-07-29"
+
+function liveSnapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
+  return {
+    version: 1,
+    dateKey: TODAY,
+    label: "The Daily",
+    state: createGame(42, BOOT),
+    pendingEvent: null,
+    logMarkBeforeJump: 0,
+    ...overrides,
+  };
+}
+
+describe("parseSnapshot", () => {
+  it("round-trips a live snapshot", () => {
+    const snap = liveSnapshot();
+    expect(parseSnapshot(JSON.stringify(snap), TODAY)).toEqual(snap);
+  });
+
+  it("round-trips a pending in-transit event (resume INTO the event screen)", () => {
+    const evt: GameEvent = {
+      kind: "pirates",
+      title: "Pirate Ambush",
+      description: "d",
+      choices: [
+        { id: "pay", label: "Pay" },
+        { id: "flee", label: "Flee" },
+      ],
+    };
+    const snap = liveSnapshot({ pendingEvent: evt, logMarkBeforeJump: 3 });
+    expect(parseSnapshot(JSON.stringify(snap), TODAY)).toEqual(snap);
+  });
+
+  // The E0-5/E1-2 seam: dayHighlights is keyed by number but JSON stringifies keys as
+  // strings, so a resumed run must still render its run-strip (E1-2) correctly.
+  it("round-trips dayHighlights so a resumed run keeps its run-strip", () => {
+    const base = createGame(42, BOOT);
+    const snap = liveSnapshot({
+      state: { ...base, day: 3, dayHighlights: { 2: "pirates", 3: "bigTrade" } },
+    });
+    const parsed = parseSnapshot(JSON.stringify(snap), TODAY);
+    expect(parsed).toEqual(snap);
+    expect(parsed!.state.dayHighlights[2]).toBe("pirates");
+    expect(runStrip(parsed!.state.dayHighlights, 3, "audited")).toBe("🟦🟥💰");
+  });
+
+  it("round-trips a Practice-labelled snapshot", () => {
+    const snap = liveSnapshot({ label: "Practice" });
+    expect(parseSnapshot(JSON.stringify(snap), TODAY)).toEqual(snap);
+  });
+
+  it("rejects a snapshot from another UTC day (stale — day rolled over)", () => {
+    const snap = liveSnapshot({ dateKey: "2026-07-28" });
+    expect(parseSnapshot(JSON.stringify(snap), TODAY)).toBeNull();
+  });
+
+  it("rejects an ended run — only live runs resume", () => {
+    const snap = liveSnapshot();
+    const ended = { ...snap, state: { ...snap.state, status: "audited" } };
+    expect(parseSnapshot(JSON.stringify(ended), TODAY)).toBeNull();
+  });
+
+  it.each([
+    ["a wrong version", { version: 2 }],
+    ["a bad label", { label: "Casual" }],
+    ["a non-numeric logMarkBeforeJump", { logMarkBeforeJump: "3" }],
+    ["a null state", { state: null }],
+    ["an unknown location", { state: { ...createGame(42, BOOT), location: "atlantis" } }],
+    [
+      "an event with no choices",
+      { pendingEvent: { kind: "pirates", title: "", description: "", choices: [] } },
+    ],
+    [
+      "an event with malformed choices",
+      {
+        pendingEvent: {
+          kind: "pirates",
+          title: "",
+          description: "",
+          choices: [{ label: "no id" }],
+        },
+      },
+    ],
+    ["a missing pendingEvent field", { pendingEvent: undefined }],
+    // markDay indexes dayHighlights inside the engine, and syncSnapshot feeds bootDate to
+    // utcDateKey — both in the action handler, where a throw stalls the run outright.
+    ["missing dayHighlights", { state: { ...createGame(42, BOOT), dayHighlights: undefined } }],
+    ["a null dayHighlights", { state: { ...createGame(42, BOOT), dayHighlights: null } }],
+    [
+      "an unknown dayHighlights kind",
+      { state: { ...createGame(42, BOOT), dayHighlights: { 2: "supernova" } } },
+    ],
+    ["an empty bootDate", { state: { ...createGame(42, BOOT), bootDate: "" } }],
+    ["an unparsable bootDate", { state: { ...createGame(42, BOOT), bootDate: "not-a-date" } }],
+    [
+      "a bootDate from another UTC day than the envelope",
+      { state: createGame(42, new Date(Date.UTC(2026, 6, 28, 10, 0)).toISOString()) },
+    ],
+  ] as [string, Record<string, unknown>][])("rejects %s", (_why, override) => {
+    const snap = { ...liveSnapshot(), ...override };
+    expect(parseSnapshot(JSON.stringify(snap), TODAY)).toBeNull();
+  });
+
+  it("rejects garbage and absence", () => {
+    expect(parseSnapshot("{not json", TODAY)).toBeNull();
+    expect(parseSnapshot(null, TODAY)).toBeNull();
+  });
+});
+
+describe("loadSnapshot / persistSnapshot / clearSnapshot", () => {
+  it("round-trips through storage", () => {
+    vi.stubGlobal("localStorage", memStore());
+    const snap = liveSnapshot();
+    persistSnapshot(snap);
+    expect(loadSnapshot(TODAY)).toEqual(snap);
+  });
+
+  it("clearSnapshot removes it", () => {
+    vi.stubGlobal("localStorage", memStore());
+    persistSnapshot(liveSnapshot());
+    clearSnapshot();
+    expect(loadSnapshot(TODAY)).toBeNull();
+  });
+
+  it("is stored under its own key, separate from the results ledger", () => {
+    const store = memStore();
+    vi.stubGlobal("localStorage", store);
+    persistSnapshot(liveSnapshot());
+    expect(store.getItem("starlight.run.v1")).not.toBeNull();
+    expect(store.getItem("starlight.save.v1")).toBeNull();
+  });
+
+  it("degrades silently when storage throws", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("private mode");
+      },
+      setItem: () => {
+        throw new Error("quota");
+      },
+      removeItem: () => {
+        throw new Error("private mode");
+      },
+    });
+    expect(loadSnapshot(TODAY)).toBeNull();
+    expect(() => persistSnapshot(liveSnapshot())).not.toThrow();
+    expect(() => clearSnapshot()).not.toThrow();
   });
 });

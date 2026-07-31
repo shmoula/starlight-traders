@@ -61,6 +61,9 @@ export interface BankedRunEnd extends RunEndBase {
  */
 export type RunEnd = LostRunEnd | BankedRunEnd;
 
+/** The notable thing that happened on a game day — feeds the share card's run-strip (E1-2). */
+export type DayHighlightKind = "pirates" | "bigTrade" | "delivery";
+
 export interface GameState {
   seed: number;
   day: number;
@@ -77,6 +80,8 @@ export interface GameState {
   peakNetWorth: number;
   /** Largest single credit inflow of the run (sale net proceeds or delivery reward) — the debrief's "best haul". */
   biggestPayday?: { amount: number; label: string };
+  /** Per-day notable moment for the share strip (E1-2); key = game day. Upgrade-only via markDay. */
+  dayHighlights: Partial<Record<number, DayHighlightKind>>;
   status: "playing" | RunEndStatus;
   runEnd?: RunEnd; // present exactly when status !== "playing"
   log: string[]; // recent player-facing messages, newest last

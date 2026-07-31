@@ -75,6 +75,20 @@ body {
   color: var(--st-text-dim);
   font-style: italic;
 }
+/* The emoji run-strip — a preview of what "Copy score card" puts on the clipboard.
+ * Wraps rather than overflows: a 12-day strip is wide, and the panel is narrow on phones. */
+.run-end__strip {
+  margin: var(--st-space-3) 0 var(--st-space-2);
+  font-size: var(--st-text-lg);
+  line-height: 1.5;
+}
+/* One fixed box per day. The glyph set is not uniform in width (💰/💀 are narrower than
+ * the squares), so centring each in an equal cell is what keeps the row a grid. */
+.run-end__day {
+  display: inline-block;
+  width: 1.15em;
+  text-align: center;
+}
 /* Legacy contract classes — names are load-bearing (tests/markup), values tokenized. */
 .hint {
   font-size: var(--st-text-xs);
