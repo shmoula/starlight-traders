@@ -309,7 +309,14 @@ body {
   font-size: var(--st-text-sm);
 }
 .log-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
   padding: 1px 0;
+}
+.log-delta {
+  margin-left: auto;
+  white-space: nowrap;
 }
 @media (min-width: 1100px) {
   .st-statbar {

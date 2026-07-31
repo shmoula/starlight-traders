@@ -75,7 +75,9 @@ describe("stationScreen ready contract jump control", () => {
 
 describe("stationScreen turn report", () => {
   it("surfaces the turn report as a live-region banner", () => {
-    const html = stationScreen(createGame(42), ["Docked at verge, fee 18cr."]);
+    const html = stationScreen(createGame(42), [
+      { msg: "Docked at verge, fee 18cr.", tone: "neutral" },
+    ]);
     expect(html).toContain('class="turn-report"');
     expect(html).toContain('role="status"');
     expect(html).toContain("Docked at verge, fee 18cr.");
@@ -86,27 +88,13 @@ describe("stationScreen turn report", () => {
     expect(html).not.toContain("turn-report");
   });
 
-  it("colors a harmful outcome as bad and a gain as good", () => {
+  it("colors lines by the entry's declared tone", () => {
     const html = stationScreen(createGame(42), [
-      "Derelict was a trap: -20 hull.",
-      "Delivery complete: +860cr.",
+      { msg: "Derelict was a trap: -20 hull.", tone: "bad" },
+      { msg: "Delivery complete: +860cr.", tone: "good", delta: 860 },
     ]);
     expect(html).toContain('class="tr-line tr-bad"');
     expect(html).toContain('class="tr-line tr-good"');
-  });
-
-  it("treats loan interest as a loss", () => {
-    const html = stationScreen(createGame(42), ["The Syndicate compounds: +60cr."]);
-    expect(html).toContain('class="tr-line tr-bad"');
-  });
-
-  it("colors both hull-damage outcomes (warhead, overheated) as bad", () => {
-    const warhead = stationScreen(createGame(42), ["Salvage hid a live warhead: -10 hull."]);
-    expect(warhead).toContain('class="tr-line tr-bad"');
-    const overheated = stationScreen(createGame(42), [
-      "Engine trouble overheated the hull for 10.",
-    ]);
-    expect(overheated).toContain('class="tr-line tr-bad"');
   });
 });
 
@@ -392,6 +380,41 @@ describe("runEndScreen (E0-1/E0-2)", () => {
   it("headlines a stranding as Stranded", () => {
     const s = checkLoss({ ...createGame(42), location: "vulcan" as const, fuel: 0, credits: 0 });
     expect(runEndScreen(s, s.runEnd!)).toContain('<h1 tabindex="-1">Stranded</h1>');
+  });
+});
+
+describe("structured log rendering (P2-1)", () => {
+  it("renders the entry's declared tone and a signed delta", () => {
+    const s = {
+      ...createGame(42),
+      log: [
+        { msg: "Sold 5 Water / Ice for 100cr (tax 5).", tone: "good" as const, delta: 95 },
+        { msg: "Docked at Meridian, fee 45cr.", tone: "neutral" as const, delta: -45 },
+        { msg: "Fled — took 16 hull damage.", tone: "bad" as const },
+      ],
+    };
+    const html = stationScreen(s);
+    expect(html).toContain(`class="log-line tr-good"`);
+    expect(html).toContain(`class="log-line tr-bad"`);
+    expect(html).toContain(">+95cr<");
+    expect(html).toContain(">−45cr<");
+  });
+
+  it("renders no delta span for entries without a delta", () => {
+    const s = {
+      ...createGame(42),
+      log: [{ msg: "Fled — took 16 hull damage.", tone: "bad" as const }],
+    };
+    const html = stationScreen(s);
+    expect(html).not.toContain("log-delta");
+  });
+
+  it("the turn report colors lines by entry tone", () => {
+    const s = createGame(42);
+    const report = [{ msg: "Delivery complete: +500cr.", tone: "good" as const, delta: 500 }];
+    const html = stationScreen(s, report);
+    expect(html).toContain("tr-good");
+    expect(html).toContain(">+500cr<");
   });
 });
 

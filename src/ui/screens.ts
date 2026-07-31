@@ -1,5 +1,5 @@
 // src/ui/screens.ts
-import { GameEvent, GameState, RunEnd } from "../engine/types";
+import { GameEvent, GameState, LogEntry, RunEnd } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { buyBlockReason, maxBuyable, missionsHere, netProceeds } from "../engine/game";
@@ -33,28 +33,15 @@ function fuelWarnClass(s: GameState): string {
   return s.fuel < cheapest ? "stat-critical" : s.fuel < cheapest * 2 ? "stat-warn" : "";
 }
 
-type Tone = "good" | "bad" | "neutral";
+const TONE_ICON: Record<LogEntry["tone"], string> = { good: "✓", bad: "✗", neutral: "›" };
 
-/**
- * Classify a log line so the UI can color it by outcome. Signals are drawn from the
- * fixed set of messages the engine emits (see game.ts); anything unrecognized stays
- * neutral, so a new message never renders as a false win or loss.
- */
-function toneOf(msg: string): Tone {
-  if (
-    /trap|damage|seized|expired|burned|warhead|overheated|Bribed|Paid pirates|Syndicate compounds|Hull breach|Stranded/i.test(
-      msg
-    )
-  ) {
-    return "bad";
-  }
-  if (/held \d|Salvaged|Delivery complete|Paid down/i.test(msg)) {
-    return "good";
-  }
-  return "neutral";
-}
-
-const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›" };
+/** Right-aligned signed credit delta for a money log line; nothing when absent. */
+const deltaHtml = (l: LogEntry): string =>
+  l.delta === undefined
+    ? ""
+    : `<span class="log-delta st-num ${l.delta >= 0 ? "tr-good" : "tr-bad"}">${
+        l.delta >= 0 ? "+" : "−"
+      }${Math.abs(l.delta).toLocaleString()}cr</span>`;
 
 function screenHead(s: GameState, dateLabel = "", meta?: RunMeta): string {
   const sub = meta
@@ -160,7 +147,7 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
 function logPanel(s: GameState): string {
   const logEntries = s.log
     .slice(-8)
-    .map((l) => `<div class="log-line tr-${toneOf(l)}">${l}</div>`)
+    .map((l) => `<div class="log-line tr-${l.tone}"><span>${l.msg}</span>${deltaHtml(l)}</div>`)
     .join("");
   return panel(
     "Ship's Log",
@@ -321,7 +308,7 @@ function tradeHubPanel(s: GameState): string {
 
 export function stationScreen(
   s: GameState,
-  turnReport: string[] = [],
+  turnReport: LogEntry[] = [],
   dateLabel = "",
   retireArmed = false,
   meta?: RunMeta
@@ -330,10 +317,10 @@ export function stationScreen(
     ? `<div class="turn-report" role="status" aria-live="polite">
       <h2 class="turn-report__title">Since your last jump</h2>
       ${turnReport
-        .map((l) => {
-          const t = toneOf(l);
-          return `<div class="tr-line tr-${t}"><span class="tr-icon" aria-hidden="true">${TONE_ICON[t]}</span><span>${l}</span></div>`;
-        })
+        .map(
+          (l) =>
+            `<div class="tr-line tr-${l.tone}"><span class="tr-icon" aria-hidden="true">${TONE_ICON[l.tone]}</span><span>${l.msg}</span>${deltaHtml(l)}</div>`
+        )
         .join("")}
     </div>`
     : "";

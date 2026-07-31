@@ -15,7 +15,7 @@ import {
   missionsHere,
   retire,
 } from "./engine/game";
-import { CommodityId, GameEvent, GameState, NodeId } from "./engine/types";
+import { CommodityId, GameEvent, GameState, LogEntry, NodeId } from "./engine/types";
 import { render } from "./ui/render";
 import { copyShare, formatDateLabel, utcDateKey, runNumber, runStrip } from "./ui/share";
 import {
@@ -59,7 +59,7 @@ let state: GameState = bootDailyGame();
 let pendingEvent: GameEvent | null = null;
 // Log length captured just before a jump, so the station screen can surface every
 // entry the jump produced (fee, interest, event outcome, deliveries) as a turn report.
-let turnReport: string[] = [];
+let turnReport: LogEntry[] = [];
 let logMarkBeforeJump = 0;
 // Two-click retire confirm (see applyAction/click handler).
 let retireArmed = false;

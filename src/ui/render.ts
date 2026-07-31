@@ -1,12 +1,12 @@
 // src/ui/render.ts
-import { GameEvent, GameState } from "../engine/types";
+import { GameEvent, GameState, LogEntry } from "../engine/types";
 import { eventScreen, runEndScreen, stationScreen, RunMeta } from "./screens";
 
 export interface ViewModel {
   state: GameState;
   pendingEvent: GameEvent | null;
   /** Log entries generated during the most recent jump, surfaced as a turn report. */
-  turnReport: string[];
+  turnReport: LogEntry[];
   /** UTC date label ("Jul 20") naming today's shared seed. */
   dateLabel: string;
   /** Two-click retire confirm armed (see main.ts). */
