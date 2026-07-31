@@ -136,7 +136,7 @@ export function persist(save: StarlightSave): void {
 // and unit-tested; the wrappers degrade silently.
 
 export interface RunSnapshot {
-  version: 1;
+  version: 2;
   dateKey: string; // UTC "YYYY-MM-DD" of the run (from state.bootDate)
   label: "The Daily" | "Practice";
   state: GameState;
@@ -196,11 +196,29 @@ function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (typeof st.bootDate !== "string" || !stampsDay(st.bootDate, dateKey)) return false;
   if (typeof st.dayHighlights !== "object" || st.dayHighlights === null) return false;
   if (!Object.values(st.dayHighlights).every((k) => HIGHLIGHT_KINDS.has(k))) return false;
+  if (!isValidLog(st.log)) return false;
   return (
     st.status === "playing" &&
     typeof st.day === "number" &&
     typeof st.seed === "number" &&
     NODE_IDS.includes(st.location as NodeId)
+  );
+}
+
+/** A v1 log line is a bare string; wrap it as a neutral entry so an in-progress run survives the upgrade. */
+function migrateV1Log(state: unknown): void {
+  const st = state as { log?: unknown[] };
+  if (Array.isArray(st?.log)) {
+    st.log = st.log.map((m) => (typeof m === "string" ? { msg: m, tone: "neutral" } : m));
+  }
+}
+
+function isValidLog(log: unknown): boolean {
+  return (
+    Array.isArray(log) &&
+    log.every(
+      (l) => typeof l === "object" && l !== null && typeof (l as { msg?: unknown }).msg === "string"
+    )
   );
 }
 
@@ -212,10 +230,15 @@ function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
 export function parseSnapshot(raw: string | null, todayKey: string): RunSnapshot | null {
   if (!raw) return null;
   try {
-    const p = JSON.parse(raw) as Partial<RunSnapshot> | null;
+    const p = JSON.parse(raw) as
+      (Partial<Omit<RunSnapshot, "version">> & { version?: number }) | null;
+    if (p && p.version === 1 && typeof p.state === "object" && p.state !== null) {
+      migrateV1Log(p.state);
+      p.version = 2;
+    }
     if (
       !p ||
-      p.version !== 1 ||
+      p.version !== 2 ||
       p.dateKey !== todayKey ||
       (p.label !== "The Daily" && p.label !== "Practice") ||
       typeof p.logMarkBeforeJump !== "number" ||

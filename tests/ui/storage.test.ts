@@ -164,7 +164,7 @@ const TODAY = utcDateKey(BOOT); // "2026-07-29"
 
 function liveSnapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
   return {
-    version: 1,
+    version: 2,
     dateKey: TODAY,
     label: "The Daily",
     state: createGame(42, BOOT),
@@ -224,7 +224,7 @@ describe("parseSnapshot", () => {
   });
 
   it.each([
-    ["a wrong version", { version: 2 }],
+    ["a wrong version", { version: 3 }],
     ["a bad label", { label: "Casual" }],
     ["a non-numeric logMarkBeforeJump", { logMarkBeforeJump: "3" }],
     ["a null state", { state: null }],
@@ -267,6 +267,38 @@ describe("parseSnapshot", () => {
   it("rejects garbage and absence", () => {
     expect(parseSnapshot("{not json", TODAY)).toBeNull();
     expect(parseSnapshot(null, TODAY)).toBeNull();
+  });
+});
+
+describe("snapshot v1 → v2 log migration (P2-1)", () => {
+  it("accepts a v1 snapshot, wrapping string log lines as neutral entries", () => {
+    const base = liveSnapshot({});
+    const v1 = {
+      ...base,
+      version: 1,
+      state: {
+        ...base.state,
+        log: ["Docked at Terra Hub, fee 40cr.", "Bought 2 Water / Ice for 30cr."],
+      },
+    };
+    const parsed = parseSnapshot(JSON.stringify(v1), v1.dateKey);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.version).toBe(2);
+    expect(parsed!.state.log).toEqual([
+      { msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" },
+      { msg: "Bought 2 Water / Ice for 30cr.", tone: "neutral" },
+    ]);
+  });
+
+  it("accepts a well-formed v2 snapshot", () => {
+    const snap = liveSnapshot({});
+    expect(parseSnapshot(JSON.stringify(snap), snap.dateKey)).not.toBeNull();
+  });
+
+  it("rejects a snapshot whose log is not an array of entries", () => {
+    const base = liveSnapshot({});
+    const bad = { ...base, state: { ...base.state, log: [42, { tone: "good" }] } };
+    expect(parseSnapshot(JSON.stringify(bad), base.dateKey)).toBeNull();
   });
 });
 
