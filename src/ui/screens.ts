@@ -1,14 +1,18 @@
 // src/ui/screens.ts
-import { GameEvent, GameState, LogEntry, RunEnd } from "../engine/types";
+import { CommodityId, GameEvent, GameState, LogEntry, RunEnd } from "../engine/types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { buyBlockReason, maxBuyable, missionsHere, netProceeds } from "../engine/game";
 import { RUN_LENGTH } from "../engine/run-end";
 import { choiceOdds, choiceStakes } from "../engine/preview";
+import { bulletin } from "../engine/bulletin";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 import { runStrip, stripSummary } from "./share";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
+
+/** Compact exchange-board symbol per commodity for the EXCH ticker lane. */
+const COMMODITY_SYM: Record<CommodityId, string> = { water: "WTR", parts: "PRT", luxury: "LUX" };
 
 export interface RunMeta {
   runNumber: number;
@@ -288,10 +292,23 @@ function tradeHubPanel(s: GameState): string {
     })
     .join("");
 
+  const st = NODES[s.location];
+  const taxPct = Math.round(st.taxRate * 100);
+  const intelParts = [
+    ...st.produces.map((c) => `Produces ${commodityName(c)} (−30%)`),
+    ...st.demands.map((c) => `Buys ${commodityName(c)} (+40%)`),
+    taxPct > 0 ? `Sales taxed ${taxPct}%` : "Tax-free port",
+  ];
+  if (st.produces.length === 0 && st.demands.length === 0) {
+    intelParts.unshift("A trade crossroads — no local specialities");
+  }
+  const intel = `<p class="station-intel">${intelParts.join(" · ")}</p>`;
+
   return `<section class="st-panel st-panel--tab">
     <header class="st-panel__header"><h2 class="st-panel__title">Trade Hub — ${NODES[s.location].name}</h2></header>
     <div class="st-panel__frame">
       <div class="st-panel__body st-panel__body--flush">
+        ${intel}
         <div class="st-market st-market--held">
           <div class="st-market__head">Market Commodities</div>
           ${marketRows}
@@ -306,12 +323,59 @@ function tradeHubPanel(s: GameState): string {
   </section>`;
 }
 
+/** Static exchange quote board for the docked station (P2-2a): price + ▲▼ vs base + tax/fee. */
+function exchLane(s: GameState): string {
+  const quotes = COMMODITIES.map((c) => {
+    const price = getPrice(s.seed, s.day, s.location, c.id);
+    const pct = Math.round(((price - c.basePrice) / c.basePrice) * 100);
+    const move =
+      pct > 0
+        ? `<span class="tick-up">▲ ${pct}%</span>`
+        : pct < 0
+          ? `<span class="tick-dn">▼ ${Math.abs(pct)}%</span>`
+          : `<span class="tick-flat">▬ base</span>`;
+    return `<span class="tick-q st-num"><span class="tick-sym">${COMMODITY_SYM[c.id]}</span> ${price} ${move}</span>`;
+  }).join(`<span class="tick-sep" aria-hidden="true">│</span>`);
+  const taxPct = Math.round(NODES[s.location].taxRate * 100);
+  return `<div class="ticker__lane ticker__lane--exch">
+    <span class="ticker__tag">EXCH</span>
+    <span class="ticker__body">${quotes}<span class="tick-sep" aria-hidden="true">│</span><span class="tick-flat st-num">tax ${taxPct}% · dock ${cr(dockingFee(s.location))}</span></span>
+  </div>`;
+}
+
+/**
+ * The scrolling rumor lane (E1-1). Day 1 is the launch surface: the full bulletin
+ * renders as a static list so the first-90-seconds player has a stated first move.
+ * From day 2 it scrolls — pausable, paused on hover/focus, and static again under
+ * prefers-reduced-motion (see styles.css).
+ */
+function dockTalkLane(s: GameState, paused: boolean): string {
+  const lines = bulletin(s.seed);
+  if (s.day === 1) {
+    return `<div class="ticker__lane ticker__lane--talk ticker__lane--static">
+      <span class="ticker__tag">DOCK TALK</span>
+      <ul class="ticker__list">${lines.map((l) => `<li>${l}</li>`).join("")}</ul>
+    </div>`;
+  }
+  const strip =
+    lines
+      .map((l) => `<span class="talk-line">${l}</span>`)
+      .join(`<span class="tick-sep" aria-hidden="true">◆</span>`) +
+    `<span class="tick-sep" aria-hidden="true">◆</span>`;
+  return `<div class="ticker__lane ticker__lane--talk${paused ? " ticker--paused" : ""}">
+    <span class="ticker__tag">DOCK TALK</span>
+    <button class="ticker__pause" data-act="tickerPause" aria-pressed="${paused}" aria-label="${paused ? "Resume" : "Pause"} the dock talk ticker">${paused ? "▶" : "❙❙"}</button>
+    <span class="ticker__body ticker__body--scroll"><span class="ticker__marquee">${strip}</span><span class="ticker__marquee" aria-hidden="true">${strip}</span></span>
+  </div>`;
+}
+
 export function stationScreen(
   s: GameState,
   turnReport: LogEntry[] = [],
   dateLabel = "",
   retireArmed = false,
-  meta?: RunMeta
+  meta?: RunMeta,
+  tickerPaused = false
 ): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
@@ -329,6 +393,10 @@ export function stationScreen(
   return `
     ${screenHead(s, dateLabel, meta)}
     ${statbar(s, fuelClass)}
+    <div class="ticker" aria-label="Station exchange and dock talk">
+      ${exchLane(s)}
+      ${dockTalkLane(s, tickerPaused)}
+    </div>
     <div class="st-shell station-shell">
       <!-- DOM order leads with the stage so single-column mobile reads
            trade hub → navigator/cargo → logistics/log and keyboard focus

@@ -15,6 +15,8 @@ export interface ViewModel {
   restartArmed: boolean;
   /** Run identity + boot stats + debrief facts (see main.ts buildMeta). */
   meta: RunMeta;
+  /** Dock-talk marquee paused via the ticker toggle (pure view state, see main.ts). */
+  tickerPaused: boolean;
 }
 
 export function render(root: HTMLElement, vm: ViewModel): void {
@@ -23,6 +25,13 @@ export function render(root: HTMLElement, vm: ViewModel): void {
   } else if (vm.pendingEvent) {
     root.innerHTML = eventScreen(vm.state, vm.pendingEvent);
   } else {
-    root.innerHTML = stationScreen(vm.state, vm.turnReport, vm.dateLabel, vm.retireArmed, vm.meta);
+    root.innerHTML = stationScreen(
+      vm.state,
+      vm.turnReport,
+      vm.dateLabel,
+      vm.retireArmed,
+      vm.meta,
+      vm.tickerPaused
+    );
   }
 }

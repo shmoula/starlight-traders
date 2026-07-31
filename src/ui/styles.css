@@ -372,3 +372,94 @@ body {
 .trade-hint {
   margin: var(--st-space-2) var(--st-space-3) 0;
 }
+
+/* Exchange ticker (E1-1 + P2-2a) */
+.ticker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+.ticker__lane {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid var(--st-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.85em;
+}
+.ticker__tag {
+  flex: none;
+  font-size: 0.7em;
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+.ticker__body {
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ticker__body--scroll {
+  flex: 1;
+}
+.ticker__marquee {
+  display: inline-block;
+  padding-right: 2rem;
+  animation: st-ticker 30s linear infinite;
+}
+@keyframes st-ticker {
+  to {
+    transform: translateX(-100%);
+  }
+}
+.ticker__lane--talk:hover .ticker__marquee,
+.ticker__lane--talk:focus-within .ticker__marquee,
+.ticker--paused .ticker__marquee {
+  animation-play-state: paused;
+}
+.ticker__pause {
+  flex: none;
+  background: none;
+  border: 1px solid var(--st-border);
+  border-radius: 4px;
+  color: inherit;
+  font-size: 0.75em;
+  padding: 0 6px;
+  cursor: pointer;
+}
+.ticker__list {
+  margin: 0;
+  padding-left: 1.1em;
+}
+.tick-sep {
+  opacity: 0.4;
+  padding: 0 6px;
+}
+.tick-up {
+  color: var(--st-positive);
+}
+.tick-dn {
+  color: var(--st-negative);
+}
+.tick-flat {
+  opacity: 0.6;
+}
+/* WCAG 2.2.2 + reduced motion: the static form is the contract, not an afterthought. */
+@media (prefers-reduced-motion: reduce) {
+  .ticker__marquee {
+    animation: none;
+  }
+  .ticker__marquee[aria-hidden="true"] {
+    display: none;
+  }
+  .ticker__body--scroll {
+    white-space: normal;
+  }
+}
+.station-intel {
+  margin: 0;
+  padding: 6px 10px 0;
+  font-size: 0.8em;
+  opacity: 0.75;
+}

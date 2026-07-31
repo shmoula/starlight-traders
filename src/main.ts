@@ -65,6 +65,8 @@ let logMarkBeforeJump = 0;
 let retireArmed = false;
 // Two-click restart confirm on the end screen.
 let restartArmed = false;
+// Dock-talk marquee pause — pure view state, never snapshotted.
+let tickerPaused = false;
 // Last action dispatched, used to restore focus after the innerHTML re-render.
 let lastAct: { act?: string; id?: string } = {};
 // Whether the live run came out of storage rather than being created here. Gates
@@ -177,6 +179,7 @@ function paint() {
     retireArmed,
     restartArmed,
     meta: buildMeta(),
+    tickerPaused,
   });
   document.title = titleFor(state);
   restoreFocus();
@@ -288,6 +291,15 @@ app.addEventListener("click", async (e) => {
   // data-qty carries the exact clamped quantity computed by the renderer;
   // absent/garbage values fall back to 1 (Number("") → 0, Number("x") → NaN).
   const qty = Math.max(1, Math.floor(Number(btn.dataset.qty ?? "1")) || 1);
+
+  // Ticker pause is pure view state: no engine action, no snapshot, keep the turn report.
+  // lastAct points at the pause button so focus restores to it after the re-render.
+  if (act === "tickerPause") {
+    lastAct = { act };
+    tickerPaused = !tickerPaused;
+    safePaint();
+    return;
+  }
 
   // The turn report clears on any new action; it is re-populated when a jump settles.
   turnReport = [];

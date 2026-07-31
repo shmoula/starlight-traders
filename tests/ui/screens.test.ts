@@ -721,6 +721,43 @@ describe("active contract shortfall shortcut (P1-1)", () => {
   });
 });
 
+describe("exchange ticker (E1-1 + P2-2a)", () => {
+  it("EXCH lane quotes every commodity at the docked station's live price", () => {
+    const s = createGame(42);
+    const html = stationScreen(s);
+    for (const c of COMMODITIES) {
+      const price = getPrice(s.seed, s.day, s.location, c.id);
+      expect(html).toContain(`${price}`);
+    }
+    expect(html).toContain("ticker__lane--exch");
+  });
+
+  it("day 1 renders the full bulletin statically (the launch surface)", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("ticker__lane--static");
+    expect(html).not.toContain("ticker__marquee");
+  });
+
+  it("day 2+ renders the scrolling lane with an accessible pause toggle", () => {
+    const s = { ...createGame(42), day: 3 };
+    const html = stationScreen(s);
+    expect(html).toContain("ticker__marquee");
+    expect(html).toContain(`data-act="tickerPause"`);
+    expect(html).toContain(`aria-pressed="false"`);
+    const paused = stationScreen(s, [], "", false, undefined, true);
+    expect(paused).toContain(`aria-pressed="true"`);
+    expect(paused).toContain("ticker--paused");
+  });
+
+  it("the Trade Hub names the station's produce/demand modifiers and tax (P2-2a)", () => {
+    const s = { ...createGame(42), location: "vulcan" as const };
+    const html = stationScreen(s);
+    expect(html).toContain("Produces Machine Parts (−30%)");
+    expect(html).toContain("Buys Water / Ice (+40%)");
+    expect(html).toContain("Sales taxed 4%");
+  });
+});
+
 describe("negative credits warning (B-3)", () => {
   it("marks negative credits in both the statbar and logistics", () => {
     const html = stationScreen({ ...createGame(42), credits: -33 });
