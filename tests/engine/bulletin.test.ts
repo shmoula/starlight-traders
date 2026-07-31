@@ -18,6 +18,19 @@ function producePairs(seed: number) {
   return out;
 }
 
+/** All (node, commodity) pairs the station demands, with day-1 price and ratio vs base. */
+function demandPairs(seed: number) {
+  const out: { node: NodeId; commodity: CommodityId; price: number; ratio: number }[] = [];
+  for (const n of NODE_IDS) {
+    for (const c of NODES[n].demands) {
+      const price = getPrice(seed, 1, n, c);
+      const base = COMMODITIES.find((x) => x.id === c)!.basePrice;
+      out.push({ node: n, commodity: c, price, ratio: price / base });
+    }
+  }
+  return out;
+}
+
 describe("bulletin (E1-1)", () => {
   it("is deterministic: same seed, same three lines", () => {
     expect(bulletin(1482862887)).toEqual(bulletin(1482862887));
@@ -37,6 +50,23 @@ describe("bulletin (E1-1)", () => {
       const glut = producePairs(seed).reduce((a, b) => (b.ratio < a.ratio ? b : a));
       expect(bulletin(seed)[0]).toContain(`${glut.price}cr`);
       expect(bulletin(seed)[0]).toContain(NODES[glut.node].name);
+    }
+  });
+
+  it("the premium line names the highest-premium day-1 demand pair, verbatim", () => {
+    for (const seed of SEEDS) {
+      const premium = demandPairs(seed).reduce((a, b) => (b.ratio > a.ratio ? b : a));
+      expect(bulletin(seed)[1]).toContain(`${premium.price}cr`);
+      expect(bulletin(seed)[1]).toContain(
+        COMMODITIES.find((c) => c.id === premium.commodity)!.name
+      );
+      expect(bulletin(seed)[1]).toContain(NODES[premium.node].name);
+    }
+  });
+
+  it("the riskiest line reads correctly (no doubled article) for the highest-raid node", () => {
+    for (const seed of SEEDS) {
+      expect(bulletin(seed)[2]).toBe("Raider chatter thick on the approach to The Verge");
     }
   });
 

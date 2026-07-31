@@ -37,6 +37,6 @@ export function bulletin(seed: number): string[] {
   return [
     `${commodityName(glut.commodity)} glut at ${NODES[glut.node].name} — buying at ${glut.price}cr`,
     `${NODES[premium.node].name} pays ${premium.price}cr for ${commodityName(premium.commodity)} — ${taxNote}`,
-    `Raider chatter thick on the ${NODES[riskiest].name} approach`,
+    `Raider chatter thick on the approach to ${NODES[riskiest].name}`,
   ];
 }
