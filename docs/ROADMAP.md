@@ -74,10 +74,11 @@ Cashes in the E0 pivot: the ending becomes retention.
 
 ## ⚪ Backlog — revisit later
 
-| Item     | What                                                         | Why not now                       |
-| :------- | :----------------------------------------------------------- | :-------------------------------- |
-| **E3-3** | Distress Call (7th event)                                    | Additive content, not corrective. |
-| **P3-1** | Log spam/ordering (collapse repeats, newest-first, dividers) | Polish; depends on P2-1.          |
+| Item     | What                                                         | Why not now                                                                                                                                                           |
+| :------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **E3-3** | Distress Call (7th event)                                    | Additive content, not corrective.                                                                                                                                     |
+| **P3-1** | Log spam/ordering (collapse repeats, newest-first, dividers) | Polish; depends on P2-1.                                                                                                                                              |
+| **E3-5** | Image share card (canvas → PNG, real icons instead of emoji) | Craft on the acquisition surface only pays once the loop it advertises is worth joining. E1-2's text card ships now and stays the fallback. Spec in ENGAGEMENT §3 P3. |
 
 ---
 
