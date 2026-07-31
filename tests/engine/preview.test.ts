@@ -64,7 +64,7 @@ describe("stake previews match resolveChoice outcomes", () => {
     const s = { ...createGame(42), day: 5, cargo: { water: 30, parts: 0, luxury: 0 } }; // hold full
     const after = resolveChoice(s, ev("salvage", ["collect", "ignore"]), "collect");
     expect(after.cargo.parts).toBe(0);
-    expect(after.log[after.log.length - 1]).toBe("Hold full — left the salvage drifting.");
+    expect(after.log[after.log.length - 1].msg).toBe("Hold full — left the salvage drifting.");
   });
 
   it("salvage: staying on course is a safe no-op", () => {

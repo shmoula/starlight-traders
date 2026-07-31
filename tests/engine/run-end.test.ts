@@ -65,7 +65,7 @@ describe("endRun", () => {
 
   it("appends the cause to the log", () => {
     const ended = endRun(createGame(42), "retired", "Retired at Terra Hub.");
-    expect(ended.log[ended.log.length - 1]).toBe("Retired at Terra Hub.");
+    expect(ended.log[ended.log.length - 1].msg).toBe("Retired at Terra Hub.");
   });
 
   it("is a no-op on an already-ended run", () => {

@@ -45,5 +45,10 @@ export function endRun(
     status === "lost"
       ? { status, ...base, lossCause: lossCause as LossCause }
       : { status, ...base };
-  return { ...state, status, runEnd, log: [...state.log, cause] };
+  return {
+    ...state,
+    status,
+    runEnd,
+    log: [...state.log, { msg: cause, tone: status === "lost" ? "bad" : "neutral" }],
+  };
 }
