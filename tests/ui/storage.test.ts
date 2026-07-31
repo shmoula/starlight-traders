@@ -245,6 +245,20 @@ describe("parseSnapshot", () => {
       },
     ],
     ["a missing pendingEvent field", { pendingEvent: undefined }],
+    // markDay indexes dayHighlights inside the engine, and syncSnapshot feeds bootDate to
+    // utcDateKey — both in the action handler, where a throw stalls the run outright.
+    ["missing dayHighlights", { state: { ...createGame(42, BOOT), dayHighlights: undefined } }],
+    ["a null dayHighlights", { state: { ...createGame(42, BOOT), dayHighlights: null } }],
+    [
+      "an unknown dayHighlights kind",
+      { state: { ...createGame(42, BOOT), dayHighlights: { 2: "supernova" } } },
+    ],
+    ["an empty bootDate", { state: { ...createGame(42, BOOT), bootDate: "" } }],
+    ["an unparsable bootDate", { state: { ...createGame(42, BOOT), bootDate: "not-a-date" } }],
+    [
+      "a bootDate from another UTC day than the envelope",
+      { state: createGame(42, new Date(Date.UTC(2026, 6, 28, 10, 0)).toISOString()) },
+    ],
   ] as [string, Record<string, unknown>][])("rejects %s", (_why, override) => {
     const snap = { ...liveSnapshot(), ...override };
     expect(parseSnapshot(JSON.stringify(snap), TODAY)).toBeNull();

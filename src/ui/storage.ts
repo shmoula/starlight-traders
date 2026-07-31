@@ -4,8 +4,16 @@
 // pure engine and the balance sim never touch localStorage. Pure logic is separated
 // from the I/O wrapper: `recordRunEnd`/`labelForDay` are deterministic and unit-tested;
 // `loadSave`/`persist` are the only browser-only functions and degrade silently.
-import { GameEvent, GameState, NodeId, RunEnd, RunEndStatus } from "../engine/types";
+import {
+  DayHighlightKind,
+  GameEvent,
+  GameState,
+  NodeId,
+  RunEnd,
+  RunEndStatus,
+} from "../engine/types";
 import { NODE_IDS } from "../engine/world";
+import { utcDateKey } from "./share";
 
 export interface DayRecord {
   attempts: number; // completed runs this UTC day
@@ -155,10 +163,39 @@ function isValidEvent(e: unknown): e is GameEvent | null {
   );
 }
 
-/** Load-bearing shape check on the embedded state: live, and on a real node. */
-function isValidSnapshotState(s: unknown): s is GameState {
+/**
+ * Exhaustive by construction — adding a kind to `DayHighlightKind` without listing it
+ * here is a compile error, not a silently-rejected snapshot.
+ */
+const HIGHLIGHT_KIND_TABLE: Record<DayHighlightKind, true> = {
+  pirates: true,
+  bigTrade: true,
+  delivery: true,
+};
+const HIGHLIGHT_KINDS = new Set<unknown>(Object.keys(HIGHLIGHT_KIND_TABLE));
+
+/** True when `bootISO` parses *and* names `dateKey`'s UTC day — utcDateKey throws otherwise. */
+function stampsDay(bootISO: string, dateKey: string): boolean {
+  return !Number.isNaN(new Date(bootISO).getTime()) && utcDateKey(bootISO) === dateKey;
+}
+
+/**
+ * Load-bearing shape check on the embedded state: live, on a real node, stamped with the
+ * envelope's UTC day, and carrying a usable highlights map.
+ *
+ * `bootDate` and `dayHighlights` earn their place here because both are read *outside*
+ * the reach of main.ts's safePaint: `utcDateKey(state.bootDate)` runs in the action
+ * handler, where an Invalid Date throws a RangeError and stalls the run, and `markDay`
+ * indexes `dayHighlights` inside the engine on any sale, delivery, or pirate encounter.
+ * `dateKey` is derived from `bootDate` when the snapshot is written, so assert that
+ * invariant when it is read — a mismatch would bank the result under another day's key.
+ */
+function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (typeof s !== "object" || s === null) return false;
   const st = s as Partial<GameState>;
+  if (typeof st.bootDate !== "string" || !stampsDay(st.bootDate, dateKey)) return false;
+  if (typeof st.dayHighlights !== "object" || st.dayHighlights === null) return false;
+  if (!Object.values(st.dayHighlights).every((k) => HIGHLIGHT_KINDS.has(k))) return false;
   return (
     st.status === "playing" &&
     typeof st.day === "number" &&
@@ -182,7 +219,7 @@ export function parseSnapshot(raw: string | null, todayKey: string): RunSnapshot
       p.dateKey !== todayKey ||
       (p.label !== "The Daily" && p.label !== "Practice") ||
       typeof p.logMarkBeforeJump !== "number" ||
-      !isValidSnapshotState(p.state) ||
+      !isValidSnapshotState(p.state, todayKey) ||
       !("pendingEvent" in p) ||
       !isValidEvent(p.pendingEvent)
     ) {

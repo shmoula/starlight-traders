@@ -67,6 +67,9 @@ let retireArmed = false;
 let restartArmed = false;
 // Last action dispatched, used to restore focus after the innerHTML re-render.
 let lastAct: { act?: string; id?: string } = {};
+// Whether the live run came out of storage rather than being created here. Gates
+// safePaint's recovery: only a restored run has a snapshot worth blaming.
+let resumedFromSnapshot = false;
 
 function startNewRun() {
   state = bootDailyGame();
@@ -76,6 +79,7 @@ function startNewRun() {
   logMarkBeforeJump = 0;
   recorded = false;
   lastDebrief = undefined;
+  resumedFromSnapshot = false;
   runLabel = labelForDay(save, utcDateKey(state.bootDate));
 }
 
@@ -93,6 +97,7 @@ function tryResume(): boolean {
   runLabel = snap.label;
   recorded = false;
   lastDebrief = undefined;
+  resumedFromSnapshot = true;
   return true;
 }
 
@@ -175,6 +180,32 @@ function paint() {
   });
   document.title = titleFor(state);
   restoreFocus();
+}
+
+/**
+ * Render, treating a throw as "this run is unrenderable": discard its snapshot, reboot
+ * today's fresh daily, and paint that rather than leave a dead screen. Wraps *every*
+ * paint, not just the first — parseSnapshot's shape check is deliberately shallow, so a
+ * snapshot missing a field that only some later screen reads would otherwise sail
+ * through boot and throw mid-run, with no reload ever recovering it. Logged because,
+ * unlike storage's expected quota/private-mode failures, reaching here means real
+ * corruption. A throw from the recovery paint propagates — by then there is nothing
+ * left to fall back to.
+ *
+ * A run this process created is correct by construction, so a throw painting it is a
+ * render bug: rethrow it rather than launder it into a snapshot warning and a pointless
+ * reset.
+ */
+function safePaint(): void {
+  try {
+    paint();
+  } catch (err) {
+    if (!resumedFromSnapshot) throw err;
+    console.warn("Discarded an unusable run snapshot; starting a fresh daily.", err);
+    clearSnapshot();
+    startNewRun();
+    paint();
+  }
 }
 
 const RUN_LIFECYCLE_ACTIONS = new Set(["retire", "retireConfirm", "restart", "restartConfirm"]);
@@ -281,18 +312,7 @@ app.addEventListener("click", async (e) => {
     recordIfEnded();
     syncSnapshot();
   }
-  paint();
+  safePaint();
 });
 
-try {
-  paint();
-} catch (err) {
-  // The only place a structurally-valid but internally-corrupt snapshot's fallout can
-  // land — discard it and reboot today's fresh daily instead of a blank screen. Logged
-  // because, unlike the storage layer's expected quota/private-mode failures, reaching
-  // here means something got past parseSnapshot: a real corruption or a render bug.
-  console.warn("Discarded an unusable run snapshot; starting a fresh daily.", err);
-  clearSnapshot();
-  startNewRun();
-  paint();
-}
+safePaint();
