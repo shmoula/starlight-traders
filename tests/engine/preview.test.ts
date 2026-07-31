@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   DERELICT_TRAP_DAMAGE,
   bribeCost,
+  choiceOdds,
   choiceStakes,
   derelictReward,
   engineBurn,
@@ -138,6 +139,21 @@ describe("stake previews match resolveChoice outcomes", () => {
 
   it("quiet events preview nothing", () => {
     expect(choiceStakes(createGame(42), ev("quiet", ["ack"]))).toEqual({});
+  });
+});
+
+describe("choiceOdds (E1-4)", () => {
+  it("prices the salvage gamble as 1-in-3", () => {
+    const e = { kind: "salvage", title: "", description: "", choices: [] } as GameEvent;
+    expect(choiceOdds(e)).toEqual({ collect: "1-in-3 hides a hazard" });
+  });
+  it("prices the derelict gamble as 50/50", () => {
+    const e = { kind: "derelict", title: "", description: "", choices: [] } as GameEvent;
+    expect(choiceOdds(e)).toEqual({ board: "50/50" });
+  });
+  it("offers no odds for deterministic events", () => {
+    const e = { kind: "pirates", title: "", description: "", choices: [] } as GameEvent;
+    expect(choiceOdds(e)).toEqual({});
   });
 });
 

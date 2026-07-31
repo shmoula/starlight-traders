@@ -609,6 +609,30 @@ describe("eventScreen vitals and stakes (P0-1)", () => {
     const html = eventScreen(createGame(42), pirates);
     expect(html).toContain('<h1 tabindex="-1">Pirate Ambush</h1>');
   });
+
+  it("shows odds beside stakes on seeded gambles (E1-4)", () => {
+    const s = createGame(42);
+    const derelict: GameEvent = {
+      kind: "derelict",
+      title: "Derelict Hulk",
+      description: "d",
+      choices: [
+        { id: "board", label: "Board it (gamble)" },
+        { id: "leave", label: "Leave it be" },
+      ],
+    };
+    expect(eventScreen(s, derelict)).toContain("50/50");
+    const salvage: GameEvent = {
+      kind: "salvage",
+      title: "Salvage Field",
+      description: "d",
+      choices: [
+        { id: "collect", label: "Scoop the debris (gamble)" },
+        { id: "ignore", label: "Stay on course" },
+      ],
+    };
+    expect(eventScreen(s, salvage)).toContain("1-in-3 hides a hazard");
+  });
 });
 
 describe("market quantity buttons (P1-1)", () => {

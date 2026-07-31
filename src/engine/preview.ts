@@ -101,3 +101,19 @@ export function choiceStakes(s: GameState, e: GameEvent): Record<string, string>
       return {};
   }
 }
+
+/**
+ * Odds label per choice id, for gambles whose outcome is a seeded roll (E1-4).
+ * Deterministic choices get no entry — a stake without odds is a price, not a bet.
+ * The fractions mirror resolveSalvage's `% 3` and resolveDerelict's `% 2` (game.ts).
+ */
+export function choiceOdds(e: GameEvent): Record<string, string> {
+  switch (e.kind) {
+    case "salvage":
+      return { collect: "1-in-3 hides a hazard" };
+    case "derelict":
+      return { board: "50/50" };
+    default:
+      return {};
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rollEvent } from "../../src/engine/events";
+import { rollEvent, pirateChance } from "../../src/engine/events";
 
 describe("rollEvent", () => {
   it("is deterministic for the same seed/day/route", () => {
@@ -33,5 +33,25 @@ describe("rollEvent", () => {
       if (rollEvent(4, day, "terra", "kiruna").kind === "customs") customsElsewhere++;
     }
     expect(customsElsewhere).toBe(0);
+  });
+});
+
+describe("pirateChance (E1-4 honest danger)", () => {
+  it("is the exact probability band rollEvent uses: 0.1 + 0.45 × danger", () => {
+    expect(pirateChance("terra")).toBeCloseTo(0.1);
+    expect(pirateChance("kiruna")).toBeCloseTo(0.1);
+    expect(pirateChance("vulcan")).toBeCloseTo(0.1675);
+    expect(pirateChance("meridian")).toBeCloseTo(0.19);
+    expect(pirateChance("verge")).toBeCloseTo(0.325);
+  });
+});
+
+describe("event hash aliasing (B-2)", () => {
+  it("vulcan and verge no longer share event rolls (same destination, same days)", () => {
+    // Pre-fix, from.charCodeAt(0) made these two origins identical: same rng, same
+    // destination bands -> byte-identical event sequences. Post-fix they must diverge.
+    const seq = (from: "vulcan" | "verge") =>
+      Array.from({ length: 60 }, (_, i) => rollEvent(7, i + 1, from, "terra").kind).join(",");
+    expect(seq("vulcan")).not.toEqual(seq("verge"));
   });
 });

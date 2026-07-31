@@ -4,7 +4,7 @@ import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from 
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import { buyBlockReason, maxBuyable, missionsHere, netProceeds } from "../engine/game";
 import { RUN_LENGTH } from "../engine/run-end";
-import { choiceStakes } from "../engine/preview";
+import { choiceOdds, choiceStakes } from "../engine/preview";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 import { runStrip, stripSummary } from "./share";
 
@@ -351,11 +351,12 @@ export function stationScreen(
 
 export function eventScreen(s: GameState, e: GameEvent): string {
   const stakes = choiceStakes(s, e);
+  const odds = choiceOdds(e);
   const choices = e.choices
     .map((c) => {
-      const stake = stakes[c.id];
+      const parts = [stakes[c.id], odds[c.id]].filter(Boolean);
       return `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}${
-        stake ? `<span class="choice-stake st-num">${stake}</span>` : ""
+        parts.length ? `<span class="choice-stake st-num">${parts.join(" · ")}</span>` : ""
       }</button>`;
     })
     .join("");
