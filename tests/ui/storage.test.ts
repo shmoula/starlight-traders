@@ -13,7 +13,7 @@ import {
 } from "../../src/ui/storage";
 import { RunEnd, GameEvent } from "../../src/engine/types";
 import { createGame } from "../../src/engine/game";
-import { utcDateKey } from "../../src/ui/share";
+import { utcDateKey, runStrip } from "../../src/ui/share";
 
 const KEY = "2026-07-22";
 
@@ -192,6 +192,19 @@ describe("parseSnapshot", () => {
     };
     const snap = liveSnapshot({ pendingEvent: evt, logMarkBeforeJump: 3 });
     expect(parseSnapshot(JSON.stringify(snap), TODAY)).toEqual(snap);
+  });
+
+  // The E0-5/E1-2 seam: dayHighlights is keyed by number but JSON stringifies keys as
+  // strings, so a resumed run must still render its run-strip (E1-2) correctly.
+  it("round-trips dayHighlights so a resumed run keeps its run-strip", () => {
+    const base = createGame(42, BOOT);
+    const snap = liveSnapshot({
+      state: { ...base, day: 3, dayHighlights: { 2: "pirates", 3: "bigTrade" } },
+    });
+    const parsed = parseSnapshot(JSON.stringify(snap), TODAY);
+    expect(parsed).toEqual(snap);
+    expect(parsed!.state.dayHighlights[2]).toBe("pirates");
+    expect(runStrip(parsed!.state.dayHighlights, 3, "audited")).toBe("🟦🟥💰");
   });
 
   it("round-trips a Practice-labelled snapshot", () => {
