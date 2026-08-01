@@ -1,6 +1,15 @@
 // src/ui/screens.ts
 import { CommodityId, GameEvent, GameState, LogEntry, RunEnd } from "../engine/types";
-import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
+import {
+  COMMODITIES,
+  DEMAND_PRICE_MULTIPLIER,
+  NODES,
+  NODE_IDS,
+  PRODUCE_PRICE_MULTIPLIER,
+  commodityName,
+  fuelCost,
+  getPrice,
+} from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import {
   buyBlockReason,
@@ -122,7 +131,7 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
   const kv = (label: string, value: string, gold = false, extra = "") =>
     `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""}${extra ? ` ${extra}` : ""} st-num">${value}</span></div>`;
   const fc = interestForecast(s);
-  const debtValue = `${cr(s.debt)}${fc ? ` <span class="debt-forecast">+${fc.amount}cr in ${fc.inDays}d</span>` : ""}`;
+  const debtValue = `${cr(s.debt)}${fc ? ` <span class="debt-forecast">+${cr(fc.amount)} in ${fc.inDays}d</span>` : ""}`;
   return panel(
     "Ship Logistics",
     `${kv("Credits", cr(s.credits), true, s.credits < 0 ? "credits-negative" : "")}
@@ -307,9 +316,16 @@ function tradeHubPanel(s: GameState): string {
 
   const st = NODES[s.location];
   const taxPct = Math.round(st.taxRate * 100);
+  // Derive the ± labels from the same multipliers getPrice uses, so they can't drift.
+  const pricePct = (mult: number) => {
+    const pct = Math.round((mult - 1) * 100);
+    return pct < 0 ? `−${Math.abs(pct)}%` : `+${pct}%`;
+  };
   const intelParts = [
-    ...st.produces.map((c) => `Produces ${commodityName(c)} (−30%)`),
-    ...st.demands.map((c) => `Buys ${commodityName(c)} (+40%)`),
+    ...st.produces.map(
+      (c) => `Produces ${commodityName(c)} (${pricePct(PRODUCE_PRICE_MULTIPLIER)})`
+    ),
+    ...st.demands.map((c) => `Buys ${commodityName(c)} (${pricePct(DEMAND_PRICE_MULTIPLIER)})`),
     taxPct > 0 ? `Sales taxed ${taxPct}%` : "Tax-free port",
   ];
   if (st.produces.length === 0 && st.demands.length === 0) {
@@ -352,7 +368,7 @@ function exchLane(s: GameState): string {
   const taxPct = Math.round(NODES[s.location].taxRate * 100);
   return `<div class="ticker__lane ticker__lane--exch">
     <span class="ticker__tag">EXCH</span>
-    <span class="ticker__body">${quotes}<span class="tick-sep" aria-hidden="true">│</span><span class="tick-flat st-num">tax ${taxPct}% · dock ${cr(dockingFee(s.location))}</span></span>
+    <span class="ticker__body" tabindex="0">${quotes}<span class="tick-sep" aria-hidden="true">│</span><span class="tick-flat st-num">tax ${taxPct}% · dock ${cr(dockingFee(s.location))}</span></span>
   </div>`;
 }
 

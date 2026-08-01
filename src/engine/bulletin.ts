@@ -29,8 +29,13 @@ function pricePoints(seed: number, kind: "produces" | "demands"): PricePoint[] {
 
 /** The three "word on the docks" lines for a daily seed. Each ≤70 chars. */
 export function bulletin(seed: number): string[] {
-  const glut = pricePoints(seed, "produces").reduce((a, b) => (b.ratio < a.ratio ? b : a));
-  const premium = pricePoints(seed, "demands").reduce((a, b) => (b.ratio > a.ratio ? b : a));
+  const producePts = pricePoints(seed, "produces");
+  const demandPts = pricePoints(seed, "demands");
+  if (producePts.length === 0 || demandPts.length === 0) {
+    throw new Error("bulletin requires at least one producing and one demanding station");
+  }
+  const glut = producePts.reduce((a, b) => (b.ratio < a.ratio ? b : a));
+  const premium = demandPts.reduce((a, b) => (b.ratio > a.ratio ? b : a));
   const riskiest = NODE_IDS.reduce((a, b) => (pirateChance(b) > pirateChance(a) ? b : a));
   const taxPct = Math.round(NODES[premium.node].taxRate * 100);
   const taxNote = taxPct > 0 ? `taxed ${taxPct}%` : "tax-free";
