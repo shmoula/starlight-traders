@@ -83,6 +83,18 @@ contract cargo (E1-5 Heat territory).
    `reward = max(premium roll, round(1.2 × qty × getPrice(seed, day, node, commodity)))`.
    A pure `max` after the existing draws — **no new RNG calls**, so ids, quantities,
    destinations, and deadlines are unchanged for every seed; only junk rewards rise.
+   The floor is deliberately **cargo-cost only** — it ignores fuel and dock fees.
+   Measured over 200 seeds × 12 days × 5 nodes (23,897 offers), it cuts the share of
+   offers with negative est. profit from 37.7% → 19.4% but does not eliminate them:
+   ~2,235 offers it actively lifted are still underwater once fuel and the
+   destination dock fee are priced in, and the sweep's minimum reward is 65cr — the
+   scope section's "junk 63cr offers" survive, just barely repriced. This is
+   accepted, not a gap: a fuel-inclusive floor would make generation
+   route-dependent and rebalance every board (an E2-1 concern, dead last in M3),
+   and **P2-3 is the actual fix for junk offers** — an honest `est. −66cr` on the
+   card kills a bad contract faster than a bigger number on it would. Read the
+   E2-2c acceptance criterion as the mechanical rule it states, not as "every card
+   is profitable."
 6. **Feasibility numbers come from the engine, not the template** — new
    `missionFeasibility(s, m)` in missions.ts (netProceeds/interestForecast
    precedent): the card and the engine share one definition of cost and profit,
