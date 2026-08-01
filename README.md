@@ -57,11 +57,11 @@ Open the local dev URL printed by Vite (typically `http://localhost:5173`).
 - Buy where a commodity is produced and sell where it's demanded — Kiruna Belt produces Water/Ice, Vulcan Yards produces Machine Parts and demands Water/Ice, The Verge and Meridian both pay a premium for Luxury Goods.
 - Watch the tax rate before you sell. Meridian pays the most for luxury but taxes sales at 18%, and its routes draw customs inspections.
 - Keep enough fuel in reserve to reach a station where you can sell. Running out of fuel with nothing worth selling ends the run.
-- Your score is peak net worth (credits + cargo value − debt), boosted 10% for each day you survive.
+- Your score is your net worth when the run ends. Bank the run by audit or retirement and you also earn a survival bonus per day survived, capped at day 12; a run that ends in death scores its net worth alone, with no survival bonus. Peak net worth is tracked as a stat, but it is not the score.
 
 ## The Daily Seed
 
-The seed comes from the calendar date, so prices, events, and contracts are identical for every player on a given day. There is no save state — the game holds no `localStorage`, and reloading starts a fresh run on the same day's seed.
+The seed comes from the calendar date, so prices, events, and contracts are identical for every player on a given day. Your progress persists locally: a refresh on the same UTC day resumes your in-progress run exactly where it was, your personal best and attempt history live in `localStorage`, and once the UTC day rolls over a fresh daily begins. The first completed run of a day is "The Daily"; later runs are labeled "Practice".
 
 ## Project Structure
 
