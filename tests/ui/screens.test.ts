@@ -32,7 +32,7 @@ describe("stationScreen accessibility", () => {
     for (const c of COMMODITIES) {
       expect(html).toContain(`aria-label="Buy 1 ${c.name}"`);
       expect(html).toContain(
-        `aria-label="Sell 1 ${c.name} for ${cr2(netProceeds(s, c.id, 1))} net"`
+        `aria-label="Sell 1 (${cr2(netProceeds(s, c.id, 1))}) net for ${c.name}"`
       );
     }
   });
