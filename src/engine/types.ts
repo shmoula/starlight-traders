@@ -26,6 +26,8 @@ export interface Mission {
   qty: number;
   destination: NodeId;
   reward: number;
+  /** 10% of reward, rounded — escrowed on accept, returned on delivery, forfeited on expiry (E2-2). */
+  deposit: number;
   deadlineDay: number; // absolute game day by which cargo must arrive
 }
 

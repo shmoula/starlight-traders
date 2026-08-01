@@ -58,6 +58,7 @@ describe("stationScreen ready contract jump control", () => {
     qty: 5,
     destination,
     reward: 500,
+    deposit: 50,
     deadlineDay: 30,
   };
 
@@ -710,6 +711,7 @@ describe("active contract shortfall shortcut (P1-1)", () => {
     qty: 10,
     destination: "verge",
     reward: 500,
+    deposit: 50,
     deadlineDay: 30,
   };
 

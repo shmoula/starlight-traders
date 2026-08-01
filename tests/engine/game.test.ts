@@ -37,6 +37,7 @@ describe("arrival settlement reporting", () => {
     qty: 5,
     destination: "kiruna",
     reward: 500,
+    deposit: 50,
     deadlineDay: 99,
   };
 
@@ -77,6 +78,7 @@ describe("arrival settlement reporting", () => {
       qty: 10,
       destination: "kiruna",
       reward: 600,
+      deposit: 60,
       deadlineDay: 99,
     };
     let s = createGame(42);
@@ -307,6 +309,7 @@ describe("the Daily Audit (E0-1)", () => {
       qty: 5,
       destination: "kiruna",
       reward: 500,
+      deposit: 50,
       deadlineDay: 99,
     };
     let s = createGame(42);
@@ -406,6 +409,7 @@ describe("hull death (B-6)", () => {
       qty: 5,
       destination: "kiruna",
       reward: 500,
+      deposit: 50,
       deadlineDay: 99,
     };
     let s = createGame(42);
@@ -513,6 +517,7 @@ describe("dayHighlights", () => {
       qty: 2,
       destination: "terra",
       reward: 100,
+      deposit: 10,
       deadlineDay: 99,
     });
     s = { ...s, cargo: { ...s.cargo, water: 2 } };
@@ -528,6 +533,7 @@ describe("dayHighlights", () => {
       qty: 2,
       destination: "terra",
       reward: 5000,
+      deposit: 500,
       deadlineDay: 99,
     });
     s = { ...s, cargo: { ...s.cargo, water: 2 } };
