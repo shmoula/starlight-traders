@@ -1,14 +1,34 @@
 // src/ui/screens.ts
-import { GameEvent, GameState, RunEnd } from "../engine/types";
-import { COMMODITIES, NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "../engine/world";
+import { CommodityId, GameEvent, GameState, LogEntry, RunEnd } from "../engine/types";
+import {
+  COMMODITIES,
+  DEMAND_PRICE_MULTIPLIER,
+  NODES,
+  NODE_IDS,
+  PRODUCE_PRICE_MULTIPLIER,
+  commodityName,
+  fuelCost,
+  getPrice,
+} from "../engine/world";
 import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
-import { buyBlockReason, maxBuyable, missionsHere, netProceeds } from "../engine/game";
+import {
+  buyBlockReason,
+  interestForecast,
+  maxBuyable,
+  missionsHere,
+  netProceeds,
+} from "../engine/game";
+import { pirateChance } from "../engine/events";
 import { RUN_LENGTH } from "../engine/run-end";
-import { choiceStakes } from "../engine/preview";
+import { choiceOdds, choiceStakes } from "../engine/preview";
+import { bulletin } from "../engine/bulletin";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 import { runStrip, stripSummary } from "./share";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
+
+/** Compact exchange-board symbol per commodity for the EXCH ticker lane. */
+const COMMODITY_SYM: Record<CommodityId, string> = { water: "WTR", parts: "PRT", luxury: "LUX" };
 
 export interface RunMeta {
   runNumber: number;
@@ -33,28 +53,15 @@ function fuelWarnClass(s: GameState): string {
   return s.fuel < cheapest ? "stat-critical" : s.fuel < cheapest * 2 ? "stat-warn" : "";
 }
 
-type Tone = "good" | "bad" | "neutral";
+const TONE_ICON: Record<LogEntry["tone"], string> = { good: "✓", bad: "✗", neutral: "›" };
 
-/**
- * Classify a log line so the UI can color it by outcome. Signals are drawn from the
- * fixed set of messages the engine emits (see game.ts); anything unrecognized stays
- * neutral, so a new message never renders as a false win or loss.
- */
-function toneOf(msg: string): Tone {
-  if (
-    /trap|damage|seized|expired|burned|warhead|overheated|Bribed|Paid pirates|Syndicate compounds|Hull breach|Stranded/i.test(
-      msg
-    )
-  ) {
-    return "bad";
-  }
-  if (/held \d|Salvaged|Delivery complete|Paid down/i.test(msg)) {
-    return "good";
-  }
-  return "neutral";
-}
-
-const TONE_ICON: Record<Tone, string> = { good: "✓", bad: "✗", neutral: "›" };
+/** Right-aligned signed credit delta for a money log line; nothing when absent. */
+const deltaHtml = (l: LogEntry): string =>
+  l.delta === undefined
+    ? ""
+    : `<span class="log-delta st-num ${l.delta >= 0 ? "tr-good" : "tr-bad"}">${
+        l.delta >= 0 ? "+" : "−"
+      }${Math.abs(l.delta).toLocaleString()}cr</span>`;
 
 function screenHead(s: GameState, dateLabel = "", meta?: RunMeta): string {
   const sub = meta
@@ -123,10 +130,12 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
   const payTitle = noDebt ? "No debt to pay" : "No credits to pay with";
   const kv = (label: string, value: string, gold = false, extra = "") =>
     `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""}${extra ? ` ${extra}` : ""} st-num">${value}</span></div>`;
+  const fc = interestForecast(s);
+  const debtValue = `${cr(s.debt)}${fc ? ` <span class="debt-forecast">+${cr(fc.amount)} in ${fc.inDays}d</span>` : ""}`;
   return panel(
     "Ship Logistics",
     `${kv("Credits", cr(s.credits), true, s.credits < 0 ? "credits-negative" : "")}
-    ${kv("Debt", cr(s.debt), true)}
+    ${kv("Debt", debtValue, true)}
     ${kv("Net worth", cr(netWorth(s)), true)}
     ${kv("Day", `${s.day}/${RUN_LENGTH}`)}
     <div class="st-gauge">
@@ -160,7 +169,7 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
 function logPanel(s: GameState): string {
   const logEntries = s.log
     .slice(-8)
-    .map((l) => `<div class="log-line tr-${toneOf(l)}">${l}</div>`)
+    .map((l) => `<div class="log-line tr-${l.tone}"><span>${l.msg}</span>${deltaHtml(l)}</div>`)
     .join("");
   return panel(
     "Ship's Log",
@@ -177,15 +186,19 @@ function navigatorPanel(s: GameState): string {
   const orbs = NODE_IDS.filter((n) => n !== s.location)
     .map((n) => {
       const cost = fuelCost(s.location, n);
-      const danger = Math.round(NODES[n].danger * 100);
+      const fee = dockingFee(n);
+      const raid = Math.round(pirateChance(n) * 100);
+      const taxPct = Math.round(NODES[n].taxRate * 100);
+      const customsNote = n === "meridian" ? " · customs patrol this approach" : "";
       const disabled = s.fuel < cost;
       const reason = disabled ? ` — need ${cost}, have ${s.fuel}` : "";
+      const detail = `${cost} fuel · dock ${cr(fee)} · ${raid}% raid risk · sells taxed ${taxPct}%${customsNote}`;
       return `<button class="st-orb" data-act="jump" data-id="${n}"${disabledAttr(disabled, `Need ${cost}⛽, have ${s.fuel}`)}>
         <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
         <span class="st-orb__label">${NODES[n].name}</span>
-        <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${danger}%</span>
-        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${cost} fuel · ${danger}% danger${reason}</span>
-        <span class="st-sr-only"> — jump here, ${cost} fuel, danger ${danger}%${reason}</span>
+        <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${cr(fee)} · ${raid}%</span>
+        <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${detail}${reason}</span>
+        <span class="st-sr-only"> — jump here, ${detail}${reason}</span>
       </button>`;
     })
     .join("");
@@ -237,8 +250,8 @@ function tradeHubPanel(s: GameState): string {
       <span class="st-market__actions">
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="1" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="5" aria-label="Buy ×5 ${c.name} for ${cr(5 * price)}"${disabledAttr(buy5Disabled, buy5Title)}>×5</button>
-        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="1" aria-label="Sell 1 ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1</button>
-        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="5" aria-label="Sell ×5 ${c.name} for ${cr(netProceeds(s, c.id, 5))}"${disabledAttr(sell5Disabled, sell5Title)}>×5</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="1" aria-label="Sell 1 (${cr(netProceeds(s, c.id, 1))}) net for ${c.name}"${disabledAttr(sellDisabled, "None in hold")}>Sell 1 (${cr(netProceeds(s, c.id, 1))})</button>
+        <button class="st-btn st-btn--sell st-btn--sm" data-act="sell" data-id="${c.id}" data-qty="5" aria-label="Sell ×5 (${cr(netProceeds(s, c.id, 5))}) net for ${c.name}"${disabledAttr(sell5Disabled, sell5Title)}>×5 (${cr(netProceeds(s, c.id, 5))})</button>
       </span>
     </div>`;
   }).join("");
@@ -301,10 +314,30 @@ function tradeHubPanel(s: GameState): string {
     })
     .join("");
 
+  const st = NODES[s.location];
+  const taxPct = Math.round(st.taxRate * 100);
+  // Derive the ± labels from the same multipliers getPrice uses, so they can't drift.
+  const pricePct = (mult: number) => {
+    const pct = Math.round((mult - 1) * 100);
+    return pct < 0 ? `−${Math.abs(pct)}%` : `+${pct}%`;
+  };
+  const intelParts = [
+    ...st.produces.map(
+      (c) => `Produces ${commodityName(c)} (${pricePct(PRODUCE_PRICE_MULTIPLIER)})`
+    ),
+    ...st.demands.map((c) => `Buys ${commodityName(c)} (${pricePct(DEMAND_PRICE_MULTIPLIER)})`),
+    taxPct > 0 ? `Sales taxed ${taxPct}%` : "Tax-free port",
+  ];
+  if (st.produces.length === 0 && st.demands.length === 0) {
+    intelParts.unshift("A trade crossroads — no local specialities");
+  }
+  const intel = `<p class="station-intel">${intelParts.join(" · ")}</p>`;
+
   return `<section class="st-panel st-panel--tab">
     <header class="st-panel__header"><h2 class="st-panel__title">Trade Hub — ${NODES[s.location].name}</h2></header>
     <div class="st-panel__frame">
       <div class="st-panel__body st-panel__body--flush">
+        ${intel}
         <div class="st-market st-market--held">
           <div class="st-market__head">Market Commodities</div>
           ${marketRows}
@@ -319,21 +352,68 @@ function tradeHubPanel(s: GameState): string {
   </section>`;
 }
 
+/** Static exchange quote board for the docked station (P2-2a): price + ▲▼ vs base + tax/fee. */
+function exchLane(s: GameState): string {
+  const quotes = COMMODITIES.map((c) => {
+    const price = getPrice(s.seed, s.day, s.location, c.id);
+    const pct = Math.round(((price - c.basePrice) / c.basePrice) * 100);
+    const move =
+      pct > 0
+        ? `<span class="tick-up">▲ ${pct}%</span>`
+        : pct < 0
+          ? `<span class="tick-dn">▼ ${Math.abs(pct)}%</span>`
+          : `<span class="tick-flat">▬ base</span>`;
+    return `<span class="tick-q st-num"><span class="tick-sym">${COMMODITY_SYM[c.id]}</span> ${price} ${move}</span>`;
+  }).join(`<span class="tick-sep" aria-hidden="true">│</span>`);
+  const taxPct = Math.round(NODES[s.location].taxRate * 100);
+  return `<div class="ticker__lane ticker__lane--exch">
+    <span class="ticker__tag">EXCH</span>
+    <span class="ticker__body" tabindex="0">${quotes}<span class="tick-sep" aria-hidden="true">│</span><span class="tick-flat st-num">tax ${taxPct}% · dock ${cr(dockingFee(s.location))}</span></span>
+  </div>`;
+}
+
+/**
+ * The scrolling rumor lane (E1-1). Day 1 is the launch surface: the full bulletin
+ * renders as a static list so the first-90-seconds player has a stated first move.
+ * From day 2 it scrolls — pausable, paused on hover/focus, and static again under
+ * prefers-reduced-motion (see styles.css).
+ */
+function dockTalkLane(s: GameState, paused: boolean): string {
+  const lines = bulletin(s.seed);
+  if (s.day === 1) {
+    return `<div class="ticker__lane ticker__lane--talk ticker__lane--static">
+      <span class="ticker__tag">DOCK TALK</span>
+      <ul class="ticker__list">${lines.map((l) => `<li>${l}</li>`).join("")}</ul>
+    </div>`;
+  }
+  const strip =
+    lines
+      .map((l) => `<span class="talk-line">${l}</span>`)
+      .join(`<span class="tick-sep" aria-hidden="true">◆</span>`) +
+    `<span class="tick-sep" aria-hidden="true">◆</span>`;
+  return `<div class="ticker__lane ticker__lane--talk${paused ? " ticker--paused" : ""}">
+    <span class="ticker__tag">DOCK TALK</span>
+    <button class="ticker__pause" data-act="tickerPause" aria-pressed="${paused}" aria-label="${paused ? "Resume" : "Pause"} the dock talk ticker">${paused ? "▶" : "❙❙"}</button>
+    <span class="ticker__body ticker__body--scroll"><span class="ticker__marquee">${strip}</span><span class="ticker__marquee" aria-hidden="true">${strip}</span></span>
+  </div>`;
+}
+
 export function stationScreen(
   s: GameState,
-  turnReport: string[] = [],
+  turnReport: LogEntry[] = [],
   dateLabel = "",
   retireArmed = false,
-  meta?: RunMeta
+  meta?: RunMeta,
+  tickerPaused = false
 ): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
       <h2 class="turn-report__title">Since your last jump</h2>
       ${turnReport
-        .map((l) => {
-          const t = toneOf(l);
-          return `<div class="tr-line tr-${t}"><span class="tr-icon" aria-hidden="true">${TONE_ICON[t]}</span><span>${l}</span></div>`;
-        })
+        .map(
+          (l) =>
+            `<div class="tr-line tr-${l.tone}"><span class="tr-icon" aria-hidden="true">${TONE_ICON[l.tone]}</span><span>${l.msg}</span>${deltaHtml(l)}</div>`
+        )
         .join("")}
     </div>`
     : "";
@@ -342,6 +422,10 @@ export function stationScreen(
   return `
     ${screenHead(s, dateLabel, meta)}
     ${statbar(s, fuelClass)}
+    <div class="ticker" aria-label="Station exchange and dock talk">
+      ${exchLane(s)}
+      ${dockTalkLane(s, tickerPaused)}
+    </div>
     <div class="st-shell station-shell">
       <!-- DOM order leads with the stage so single-column mobile reads
            trade hub → navigator/cargo → logistics/log and keyboard focus
@@ -364,11 +448,12 @@ export function stationScreen(
 
 export function eventScreen(s: GameState, e: GameEvent): string {
   const stakes = choiceStakes(s, e);
+  const odds = choiceOdds(e);
   const choices = e.choices
     .map((c) => {
-      const stake = stakes[c.id];
+      const parts = [stakes[c.id], odds[c.id]].filter(Boolean);
       return `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}${
-        stake ? `<span class="choice-stake st-num">${stake}</span>` : ""
+        parts.length ? `<span class="choice-stake st-num">${parts.join(" · ")}</span>` : ""
       }</button>`;
     })
     .join("");

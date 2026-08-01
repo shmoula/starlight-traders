@@ -1,19 +1,29 @@
 // src/engine/events.ts
 import { GameEvent, NodeId } from "./types";
-import { NODES } from "./world";
+import { NODES, NODE_IDS } from "./world";
 import { mulberry32, hashSeed } from "./rng";
+
+/**
+ * True chance of a pirate ambush on arrival at `to` — the exact band rollEvent uses.
+ * Exported so the UI shows the number the engine rolls with (E1-4): the flat 10%
+ * floor means no route is ever "0%".
+ */
+export function pirateChance(to: NodeId): number {
+  return 0.1 + NODES[to].danger * 0.45;
+}
 
 /**
  * Roll the in-transit event for a jump. Hostility scales with destination danger.
  * Customs only fires when arriving at meridian.
  */
 export function rollEvent(seed: number, day: number, from: NodeId, to: NodeId): GameEvent {
-  const rng = mulberry32(hashSeed(seed, day, from.charCodeAt(0), to.charCodeAt(0), 31));
-  const danger = NODES[to].danger;
+  // Hash full station identity (their NODE_IDS indices), not first characters —
+  // "vulcan"/"verge" both start with 'v' and used to share every event roll (B-2).
+  const rng = mulberry32(hashSeed(seed, day, NODE_IDS.indexOf(from), NODE_IDS.indexOf(to), 31));
   const r = rng();
 
   // Probability bands grow the hostile slice with danger.
-  const pPirates = 0.1 + danger * 0.45;
+  const pPirates = pirateChance(to);
   const pSalvage = pPirates + 0.18;
   const pEngine = pSalvage + 0.1;
   const pDerelict = pEngine + 0.12;

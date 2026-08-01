@@ -12,16 +12,19 @@ import {
   checkLoss,
   deliver,
   retire,
+  payDebt,
+  interestForecast,
   STARTING,
 } from "../../src/engine/game";
-import { getPrice } from "../../src/engine/world";
-import { GameEvent, Mission } from "../../src/engine/types";
+import { getPrice, commodityName } from "../../src/engine/world";
+import { dockingFee } from "../../src/engine/economy";
+import { GameEvent, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
 
 describe("createGame goal line", () => {
   it("opens the log by stating the stake, the deadline, and the shared sky", () => {
-    expect(createGame(42).log[0]).toBe(
+    expect(createGame(42).log[0].msg).toBe(
       "The Syndicate staked your ship — 1,500cr, compounding. Bank your fortune before the Day 12 audit. Everyone flies today's sky."
     );
   });
@@ -201,7 +204,7 @@ describe("checkLoss", () => {
     };
     const lost = checkLoss(s);
     expect(lost.status).toBe("lost");
-    expect(lost.log[lost.log.length - 1]).toBe(
+    expect(lost.log[lost.log.length - 1].msg).toBe(
       "Stranded at Vulcan Yards — not enough fuel to jump, and refueling costs more than you have."
     );
   });
@@ -260,7 +263,9 @@ describe("retire (E0-1)", () => {
     expect(r.status).toBe("retired");
     expect(r.runEnd?.status).toBe("retired");
     expect(r.runEnd?.daysSurvived).toBe(5);
-    expect(r.log[r.log.length - 1]).toBe("Retired at Terra Hub — the Syndicate banks your score.");
+    expect(r.log[r.log.length - 1].msg).toBe(
+      "Retired at Terra Hub — the Syndicate banks your score."
+    );
   });
 
   it("is a no-op on an ended run", () => {
@@ -276,7 +281,7 @@ describe("the Daily Audit (E0-1)", () => {
     const r = arrive(j.state);
     expect(r.state.status).toBe("audited");
     expect(r.state.runEnd?.daysSurvived).toBe(12);
-    expect(r.state.log[r.state.log.length - 1]).toBe(
+    expect(r.state.log[r.state.log.length - 1].msg).toBe(
       "Day 12 — the Syndicate audits your books and banks your score."
     );
   });
@@ -443,7 +448,7 @@ describe("loan escalation voice (E0-4)", () => {
   const interestLineAfterJump = (day: number): string => {
     const s = { ...createGame(42), day: day - 1, fuel: 20 };
     const j = jump(s, "kiruna");
-    return j.state.log.find((l) => l.includes("Syndicate compounds")) ?? "";
+    return j.state.log.find((l) => l.msg.includes("Syndicate compounds"))?.msg ?? "";
   };
 
   it("day 3 accrues at 4% with the base line", () => {
@@ -545,5 +550,92 @@ describe("dayHighlights", () => {
     s = resolveChoice(s, piratesEvt, "pay"); // pirates on day 2
     s = sell(s, "luxury", 5); // big sale, same day
     expect(s.dayHighlights[2]).toBe("pirates"); // pirates outranks bigTrade
+  });
+});
+
+describe("structured log entries (P2-1)", () => {
+  const last = (s: ReturnType<typeof createGame>) => s.log[s.log.length - 1];
+
+  it("buy logs a neutral entry with a negative credit delta", () => {
+    const s = createGame(42);
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    const after = buy(s, "water", 2);
+    expect(last(after)).toEqual({
+      msg: `Bought 2 ${commodityName("water")} for ${price * 2}cr.`,
+      tone: "neutral",
+      delta: -(price * 2),
+    });
+  });
+
+  it("sell logs a good entry whose delta is the net (post-tax) proceeds", () => {
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, water: 3 } };
+    const after = sell(s, "water", 3);
+    const entry = last(after);
+    expect(entry.tone).toBe("good");
+    expect(entry.delta).toBe(after.credits - s.credits);
+  });
+
+  it("interest is a bad entry with no credit delta (it moves debt, not credits)", () => {
+    // Day 2 -> jump lands on day 3, an interest tick.
+    const s = { ...createGame(42), day: 2, fuel: 20 };
+    const r = jump(s, "vulcan");
+    const entry = r.state.log.find((l) => l.msg.includes("Syndicate compounds"))!;
+    expect(entry.tone).toBe("bad");
+    expect(entry.delta).toBeUndefined();
+  });
+
+  it("the docking fee entry carries a negative delta", () => {
+    const s = { ...createGame(42), fuel: 20 };
+    const r = jump(s, "vulcan");
+    const entry = r.state.log.find((l) => l.msg.startsWith("Docked at"))!;
+    expect(entry).toMatchObject({ tone: "neutral", delta: -dockingFee("vulcan") });
+  });
+
+  it("paying debt logs a good entry with the negative credit delta", () => {
+    const after = payDebt(createGame(42), 200);
+    expect(last(after)).toEqual({ msg: "Paid down 200cr of debt.", tone: "good", delta: -200 });
+  });
+});
+
+describe("interestForecast (P1-2)", () => {
+  it("prices the next tick with the escalated rate for that day", () => {
+    // Day 4, debt 1,140: next tick day 6, rate 6% (day >= LOAN_STEP_IMPATIENT) -> ceil(68.4).
+    const s = { ...createGame(42), day: 4, debt: 1140 };
+    expect(interestForecast(s)).toEqual({ inDays: 2, amount: 69 });
+  });
+
+  it("a tick day forecasts the following tick, not itself", () => {
+    const s = { ...createGame(42), day: 6, debt: 1000 };
+    expect(interestForecast(s)).toEqual({ inDays: 3, amount: Math.ceil(1000 * 0.08) });
+  });
+
+  it("is null with no debt or a finished run", () => {
+    expect(interestForecast({ ...createGame(42), debt: 0 })).toBeNull();
+    expect(interestForecast({ ...createGame(42), status: "retired" as const })).toBeNull();
+  });
+
+  // Coupling guard: the forecast matches jump()'s accrual only because both reimplement
+  // the same cadence/phase. Pin them together through the REAL engine — capture the
+  // forecast, then advance the run with real jumps and watch the debt. Events never touch
+  // debt (they hit credits/hull/fuel/cargo), so the debt delta isolates the interest tick:
+  // it must stay flat on every intermediate day and jump by exactly fc.amount on the tick
+  // day, fc.inDays hops out. This fails loudly if jump's cadence drifts from interestForecast.
+  it("realizes exactly the forecast on the tick day and nothing before it (no-drift)", () => {
+    const startDebt = 1140;
+    const start = { ...createGame(42), day: 4, debt: startDebt, fuel: 20 };
+    const fc = interestForecast(start)!;
+    // Two reachable stations to bounce between; refuel to the cap each hop so every jump lands.
+    const bounce: NodeId[] = ["vulcan", "verge"];
+    let cur = start;
+    for (let step = 1; step <= fc.inDays; step++) {
+      const to = bounce.find((d) => d !== cur.location)!;
+      cur = jump({ ...cur, fuel: 20 }, to).state;
+      if (step < fc.inDays) {
+        expect(cur.debt).toBe(startDebt); // no accrual on an intermediate, non-tick day
+      }
+    }
+    expect(cur.day).toBe(start.day + fc.inDays); // the run actually reached the forecast day
+    expect(cur.debt - startDebt).toBe(fc.amount); // and accrued exactly what the chip promised
   });
 });

@@ -1,9 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { stationScreen, eventScreen, runEndScreen, RunMeta } from "../../src/ui/screens";
-import { createGame, missionsHere, refuel, checkLoss, retire } from "../../src/engine/game";
+import {
+  createGame,
+  missionsHere,
+  refuel,
+  checkLoss,
+  retire,
+  netProceeds,
+} from "../../src/engine/game";
 import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
+import { dockingFee } from "../../src/engine/economy";
 import { GameEvent, Mission } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
+
+const cr2 = (n: number) => `${n.toLocaleString()}cr`;
 
 function withMission(mission: Mission, overrides: Partial<ReturnType<typeof createGame>> = {}) {
   const s = createGame(42);
@@ -17,10 +27,13 @@ function withMission(mission: Mission, overrides: Partial<ReturnType<typeof crea
 
 describe("stationScreen accessibility", () => {
   it("gives each buy/sell button an accessible name that includes the commodity", () => {
-    const html = stationScreen(createGame(42));
+    const s = createGame(42);
+    const html = stationScreen(s);
     for (const c of COMMODITIES) {
       expect(html).toContain(`aria-label="Buy 1 ${c.name}"`);
-      expect(html).toContain(`aria-label="Sell 1 ${c.name}"`);
+      expect(html).toContain(
+        `aria-label="Sell 1 (${cr2(netProceeds(s, c.id, 1))}) net for ${c.name}"`
+      );
     }
   });
 
@@ -75,7 +88,9 @@ describe("stationScreen ready contract jump control", () => {
 
 describe("stationScreen turn report", () => {
   it("surfaces the turn report as a live-region banner", () => {
-    const html = stationScreen(createGame(42), ["Docked at verge, fee 18cr."]);
+    const html = stationScreen(createGame(42), [
+      { msg: "Docked at verge, fee 18cr.", tone: "neutral" },
+    ]);
     expect(html).toContain('class="turn-report"');
     expect(html).toContain('role="status"');
     expect(html).toContain("Docked at verge, fee 18cr.");
@@ -86,27 +101,13 @@ describe("stationScreen turn report", () => {
     expect(html).not.toContain("turn-report");
   });
 
-  it("colors a harmful outcome as bad and a gain as good", () => {
+  it("colors lines by the entry's declared tone", () => {
     const html = stationScreen(createGame(42), [
-      "Derelict was a trap: -20 hull.",
-      "Delivery complete: +860cr.",
+      { msg: "Derelict was a trap: -20 hull.", tone: "bad" },
+      { msg: "Delivery complete: +860cr.", tone: "good", delta: 860 },
     ]);
     expect(html).toContain('class="tr-line tr-bad"');
     expect(html).toContain('class="tr-line tr-good"');
-  });
-
-  it("treats loan interest as a loss", () => {
-    const html = stationScreen(createGame(42), ["The Syndicate compounds: +60cr."]);
-    expect(html).toContain('class="tr-line tr-bad"');
-  });
-
-  it("colors both hull-damage outcomes (warhead, overheated) as bad", () => {
-    const warhead = stationScreen(createGame(42), ["Salvage hid a live warhead: -10 hull."]);
-    expect(warhead).toContain('class="tr-line tr-bad"');
-    const overheated = stationScreen(createGame(42), [
-      "Engine trouble overheated the hull for 10.",
-    ]);
-    expect(overheated).toContain('class="tr-line tr-bad"');
   });
 });
 
@@ -228,11 +229,15 @@ describe("stationScreen navigator and cargo", () => {
       expect(html).toContain(`data-act="jump" data-id="${id}"`);
     }
     // The visible label + meta form the accessible name; an sr-only clarifier
-    // expands the fuel/danger figures for screen readers (kept a substring-suffix
+    // expands the fuel/fee/raid figures for screen readers (kept a substring-suffix
     // so the visible text still matches the accessible name — WCAG 2.5.3).
     expect(html).toContain('<span class="st-orb__label">Kiruna Belt</span>');
-    expect(html).toContain('<span class="st-sr-only"> — jump here, 4 fuel, danger 0%</span>');
-    expect(html).toContain('<span class="st-sr-only"> — jump here, 6 fuel, danger 50%</span>');
+    expect(html).toContain(
+      '<span class="st-sr-only"> — jump here, 4 fuel · dock 15cr · 10% raid risk · sells taxed 2%</span>'
+    );
+    expect(html).toContain(
+      '<span class="st-sr-only"> — jump here, 6 fuel · dock 18cr · 33% raid risk · sells taxed 0%</span>'
+    );
     // No jump control targets the current station (mission ids may contain node
     // names, so scope the assertion to the jump prefix).
     expect(html).not.toContain('data-act="jump" data-id="terra"');
@@ -392,6 +397,41 @@ describe("runEndScreen (E0-1/E0-2)", () => {
   it("headlines a stranding as Stranded", () => {
     const s = checkLoss({ ...createGame(42), location: "vulcan" as const, fuel: 0, credits: 0 });
     expect(runEndScreen(s, s.runEnd!)).toContain('<h1 tabindex="-1">Stranded</h1>');
+  });
+});
+
+describe("structured log rendering (P2-1)", () => {
+  it("renders the entry's declared tone and a signed delta", () => {
+    const s = {
+      ...createGame(42),
+      log: [
+        { msg: "Sold 5 Water / Ice for 100cr (tax 5).", tone: "good" as const, delta: 95 },
+        { msg: "Docked at Meridian, fee 45cr.", tone: "neutral" as const, delta: -45 },
+        { msg: "Fled — took 16 hull damage.", tone: "bad" as const },
+      ],
+    };
+    const html = stationScreen(s);
+    expect(html).toContain(`class="log-line tr-good"`);
+    expect(html).toContain(`class="log-line tr-bad"`);
+    expect(html).toContain(">+95cr<");
+    expect(html).toContain(">−45cr<");
+  });
+
+  it("renders no delta span for entries without a delta", () => {
+    const s = {
+      ...createGame(42),
+      log: [{ msg: "Fled — took 16 hull damage.", tone: "bad" as const }],
+    };
+    const html = stationScreen(s);
+    expect(html).not.toContain("log-delta");
+  });
+
+  it("the turn report colors lines by entry tone", () => {
+    const s = createGame(42);
+    const report = [{ msg: "Delivery complete: +500cr.", tone: "good" as const, delta: 500 }];
+    const html = stationScreen(s, report);
+    expect(html).toContain("tr-good");
+    expect(html).toContain(">+500cr<");
   });
 });
 
@@ -586,6 +626,30 @@ describe("eventScreen vitals and stakes (P0-1)", () => {
     const html = eventScreen(createGame(42), pirates);
     expect(html).toContain('<h1 tabindex="-1">Pirate Ambush</h1>');
   });
+
+  it("shows odds beside stakes on seeded gambles (E1-4)", () => {
+    const s = createGame(42);
+    const derelict: GameEvent = {
+      kind: "derelict",
+      title: "Derelict Hulk",
+      description: "d",
+      choices: [
+        { id: "board", label: "Board it (gamble)" },
+        { id: "leave", label: "Leave it be" },
+      ],
+    };
+    expect(eventScreen(s, derelict)).toContain("50/50");
+    const salvage: GameEvent = {
+      kind: "salvage",
+      title: "Salvage Field",
+      description: "d",
+      choices: [
+        { id: "collect", label: "Scoop the debris (gamble)" },
+        { id: "ignore", label: "Stay on course" },
+      ],
+    };
+    expect(eventScreen(s, salvage)).toContain("1-in-3 hides a hazard");
+  });
 });
 
 describe("market quantity buttons (P1-1)", () => {
@@ -671,6 +735,76 @@ describe("active contract shortfall shortcut (P1-1)", () => {
     const html = stationScreen(s);
     expect(html).not.toContain("buy-hint-");
     expect(html).toContain("✓ carrying 10/10");
+  });
+});
+
+describe("exchange ticker (E1-1 + P2-2a)", () => {
+  it("EXCH lane quotes every commodity at the docked station's live price", () => {
+    const s = createGame(42);
+    const html = stationScreen(s);
+    for (const c of COMMODITIES) {
+      const price = getPrice(s.seed, s.day, s.location, c.id);
+      expect(html).toContain(`${price}`);
+    }
+    expect(html).toContain("ticker__lane--exch");
+  });
+
+  it("day 1 renders the full bulletin statically (the launch surface)", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("ticker__lane--static");
+    expect(html).not.toContain("ticker__marquee");
+  });
+
+  it("day 2+ renders the scrolling lane with an accessible pause toggle", () => {
+    const s = { ...createGame(42), day: 3 };
+    const html = stationScreen(s);
+    expect(html).toContain("ticker__marquee");
+    expect(html).toContain(`data-act="tickerPause"`);
+    expect(html).toContain(`aria-pressed="false"`);
+    const paused = stationScreen(s, [], "", false, undefined, true);
+    expect(paused).toContain(`aria-pressed="true"`);
+    expect(paused).toContain("ticker--paused");
+  });
+
+  it("the Trade Hub names the station's produce/demand modifiers and tax (P2-2a)", () => {
+    const s = { ...createGame(42), location: "vulcan" as const };
+    const html = stationScreen(s);
+    expect(html).toContain("Produces Machine Parts (−30%)");
+    expect(html).toContain("Buys Water / Ice (+40%)");
+    expect(html).toContain("Sales taxed 4%");
+  });
+});
+
+describe("forecast sinks (P1-2)", () => {
+  it("jump orbs carry fuel, destination dock fee, and the true raid chance", () => {
+    const html = stationScreen(createGame(42)); // docked at terra
+    expect(html).toContain(`${cr2(dockingFee("verge"))} · 33%`);
+    expect(html).toContain("10%"); // kiruna's floor, never "0%"
+    // Raw danger×100 for verge is gone. Scoped to the orb-meta "· N%" format so a
+    // legitimate "▲ 50%" in the EXCH lane can't false-positive this assertion.
+    expect(html).not.toContain("· 50%");
+  });
+
+  it("meridian's tooltip mentions the sales tax and customs", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("sells taxed 18%");
+    expect(html).toContain("customs patrol this approach");
+  });
+
+  it("the debt row shows the interest countdown chip", () => {
+    const s = { ...createGame(42), day: 4, debt: 1140 };
+    expect(stationScreen(s)).toContain("+69cr in 2d");
+  });
+
+  it("no chip at zero debt", () => {
+    const s = { ...createGame(42), debt: 0 };
+    expect(stationScreen(s)).not.toContain("debt-forecast");
+  });
+
+  it("sell buttons state net (post-tax) proceeds", () => {
+    const s = { ...createGame(42), cargo: { water: 5, parts: 0, luxury: 0 } };
+    const net1 = netProceeds(s, "water", 1);
+    expect(stationScreen(s)).toContain(`Sell 1 (${net1.toLocaleString()}cr)`);
   });
 });
 

@@ -1,5 +1,13 @@
 // src/engine/game.ts
-import { CommodityId, DayHighlightKind, GameEvent, GameState, Mission, NodeId } from "./types";
+import {
+  CommodityId,
+  DayHighlightKind,
+  GameEvent,
+  GameState,
+  LogTone,
+  Mission,
+  NodeId,
+} from "./types";
 import { NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "./world";
 import {
   BIG_TRADE_CR,
@@ -17,6 +25,7 @@ import { generateMissions } from "./missions";
 import { rollEvent } from "./events";
 import { hashSeed } from "./rng";
 import {
+  DERELICT_REWARD_DIVISOR,
   DERELICT_TRAP_DAMAGE,
   bribeCost,
   derelictReward,
@@ -24,6 +33,7 @@ import {
   engineHullStrain,
   fleeDamage,
   pirateToll,
+  SALVAGE_HAZARD_DIVISOR,
   SALVAGE_TRAP_DAMAGE,
   salvageAmount,
 } from "./preview";
@@ -65,7 +75,10 @@ export function createGame(seed: number, bootDate = ""): GameState {
     dayHighlights: {},
     status: "playing",
     log: [
-      `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Bank your fortune before the Day ${RUN_LENGTH} audit. Everyone flies today's sky.`,
+      {
+        msg: `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Bank your fortune before the Day ${RUN_LENGTH} audit. Everyone flies today's sky.`,
+        tone: "neutral" as const,
+      },
     ],
   };
 }
@@ -73,8 +86,16 @@ export function createGame(seed: number, bootDate = ""): GameState {
 // Keep the full run history; the UI decides how many entries to surface. A run is
 // bounded (you eventually lose), so this stays small, and retaining every entry lets
 // the UI capture "what happened this turn" by a stable index rather than a fragile diff.
-function withLog(state: GameState, msg: string): GameState {
-  return { ...state, log: [...state.log, msg] };
+function withLog(
+  state: GameState,
+  msg: string,
+  tone: LogTone = "neutral",
+  delta?: number
+): GameState {
+  return {
+    ...state,
+    log: [...state.log, { msg, tone, ...(delta === undefined ? {} : { delta }) }],
+  };
 }
 
 /** The lender's voice escalates with its rate tier (E0-4). */
@@ -136,7 +157,9 @@ export function buy(state: GameState, id: CommodityId, qty: number): GameState {
     credits: state.credits - cost,
     cargo: { ...state.cargo, [id]: state.cargo[id] + qty },
   };
-  return trackPeak(withLog(next, `Bought ${qty} ${commodityName(id)} for ${cost}cr.`));
+  return trackPeak(
+    withLog(next, `Bought ${qty} ${commodityName(id)} for ${cost}cr.`, "neutral", -cost)
+  );
 }
 
 export function sell(state: GameState, id: CommodityId, qty: number): GameState {
@@ -152,7 +175,12 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
   next = trackPayday(next, proceeds - tax, `${commodityName(id)} at ${NODES[state.location].name}`);
   if (proceeds - tax >= BIG_TRADE_CR) next = markDay(next, "bigTrade");
   return trackPeak(
-    withLog(next, `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`)
+    withLog(
+      next,
+      `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`,
+      "good",
+      proceeds - tax
+    )
   );
 }
 
@@ -174,6 +202,17 @@ export function netProceeds(state: GameState, id: CommodityId, qty: number): num
   return gross - taxOnSale(state.location, gross);
 }
 
+/**
+ * The Syndicate's next interest tick (P1-2 forecast): how many days away, and how much
+ * at THAT day's escalated rate — the same INTEREST_EVERY cadence and loanInterest math
+ * jump() applies, so the chip can never disagree with the accrual.
+ */
+export function interestForecast(s: GameState): { inDays: number; amount: number } | null {
+  if (s.debt <= 0 || s.status !== "playing") return null;
+  const inDays = INTEREST_EVERY - (s.day % INTEREST_EVERY);
+  return { inDays, amount: loanInterest(s.debt, s.day + inDays) };
+}
+
 /** Why buying `qty` of `id` here is blocked — "" when it would succeed. Mirrors buy()'s guard order. */
 export type BuyBlock = "" | "credits" | "room";
 export function buyBlockReason(state: GameState, id: CommodityId, qty: number): BuyBlock {
@@ -192,7 +231,9 @@ export function refuel(state: GameState, units: number): GameState {
   const cost = buyUnits * REFUEL_PRICE;
   return withLog(
     { ...state, fuel: state.fuel + buyUnits, credits: state.credits - cost },
-    `Refueled ${buyUnits} for ${cost}cr.`
+    `Refueled ${buyUnits} for ${cost}cr.`,
+    "neutral",
+    -cost
   );
 }
 
@@ -204,7 +245,9 @@ export function repair(state: GameState, points: number): GameState {
   if (cost > state.credits) return state;
   return withLog(
     { ...state, hull: state.hull + fix, credits: state.credits - cost },
-    `Repaired ${fix} hull for ${cost}cr.`
+    `Repaired ${fix} hull for ${cost}cr.`,
+    "neutral",
+    -cost
   );
 }
 
@@ -214,7 +257,9 @@ export function payDebt(state: GameState, amount: number): GameState {
   return trackPeak(
     withLog(
       { ...state, debt: state.debt - pay, credits: state.credits - pay },
-      `Paid down ${pay}cr of debt.`
+      `Paid down ${pay}cr of debt.`,
+      "good",
+      -pay
     )
   );
 }
@@ -268,11 +313,11 @@ function settleMissions(state: GameState): {
         m.reward,
         `${commodityName(m.commodity)} contract → ${NODES[m.destination].name}`
       );
-      s = withLog(s, `Delivery complete: +${m.reward}cr.`);
+      s = withLog(s, `Delivery complete: +${m.reward}cr.`, "good", m.reward);
       s = markDay(s, m.reward >= BIG_TRADE_CR ? "bigTrade" : "delivery");
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {
-      s = withLog(s, `Delivery to ${NODES[m.destination].name} expired.`);
+      s = withLog(s, `Delivery to ${NODES[m.destination].name} expired.`, "bad");
       expired.push(m);
     } else {
       remaining.push(m);
@@ -317,12 +362,17 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
   // Interest accrues on a fixed cadence.
   if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
     const interest = loanInterest(s.debt, s.day);
-    s = withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day));
+    s = withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day), "bad");
   }
 
   // Docking fee on arrival.
   const fee = dockingFee(to);
-  s = withLog({ ...s, credits: s.credits - fee }, `Docked at ${NODES[to].name}, fee ${fee}cr.`);
+  s = withLog(
+    { ...s, credits: s.credits - fee },
+    `Docked at ${NODES[to].name}, fee ${fee}cr.`,
+    "neutral",
+    -fee
+  );
 
   const event = rollEvent(s.seed, s.day, state.location, to);
   return { state: s, event };
@@ -357,29 +407,36 @@ function resolvePirates(s: GameState, choiceId: string): GameState {
   const marked = markDay(s, "pirates");
   if (choiceId === "pay") {
     const toll = pirateToll(marked);
-    return withLog({ ...marked, credits: marked.credits - toll }, `Paid pirates ${toll}cr.`);
+    return withLog(
+      { ...marked, credits: marked.credits - toll },
+      `Paid pirates ${toll}cr.`,
+      "bad",
+      -toll
+    );
   }
   const dmg = fleeDamage(marked.day);
-  return withLog({ ...marked, hull: marked.hull - dmg }, `Fled — took ${dmg} hull damage.`);
+  return withLog({ ...marked, hull: marked.hull - dmg }, `Fled — took ${dmg} hull damage.`, "bad");
 }
 
 function resolveSalvage(s: GameState, choiceId: string): GameState {
   if (choiceId !== "collect") return s;
   // Deterministic per seed/day via the shared hash — mulberry32's hashSeed avoids the
   // strict every-3rd-day periodicity a raw `(day*7+seed) % 3` produces (B-2 class).
-  if (hashSeed(s.seed, s.day) % 3 === 0) {
+  if (hashSeed(s.seed, s.day) % SALVAGE_HAZARD_DIVISOR === 0) {
     return withLog(
       { ...s, hull: s.hull - SALVAGE_TRAP_DAMAGE },
-      `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`
+      `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`,
+      "bad"
     );
   }
   const got = salvageAmount(s);
-  return withLog(
-    got > 0 ? { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } } : s,
-    got > 0
-      ? `Salvaged ${got} ${commodityName("parts")}.`
-      : `Hold full — left the salvage drifting.`
-  );
+  return got > 0
+    ? withLog(
+        { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
+        `Salvaged ${got} ${commodityName("parts")}.`,
+        "good"
+      )
+    : withLog(s, `Hold full — left the salvage drifting.`, "neutral");
 }
 
 function resolveEngine(s: GameState): GameState {
@@ -389,20 +446,26 @@ function resolveEngine(s: GameState): GameState {
   if (burn > 0) clauses.push(`burned ${burn} fuel`);
   if (strain > 0) clauses.push(`overheated the hull for ${strain}`);
   const msg = `Engine trouble ${clauses.join(" and ")}.`;
-  return withLog({ ...s, fuel: s.fuel - burn, hull: s.hull - strain }, msg);
+  return withLog({ ...s, fuel: s.fuel - burn, hull: s.hull - strain }, msg, "bad");
 }
 
 function resolveDerelict(s: GameState, choiceId: string): GameState {
   if (choiceId !== "board") return s;
   // Shared hash, same as resolveSalvage — avoids the every-other-day periodicity a raw
   // `(day*7+seed) % 2` produces (B-2 class). E1-4 still owns making these odds visible.
-  if (hashSeed(s.seed, s.day) % 2 === 0) {
+  if (hashSeed(s.seed, s.day) % DERELICT_REWARD_DIVISOR === 0) {
     const reward = derelictReward(s.day);
-    return withLog({ ...s, credits: s.credits + reward }, `Derelict held ${reward}cr!`);
+    return withLog(
+      { ...s, credits: s.credits + reward },
+      `Derelict held ${reward}cr!`,
+      "good",
+      reward
+    );
   }
   return withLog(
     { ...s, hull: s.hull - DERELICT_TRAP_DAMAGE },
-    `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`
+    `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`,
+    "bad"
   );
 }
 
@@ -411,12 +474,18 @@ function resolveCustoms(s: GameState, choiceId: string): GameState {
     const seized = s.cargo.luxury;
     return withLog(
       { ...s, cargo: { ...s.cargo, luxury: 0 } },
-      `Customs seized ${seized} luxury goods.`
+      `Customs seized ${seized} luxury goods.`,
+      "bad"
     );
   }
   if (choiceId === "bribe") {
     const bribe = bribeCost(s);
-    return withLog({ ...s, credits: s.credits - bribe }, `Bribed customs ${bribe}cr.`);
+    return withLog(
+      { ...s, credits: s.credits - bribe },
+      `Bribed customs ${bribe}cr.`,
+      "bad",
+      -bribe
+    );
   }
   return s;
 }

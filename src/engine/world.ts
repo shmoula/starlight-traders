@@ -58,6 +58,11 @@ export const NODES: Record<NodeId, StationNode> = {
 
 export const NODE_IDS = Object.keys(NODES) as NodeId[];
 
+// Price modifiers applied by getPrice for a station's local specialities. Exported so
+// UI intel labels (e.g. "−30%"/"+40%") derive from the same numbers and can't drift.
+export const PRODUCE_PRICE_MULTIPLIER = 0.7; // a station discounts what it produces
+export const DEMAND_PRICE_MULTIPLIER = 1.4; // and pays a premium for what it demands
+
 // Fuel distance matrix (symmetric). Units = fuel consumed to make the jump.
 const DISTANCE: Record<NodeId, Partial<Record<NodeId, number>>> = {
   terra: { kiruna: 4, vulcan: 3, verge: 6, meridian: 5 },
@@ -94,8 +99,8 @@ export function getPrice(seed: number, day: number, node: NodeId, commodity: Com
   );
   const noise = (rng() * 2 - 1) * c.volatility; // -vol..+vol
   let modifier = 1 + noise;
-  if (station.produces.includes(commodity)) modifier *= 0.7;
-  if (station.demands.includes(commodity)) modifier *= 1.4;
+  if (station.produces.includes(commodity)) modifier *= PRODUCE_PRICE_MULTIPLIER;
+  if (station.demands.includes(commodity)) modifier *= DEMAND_PRICE_MULTIPLIER;
   const price = Math.round(c.basePrice * modifier);
   return Math.max(1, price);
 }

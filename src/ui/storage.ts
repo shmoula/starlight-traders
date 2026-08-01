@@ -8,6 +8,7 @@ import {
   DayHighlightKind,
   GameEvent,
   GameState,
+  LogTone,
   NodeId,
   RunEnd,
   RunEndStatus,
@@ -136,7 +137,7 @@ export function persist(save: StarlightSave): void {
 // and unit-tested; the wrappers degrade silently.
 
 export interface RunSnapshot {
-  version: 1;
+  version: 2;
   dateKey: string; // UTC "YYYY-MM-DD" of the run (from state.bootDate)
   label: "The Daily" | "Practice";
   state: GameState;
@@ -174,6 +175,18 @@ const HIGHLIGHT_KIND_TABLE: Record<DayHighlightKind, true> = {
 };
 const HIGHLIGHT_KINDS = new Set<unknown>(Object.keys(HIGHLIGHT_KIND_TABLE));
 
+/**
+ * Exhaustive over `LogTone`: adding a tone without listing it here is a compile error,
+ * mirroring HIGHLIGHT_KIND_TABLE. Guards `isValidLog` so a rehydrated log line can never
+ * carry a tone the UI has no icon/class for.
+ */
+const LOG_TONE_TABLE: Record<LogTone, true> = {
+  good: true,
+  bad: true,
+  neutral: true,
+};
+const LOG_TONES = new Set<unknown>(Object.keys(LOG_TONE_TABLE));
+
 /** True when `bootISO` parses *and* names `dateKey`'s UTC day — utcDateKey throws otherwise. */
 function stampsDay(bootISO: string, dateKey: string): boolean {
   return !Number.isNaN(new Date(bootISO).getTime()) && utcDateKey(bootISO) === dateKey;
@@ -196,12 +209,48 @@ function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (typeof st.bootDate !== "string" || !stampsDay(st.bootDate, dateKey)) return false;
   if (typeof st.dayHighlights !== "object" || st.dayHighlights === null) return false;
   if (!Object.values(st.dayHighlights).every((k) => HIGHLIGHT_KINDS.has(k))) return false;
+  if (!isValidLog(st.log)) return false;
   return (
     st.status === "playing" &&
     typeof st.day === "number" &&
     typeof st.seed === "number" &&
     NODE_IDS.includes(st.location as NodeId)
   );
+}
+
+/** A v1 log line is a bare string; wrap it as a neutral entry so an in-progress run survives the upgrade. */
+function migrateV1Log(state: unknown): void {
+  const st = state as { log?: unknown[] };
+  if (Array.isArray(st?.log)) {
+    st.log = st.log.map((m) => (typeof m === "string" ? { msg: m, tone: "neutral" } : m));
+  }
+}
+
+function isValidLog(log: unknown): boolean {
+  return Array.isArray(log) && log.every(isValidLogEntry);
+}
+
+/** A rehydrated log line must carry a string msg, a known tone, and — if present — a finite numeric delta. */
+function isValidLogEntry(l: unknown): boolean {
+  if (typeof l !== "object" || l === null) return false;
+  const entry = l as { msg?: unknown; tone?: unknown; delta?: unknown };
+  if (typeof entry.msg !== "string") return false;
+  if (!LOG_TONES.has(entry.tone)) return false;
+  return entry.delta === undefined || Number.isFinite(entry.delta);
+}
+
+type ParsedSnapshot = (Partial<Omit<RunSnapshot, "version">> & { version?: number }) | null;
+
+/**
+ * Normalise an older snapshot envelope to the current version in place: a v1 doc with a
+ * usable state has its bare-string log wrapped (migrateV1Log) and is stamped version 2.
+ * Anything else is left untouched for the field-by-field validation in parseSnapshot to judge.
+ */
+function migrateSnapshotToCurrentVersion(p: ParsedSnapshot): void {
+  if (p && p.version === 1 && typeof p.state === "object" && p.state !== null) {
+    migrateV1Log(p.state);
+    p.version = 2;
+  }
 }
 
 /**
@@ -212,10 +261,11 @@ function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
 export function parseSnapshot(raw: string | null, todayKey: string): RunSnapshot | null {
   if (!raw) return null;
   try {
-    const p = JSON.parse(raw) as Partial<RunSnapshot> | null;
+    const p = JSON.parse(raw) as ParsedSnapshot;
+    migrateSnapshotToCurrentVersion(p);
     if (
       !p ||
-      p.version !== 1 ||
+      p.version !== 2 ||
       p.dateKey !== todayKey ||
       (p.label !== "The Daily" && p.label !== "Practice") ||
       typeof p.logMarkBeforeJump !== "number" ||

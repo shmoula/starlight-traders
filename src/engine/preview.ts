@@ -33,6 +33,8 @@ export function salvageAmount(s: GameState): number {
 
 /** Hull damage when the salvage field hides a hazard. */
 export const SALVAGE_TRAP_DAMAGE = 10;
+/** Collecting salvage hides a hazard on 1-in-N days (game.ts resolveSalvage's `% N`). */
+export const SALVAGE_HAZARD_DIVISOR = 3;
 
 /** A coolant leak always vents this many units of trouble. */
 export const ENGINE_LEAK = 2;
@@ -56,6 +58,8 @@ export function derelictReward(day: number): number {
 
 /** Hull damage when the derelict is a trap. */
 export const DERELICT_TRAP_DAMAGE = 20;
+/** Boarding a derelict pays off on 1-in-N days (game.ts resolveDerelict's `% N`). */
+export const DERELICT_REWARD_DIVISOR = 2;
 
 /** Customs bribe: the going rate for luxury here, clamped to held credits. */
 export function bribeCost(s: GameState): number {
@@ -97,6 +101,25 @@ export function choiceStakes(s: GameState, e: GameEvent): Record<string, string>
         comply: s.cargo.luxury > 0 ? `lose ${s.cargo.luxury} luxury` : "nothing to seize",
         bribe: `~${bribeCost(s)}cr`,
       };
+    default:
+      return {};
+  }
+}
+
+/**
+ * Odds label per choice id, for gambles whose outcome is a seeded roll (E1-4).
+ * Deterministic choices get no entry — a stake without odds is a price, not a bet.
+ * The fractions derive from the same divisors resolveSalvage/resolveDerelict roll
+ * against (game.ts), so retuning a divisor can't leave these labels stale.
+ */
+export function choiceOdds(e: GameEvent): Record<string, string> {
+  switch (e.kind) {
+    case "salvage":
+      return { collect: `1-in-${SALVAGE_HAZARD_DIVISOR} hides a hazard` };
+    case "derelict": {
+      const rewardPct = Math.round(100 / DERELICT_REWARD_DIVISOR);
+      return { board: `${rewardPct}/${100 - rewardPct}` };
+    }
     default:
       return {};
   }

@@ -64,6 +64,17 @@ export type RunEnd = LostRunEnd | BankedRunEnd;
 /** The notable thing that happened on a game day — feeds the share card's run-strip (E1-2). */
 export type DayHighlightKind = "pirates" | "bigTrade" | "delivery";
 
+/** Outcome coloring for a log line — replaces the UI's regex tone-guessing (P2-1). */
+export type LogTone = "good" | "bad" | "neutral";
+
+/** A structured log line: the engine declares tone and (for money lines) the credit delta. */
+export interface LogEntry {
+  msg: string;
+  tone: LogTone;
+  /** Signed credit movement, present only when the line is about credits. */
+  delta?: number;
+}
+
 export interface GameState {
   seed: number;
   day: number;
@@ -84,7 +95,7 @@ export interface GameState {
   dayHighlights: Partial<Record<number, DayHighlightKind>>;
   status: "playing" | RunEndStatus;
   runEnd?: RunEnd; // present exactly when status !== "playing"
-  log: string[]; // recent player-facing messages, newest last
+  log: LogEntry[]; // recent player-facing messages, newest last
   bootDate: string; // ISO instant the run was created — names the UTC day `seed` hashes; "" for seed-only sim runs
 }
 
