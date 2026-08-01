@@ -25,6 +25,7 @@ import { generateMissions } from "./missions";
 import { rollEvent } from "./events";
 import { hashSeed } from "./rng";
 import {
+  DERELICT_REWARD_DIVISOR,
   DERELICT_TRAP_DAMAGE,
   bribeCost,
   derelictReward,
@@ -32,6 +33,7 @@ import {
   engineHullStrain,
   fleeDamage,
   pirateToll,
+  SALVAGE_HAZARD_DIVISOR,
   SALVAGE_TRAP_DAMAGE,
   salvageAmount,
 } from "./preview";
@@ -420,7 +422,7 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
   if (choiceId !== "collect") return s;
   // Deterministic per seed/day via the shared hash — mulberry32's hashSeed avoids the
   // strict every-3rd-day periodicity a raw `(day*7+seed) % 3` produces (B-2 class).
-  if (hashSeed(s.seed, s.day) % 3 === 0) {
+  if (hashSeed(s.seed, s.day) % SALVAGE_HAZARD_DIVISOR === 0) {
     return withLog(
       { ...s, hull: s.hull - SALVAGE_TRAP_DAMAGE },
       `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`,
@@ -451,7 +453,7 @@ function resolveDerelict(s: GameState, choiceId: string): GameState {
   if (choiceId !== "board") return s;
   // Shared hash, same as resolveSalvage — avoids the every-other-day periodicity a raw
   // `(day*7+seed) % 2` produces (B-2 class). E1-4 still owns making these odds visible.
-  if (hashSeed(s.seed, s.day) % 2 === 0) {
+  if (hashSeed(s.seed, s.day) % DERELICT_REWARD_DIVISOR === 0) {
     const reward = derelictReward(s.day);
     return withLog(
       { ...s, credits: s.credits + reward },
