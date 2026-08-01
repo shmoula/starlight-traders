@@ -300,10 +300,13 @@ player was and can never re-roll a bad event outcome. This keeps E0-3 decision #
 8. **E1-4 Honest events pass** — with UIUX P0-1 (same surfaces).
 9. **E1-5 Heat** — after E1-4 so displayed odds include it honestly.
 10. **E2-2 Contract integrity** — with UIUX P2-3.
-11. **E2-1 Market depth** — biggest balance change last among systems; re-run the
-    sweep and tighten balance tests (current suite would pass a 29/30-turtle world).
-12. **E2-4 Fiction pack → E2-3 Star map → E2-5 achievements → P3 items** — texture
-    after structure.
+11. **E2-4 Fiction pack → E2-3 Star map → E2-5 achievements** — texture next, and
+    the map must land before E2-1 so market-depth sim gating measures real routes.
+12. **E2-1 Market depth** — biggest balance change dead last in M3 (decided
+    2026-08-01, matching ROADMAP.md): the star map changes route viability, so the
+    100-seed sweep and "≥2 viable loops/day" gate only mean something after E2-3.
+    Re-run the sweep and tighten balance tests (current suite would pass a
+    29/30-turtle world). Bundle P2-2's remaining cost-basis/P&L half here.
 
 ## 7. Rejected ideas
 

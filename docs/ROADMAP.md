@@ -45,9 +45,13 @@ Cashes in the E0 pivot: the ending becomes retention.
 
 ## 🟢 Milestone 3 — E2 "Systems depth" (kill degenerate strategies)
 
+Sequence decided 2026-08-01: **round 1 = E2-2 + P2-3**, then texture (E2-4 → E2-3 →
+E2-5), then **E2-1 dead last** — the star map changes route viability, so E2-1's
+sim gate only measures the real game after E2-3 lands.
+
 | Item     | What                                                                            | Notes                                                                                                                                                                    |
 | :------- | :------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **E2-2** | Contract integrity (deposit, expiry penalty, reward floor, instant-settle nerf) | Closes the riskless-option exploit.                                                                                                                                      |
+| **E2-2** | Contract integrity (deposit, expiry penalty, reward floor, instant-settle nerf) | **Next up — M3 round 1.** Closes the riskless-option exploit.                                                                                                            |
 | **P2-3** | Contract feasibility card (cost/fuel/profit/days-left)                          | Same cards as E2-2 — bundle.                                                                                                                                             |
 | **E2-4** | Fiction pack (station dossiers, named crew, death epilogues)                    | Template strings; reuses E0-4's Syndicate voice.                                                                                                                         |
 | **E2-3** | Star map + per-edge danger                                                      | Biggest single feature (L); restores path-planning.                                                                                                                      |
