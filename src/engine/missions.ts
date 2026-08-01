@@ -1,8 +1,13 @@
 // src/engine/missions.ts
-import { Mission, NodeId } from "./types";
-import { COMMODITIES, NODE_IDS, getPrice } from "./world";
+import { GameState, Mission, NodeId } from "./types";
+import { COMMODITIES, NODE_IDS, fuelCost, getPrice } from "./world";
 import { mulberry32, hashSeed } from "./rng";
-import { MISSION_REWARD_FLOOR_MULT, MISSION_DEPOSIT_RATE } from "./economy";
+import {
+  MISSION_REWARD_FLOOR_MULT,
+  MISSION_DEPOSIT_RATE,
+  REFUEL_PRICE,
+  dockingFee,
+} from "./economy";
 
 /** Deterministic set of delivery missions offered at a node on a given day. */
 export function generateMissions(seed: number, day: number, node: NodeId): Mission[] {
@@ -31,4 +36,25 @@ export function generateMissions(seed: number, day: number, node: NodeId): Missi
     });
   }
   return missions;
+}
+
+/**
+ * What serving `m` costs from where the player stands (P2-3). Pure display math: buy the
+ * full qty here today, burn the direct jump's fuel at replacement price, pay the
+ * destination dock fee (skipped when already there — no jump, no fee). The deposit is
+ * excluded — it returns on delivery — so the card shows it as its own chip instead.
+ */
+export function missionFeasibility(
+  s: GameState,
+  m: Mission
+): { cargoCost: number; fuel: number; estProfit: number; daysLeft: number } {
+  const cargoCost = m.qty * getPrice(s.seed, s.day, s.location, m.commodity);
+  const fuel = fuelCost(s.location, m.destination);
+  const dock = fuel > 0 ? dockingFee(m.destination) : 0;
+  return {
+    cargoCost,
+    fuel,
+    estProfit: m.reward - cargoCost - fuel * REFUEL_PRICE - dock,
+    daysLeft: m.deadlineDay - s.day,
+  };
 }

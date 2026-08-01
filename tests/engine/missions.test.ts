@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { generateMissions } from "../../src/engine/missions";
-import { COMMODITIES, NODE_IDS, getPrice } from "../../src/engine/world";
+import { generateMissions, missionFeasibility } from "../../src/engine/missions";
+import { createGame } from "../../src/engine/game";
+import { COMMODITIES, NODE_IDS, getPrice, fuelCost } from "../../src/engine/world";
 import { mulberry32, hashSeed } from "../../src/engine/rng";
-import { NodeId } from "../../src/engine/types";
+import { REFUEL_PRICE, dockingFee } from "../../src/engine/economy";
+import { Mission, NodeId } from "../../src/engine/types";
 
 describe("generateMissions", () => {
   it("is deterministic for the same seed/day/node", () => {
@@ -96,5 +98,37 @@ describe("reward floor + deposit (E2-2)", () => {
         expect(actual).toEqual(reference(seed, 3, node));
       }
     }
+  });
+});
+
+describe("missionFeasibility (P2-3)", () => {
+  const m: Mission = {
+    id: "f1",
+    commodity: "water",
+    qty: 10,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 9,
+  };
+
+  it("composes cost, fuel, est. profit, and days left from the live engine numbers", () => {
+    const s = createGame(42); // terra, day 1
+    const f = missionFeasibility(s, m);
+    const cargoCost = 10 * getPrice(42, 1, "terra", "water");
+    const fuel = fuelCost("terra", "kiruna"); // 4
+    expect(f).toEqual({
+      cargoCost,
+      fuel,
+      estProfit: 500 - cargoCost - fuel * REFUEL_PRICE - dockingFee("kiruna"),
+      daysLeft: 8,
+    });
+  });
+
+  it("skips fuel and dock fee when already at the destination (no jump, no fee)", () => {
+    const s = { ...createGame(42), location: "kiruna" as const };
+    const f = missionFeasibility(s, m);
+    expect(f.fuel).toBe(0);
+    expect(f.estProfit).toBe(500 - 10 * getPrice(42, 1, "kiruna", "water"));
   });
 });
