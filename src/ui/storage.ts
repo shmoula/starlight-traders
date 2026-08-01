@@ -8,6 +8,7 @@ import {
   DayHighlightKind,
   GameEvent,
   GameState,
+  LogTone,
   NodeId,
   RunEnd,
   RunEndStatus,
@@ -174,6 +175,18 @@ const HIGHLIGHT_KIND_TABLE: Record<DayHighlightKind, true> = {
 };
 const HIGHLIGHT_KINDS = new Set<unknown>(Object.keys(HIGHLIGHT_KIND_TABLE));
 
+/**
+ * Exhaustive over `LogTone`: adding a tone without listing it here is a compile error,
+ * mirroring HIGHLIGHT_KIND_TABLE. Guards `isValidLog` so a rehydrated log line can never
+ * carry a tone the UI has no icon/class for.
+ */
+const LOG_TONE_TABLE: Record<LogTone, true> = {
+  good: true,
+  bad: true,
+  neutral: true,
+};
+const LOG_TONES = new Set<unknown>(Object.keys(LOG_TONE_TABLE));
+
 /** True when `bootISO` parses *and* names `dateKey`'s UTC day — utcDateKey throws otherwise. */
 function stampsDay(bootISO: string, dateKey: string): boolean {
   return !Number.isNaN(new Date(bootISO).getTime()) && utcDateKey(bootISO) === dateKey;
@@ -214,12 +227,16 @@ function migrateV1Log(state: unknown): void {
 }
 
 function isValidLog(log: unknown): boolean {
-  return (
-    Array.isArray(log) &&
-    log.every(
-      (l) => typeof l === "object" && l !== null && typeof (l as { msg?: unknown }).msg === "string"
-    )
-  );
+  return Array.isArray(log) && log.every(isValidLogEntry);
+}
+
+/** A rehydrated log line must carry a string msg, a known tone, and — if present — a finite numeric delta. */
+function isValidLogEntry(l: unknown): boolean {
+  if (typeof l !== "object" || l === null) return false;
+  const entry = l as { msg?: unknown; tone?: unknown; delta?: unknown };
+  if (typeof entry.msg !== "string") return false;
+  if (!LOG_TONES.has(entry.tone)) return false;
+  return entry.delta === undefined || Number.isFinite(entry.delta);
 }
 
 type ParsedSnapshot = (Partial<Omit<RunSnapshot, "version">> & { version?: number }) | null;

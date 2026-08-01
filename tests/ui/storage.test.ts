@@ -300,6 +300,25 @@ describe("snapshot v1 → v2 log migration (P2-1)", () => {
     const bad = { ...base, state: { ...base.state, log: [42, { tone: "good" }] } };
     expect(parseSnapshot(JSON.stringify(bad), base.dateKey)).toBeNull();
   });
+
+  it.each([
+    ["a log entry missing tone", { msg: "hi" }],
+    ["a log entry with an unknown tone", { msg: "hi", tone: "great" }],
+    ["a log entry with a non-string tone", { msg: "hi", tone: 1 }],
+    ["a log entry with a non-numeric delta", { msg: "hi", tone: "good", delta: "10" }],
+    ["a log entry with a non-finite delta", { msg: "hi", tone: "good", delta: null }],
+  ] as [string, unknown][])("rejects %s", (_why, entry) => {
+    const base = liveSnapshot({});
+    const bad = { ...base, state: { ...base.state, log: [entry] } };
+    expect(parseSnapshot(JSON.stringify(bad), base.dateKey)).toBeNull();
+  });
+
+  it("accepts a log entry carrying a valid tone and finite delta", () => {
+    const base = liveSnapshot({});
+    const log = [{ msg: "Sold 3 Water / Ice for 90cr.", tone: "good", delta: 90 }];
+    const snap = { ...base, state: { ...base.state, log } };
+    expect(parseSnapshot(JSON.stringify(snap), base.dateKey)).toEqual(snap);
+  });
 });
 
 describe("loadSnapshot / persistSnapshot / clearSnapshot", () => {
