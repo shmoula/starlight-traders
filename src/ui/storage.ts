@@ -222,6 +222,20 @@ function isValidLog(log: unknown): boolean {
   );
 }
 
+type ParsedSnapshot = (Partial<Omit<RunSnapshot, "version">> & { version?: number }) | null;
+
+/**
+ * Normalise an older snapshot envelope to the current version in place: a v1 doc with a
+ * usable state has its bare-string log wrapped (migrateV1Log) and is stamped version 2.
+ * Anything else is left untouched for the field-by-field validation in parseSnapshot to judge.
+ */
+function migrateSnapshotToCurrentVersion(p: ParsedSnapshot): void {
+  if (p && p.version === 1 && typeof p.state === "object" && p.state !== null) {
+    migrateV1Log(p.state);
+    p.version = 2;
+  }
+}
+
 /**
  * Validate a raw snapshot string against today's UTC key. Field-by-field on the
  * envelope plus the load-bearing state fields; deeper state corruption is caught by
@@ -230,12 +244,8 @@ function isValidLog(log: unknown): boolean {
 export function parseSnapshot(raw: string | null, todayKey: string): RunSnapshot | null {
   if (!raw) return null;
   try {
-    const p = JSON.parse(raw) as
-      (Partial<Omit<RunSnapshot, "version">> & { version?: number }) | null;
-    if (p && p.version === 1 && typeof p.state === "object" && p.state !== null) {
-      migrateV1Log(p.state);
-      p.version = 2;
-    }
+    const p = JSON.parse(raw) as ParsedSnapshot;
+    migrateSnapshotToCurrentVersion(p);
     if (
       !p ||
       p.version !== 2 ||
