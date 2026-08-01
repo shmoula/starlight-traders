@@ -7,8 +7,8 @@ export const REFUEL_PRICE = 8; // credits per fuel unit
 export const REPAIR_PRICE = 6; // credits per hull point
 /**
  * A mission's reward must clear this multiple of what its cargo costs at the offering
- * station today — otherwise the board could dangle a delivery that pays less than just
- * buying and reselling the goods on the spot. Kills junk offers without touching the
+ * station today — otherwise the board could dangle a delivery that pays less than the
+ * cargo it asks you to buy, plus a 20% margin. Kills junk offers without touching the
  * premium roll that makes most missions worth more (E2-2c).
  */
 export const MISSION_REWARD_FLOOR_MULT = 1.2;

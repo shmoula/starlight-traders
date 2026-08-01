@@ -32,20 +32,28 @@ describe("generateMissions", () => {
 
 describe("reward floor + deposit (E2-2)", () => {
   it("floors every reward at 1.2× the origin cost, capped by the destination premium", () => {
+    let aboveFloor = 0;
+    let total = 0;
     for (let seed = 1; seed <= 30; seed++) {
       for (let day = 1; day <= 12; day++) {
         for (const node of NODE_IDS) {
           for (const m of generateMissions(seed, day, node)) {
             const originCost = m.qty * getPrice(seed, day, node, m.commodity);
             const destCost = m.qty * getPrice(seed, day, m.destination, m.commodity);
-            expect(m.reward).toBeGreaterThanOrEqual(Math.round(1.2 * originCost));
-            expect(m.reward).toBeLessThanOrEqual(
-              Math.max(Math.round(1.7 * destCost), Math.round(1.2 * originCost))
-            );
+            const floor = Math.round(1.2 * originCost);
+            expect(m.reward).toBeGreaterThanOrEqual(floor);
+            expect(m.reward).toBeLessThanOrEqual(Math.max(Math.round(1.7 * destCost), floor));
+            total++;
+            if (m.reward > floor) aboveFloor++;
           }
         }
       }
     }
+    // The cap alone can't tell a real premium roll apart from an implementation that always
+    // pays exactly the floor (the floor is one arm of the cap's own max) — a mutant that drops
+    // the premium roll entirely would still satisfy both bounds above on every mission. Assert
+    // the premium roll, not the floor, is what actually sets most rewards.
+    expect(aboveFloor).toBeGreaterThan(total / 2);
   });
 
   it("carries a deposit of 10% of the reward, rounded", () => {
