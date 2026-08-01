@@ -26,7 +26,11 @@ export interface Mission {
   qty: number;
   destination: NodeId;
   reward: number;
-  /** 10% of reward, rounded — escrowed on accept, returned on delivery, forfeited on expiry (E2-2). */
+  /**
+   * Credits escrowed on accept, returned on delivery, forfeited on expiry (E2-2). Set at
+   * generation to 10% of reward, rounded; pre-v3 missions carry 0 — always read this
+   * field, never re-derive it from `reward`.
+   */
   deposit: number;
   deadlineDay: number; // absolute game day by which cargo must arrive
 }

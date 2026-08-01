@@ -31,13 +31,17 @@ describe("generateMissions", () => {
 });
 
 describe("reward floor + deposit (E2-2)", () => {
-  it("floors every reward at 1.2× the cargo's cost at the offering station", () => {
+  it("floors every reward at 1.2× the origin cost, capped by the destination premium", () => {
     for (let seed = 1; seed <= 30; seed++) {
       for (let day = 1; day <= 12; day++) {
         for (const node of NODE_IDS) {
           for (const m of generateMissions(seed, day, node)) {
             const originCost = m.qty * getPrice(seed, day, node, m.commodity);
+            const destCost = m.qty * getPrice(seed, day, m.destination, m.commodity);
             expect(m.reward).toBeGreaterThanOrEqual(Math.round(1.2 * originCost));
+            expect(m.reward).toBeLessThanOrEqual(
+              Math.max(Math.round(1.7 * destCost), Math.round(1.2 * originCost))
+            );
           }
         }
       }
