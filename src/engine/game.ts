@@ -532,8 +532,10 @@ function resolveCustoms(s: GameState, choiceId: string): GameState {
   if (choiceId === "comply" && s.cargo.luxury > 0) {
     const seized = s.cargo.luxury;
     return withLog(
-      // Seized units leave the hold, so their provenance goes with them — otherwise
-      // boughtHere outlives the cargo it describes and misprices the next settlement.
+      // Seized units leave the hold, so their provenance goes with them. Belt-and-braces
+      // today: resolveChoice only runs after jump, which already zeroed boughtHere, so
+      // there is nothing to clear. Kept so the invariant boughtHere[c] <= cargo[c] holds
+      // locally rather than depending on that call order staying true.
       { ...s, cargo: { ...s.cargo, luxury: 0 }, boughtHere: { ...s.boughtHere, luxury: 0 } },
       `Customs seized ${seized} luxury goods.`,
       "bad"

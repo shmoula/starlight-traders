@@ -91,6 +91,8 @@ contract cargo (E1-5 Heat territory).
    scope section's "junk 63cr offers" survive, just barely repriced. This is
    accepted, not a gap: a fuel-inclusive floor would make generation
    route-dependent and rebalance every board (an E2-1 concern, dead last in M3),
+   and the sweep's minimum reward is 65cr over the 30-seed test range (61cr over
+   600 seeds — the floor bounds the ratio, not an absolute figure),
    and **P2-3 is the actual fix for junk offers** — an honest `est. −66cr` on the
    card kills a bad contract faster than a bigger number on it would. Read the
    E2-2c acceptance criterion as the mechanical rule it states, not as "every card
