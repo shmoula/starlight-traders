@@ -309,7 +309,11 @@ export function deliver(state: GameState): GameState {
   return settleMissions(state).state;
 }
 
-/** Complete any active missions satisfied by current location + cargo, paying rewards. */
+/**
+ * Complete any active missions satisfied by current location + cargo. Hauled units earn the
+ * contract premium; units bought at this dock since arrival pay local spot (E2-2d). Each
+ * settlement returns the bond and bumps the delivered counter; expiry is handled below.
+ */
 function settleMissions(state: GameState): {
   state: GameState;
   delivered: Mission[];
@@ -323,8 +327,10 @@ function settleMissions(state: GameState): {
     if (m.destination === s.location && s.cargo[m.commodity] >= m.qty && s.day <= m.deadlineDay) {
       // E2-2d: only hauled units earn the contract premium; units bought at this dock
       // since arrival settle at today's local spot — the instant-settle wash.
-      const boughtAvailable = Math.min(s.boughtHere[m.commodity], s.cargo[m.commodity]);
-      const hauledUsed = Math.min(m.qty, s.cargo[m.commodity] - boughtAvailable);
+      // max(0, …) keeps hauledUsed in [0, qty] structurally rather than relying on
+      // boughtHere <= cargo holding everywhere upstream.
+      const hauledAvailable = Math.max(0, s.cargo[m.commodity] - s.boughtHere[m.commodity]);
+      const hauledUsed = Math.min(m.qty, hauledAvailable);
       const boughtUsed = m.qty - hauledUsed;
       const spot = getPrice(s.seed, s.day, m.destination, m.commodity);
       const payout = Math.round((m.reward * hauledUsed) / m.qty) + spot * boughtUsed;
@@ -516,7 +522,9 @@ function resolveCustoms(s: GameState, choiceId: string): GameState {
   if (choiceId === "comply" && s.cargo.luxury > 0) {
     const seized = s.cargo.luxury;
     return withLog(
-      { ...s, cargo: { ...s.cargo, luxury: 0 } },
+      // Seized units leave the hold, so their provenance goes with them — otherwise
+      // boughtHere outlives the cargo it describes and misprices the next settlement.
+      { ...s, cargo: { ...s.cargo, luxury: 0 }, boughtHere: { ...s.boughtHere, luxury: 0 } },
       `Customs seized ${seized} luxury goods.`,
       "bad"
     );

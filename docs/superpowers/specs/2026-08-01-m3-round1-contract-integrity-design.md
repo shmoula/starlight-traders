@@ -297,9 +297,14 @@ Vitest, same pure-logic/thin-I/O split:
   explanation (same division as buy/jump guards).
 - Deposit-induced stranding is not special-cased: checkLoss already reads the
   post-escrow credits — that risk is the mechanic working (decision 2).
-- Rounding: `round(reward × hauledUsed / qty)` can drop ≤ 1cr on split
-  settlements; acceptable, always in the house's favor, and full-haul
-  (`hauledUsed === qty`) pays reward exactly.
+- Rounding: `round(reward × hauledUsed / qty)` can shift a split settlement by
+  ≤ 1cr **in either direction** — `Math.round` is half-up, so it is not
+  house-favorable, contrary to this spec's earlier wording. Measured across
+  reward 60–3000 × qty 3–10 × every hauled split: 8,351 player-favorable vs
+  6,571 house-favorable roundings, max 0.5cr. Kept as-is: it is the least biased
+  choice, `Math.floor` would buy the house a systematic ~0.5cr per contract for
+  no gameplay benefit, and total run impact either way is under 1cr — invisible
+  next to a 25cr dock fee. Full-haul (`hauledUsed === qty`) pays reward exactly.
 - Migration failures degrade to a fresh daily run — no new failure surface beyond
   the standing storage contract.
 
