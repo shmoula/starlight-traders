@@ -277,6 +277,13 @@ export function retire(state: GameState): GameState {
   );
 }
 
+/**
+ * Post the bond and take the contract (E2-2a). The `-deposit` delta is load-bearing beyond
+ * this function: the escrow is accounted once per direction, so delivery returns
+ * `payout + deposit` as a single credited delta and expiry logs none at all (the money
+ * already moved here). Summed log deltas must equal net credit movement. Delivery is the
+ * only path that gives the bond back — bonds open at audit, retire, or death are sunk.
+ */
 export function acceptMission(state: GameState, mission: Mission): GameState {
   if (state.activeMissions.some((m) => m.id === mission.id)) return state;
   if (state.credits < mission.deposit) return state; // E2-2a: can't post the bond
