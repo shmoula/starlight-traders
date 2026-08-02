@@ -846,4 +846,24 @@ describe("contract feasibility card (P2-3)", () => {
     expect(html).toContain(`aria-disabled="true" aria-describedby="accept-hint-${m.id}"`);
     expect(html).toContain(`(need ${cr2(m.deposit)} deposit)`);
   });
+
+  it("keeps Accept enabled when credits exactly cover the deposit", () => {
+    // The engine's guard is `credits < deposit`, so a UI-side `>` would disable an accept
+    // the engine would honour. Both other tests sit far from the boundary (800 vs 17/91,
+    // and 0), so nothing else pins that the two agree at the edge.
+    const m = missionsHere(createGame(42))[0];
+    const html = stationScreen({ ...createGame(42), credits: m.deposit });
+    expect(html).not.toContain(`aria-describedby="accept-hint-${m.id}"`);
+    expect(html).not.toContain(`(need ${cr2(m.deposit)} deposit)`);
+  });
+
+  it("replaces the Accept button with a confirmation once a contract is taken", () => {
+    // The accepted branch now guards the whole feasibility/affordability else-arm, so an
+    // inverted check would silently suppress all of it.
+    const s = createGame(42);
+    const m = missionsHere(s)[0];
+    const html = stationScreen({ ...s, activeMissions: [m] });
+    expect(html).toContain("✓ Accepted");
+    expect(html).not.toContain(`data-act="accept" data-id="${m.id}"`);
+  });
 });
