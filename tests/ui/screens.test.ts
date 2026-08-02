@@ -901,4 +901,58 @@ describe("active contract countdown + provenance (E2-2d/P2-3)", () => {
     const s = withMission({ ...mission, destination: "terra" });
     expect(stationScreen(s)).toContain("✓ carrying 10/10 — ready,");
   });
+
+  it("renders 3 days left without amber — the threshold is 2, not 3", () => {
+    const s = { ...withMission(mission), day: 2 };
+    expect(stationScreen(s)).toContain(`<span class="contract-days">3 days left</span>`);
+  });
+
+  it("says '1 day left' in the singular", () => {
+    const s = { ...withMission(mission), day: 4 };
+    expect(stationScreen(s)).toContain(
+      `<span class="contract-days contract-days--amber">1 day left</span>`
+    );
+  });
+
+  it("shows no countdown once the deadline has passed", () => {
+    // A bare not.toContain("days left") would fail against correct code — offer cards
+    // always carry a chip. Assert only that no negative countdown is rendered.
+    const s = { ...withMission(mission), day: 7 }; // deadline 5
+    const html = stationScreen(s);
+    expect(html).toContain("✗ deadline passed");
+    expect(html).not.toMatch(/-\d+ days? left/);
+  });
+
+  it("counts only the units settlement would actually pay spot on", () => {
+    // Hauling 10 and topping up 4 leaves 14 in the hold: settlement takes the 10 hauled
+    // units, so nothing pays spot. Using boughtHere directly would wrongly claim 4.
+    const s = {
+      ...withMission({ ...mission, destination: "terra" }),
+      cargo: { water: 14, parts: 0, luxury: 0 },
+      boughtHere: { water: 4, parts: 0, luxury: 0 },
+    };
+    expect(stationScreen(s)).toContain("✓ carrying 14/10 — ready,");
+    expect(stationScreen(s)).not.toContain("bought here pay spot");
+
+    // Haul 8, top up 4 -> 12 in hold, 10 required: 2 of the dockside units get used.
+    const partial = { ...s, cargo: { water: 12, parts: 0, luxury: 0 } };
+    expect(stationScreen(partial)).toContain("✓ carrying 12/10 — 2 bought here pay spot");
+  });
+
+  it("clamps the dockside count to the hold, as settlement does", () => {
+    const s = {
+      ...withMission({ ...mission, destination: "terra" }),
+      boughtHere: { water: 14, parts: 0, luxury: 0 }, // more than the 10 carried
+    };
+    expect(stationScreen(s)).toContain("✓ carrying 10/10 — 10 bought here pay spot");
+  });
+
+  it("does not claim dockside units away from the destination", () => {
+    // jump() zeroes boughtHere, so these 4 will be hauled by the time they settle.
+    const s = {
+      ...withMission(mission), // destination verge, standing at terra
+      boughtHere: { water: 4, parts: 0, luxury: 0 },
+    };
+    expect(stationScreen(s)).not.toContain("bought here pay spot");
+  });
 });

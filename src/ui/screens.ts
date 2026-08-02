@@ -293,11 +293,15 @@ function tradeHubPanel(s: GameState): string {
           ? ` · <span class="contract-days${daysLeft <= 2 ? " contract-days--amber" : ""}">${daysLeft} day${daysLeft === 1 ? "" : "s"} left</span>`
           : "";
       // Mirror settlement's provenance math so the nerf is visible before the click (E2-2d).
+      // Gated on atDestination as settlement is: away from the destination these units will
+      // be hauled by the time they settle, because jump() zeroes boughtHere — claiming they
+      // pay spot would understate the payout on the most common ready card.
       const boughtUsed = Math.max(
         0,
         m.qty - Math.max(0, s.cargo[m.commodity] - s.boughtHere[m.commodity])
       );
-      const provenance = ready && boughtUsed > 0 ? ` — ${boughtUsed} bought here pay spot` : "";
+      const provenance =
+        ready && atDestination && boughtUsed > 0 ? ` — ${boughtUsed} bought here pay spot` : "";
       const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
       const jumpHintId = `jump-hint-${m.id}`;
       // Shortfall shortcut: buys the full missing amount at the local price, or
