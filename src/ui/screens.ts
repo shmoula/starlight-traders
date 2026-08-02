@@ -18,7 +18,7 @@ import {
   missionsHere,
   netProceeds,
 } from "../engine/game";
-import { missionFeasibility } from "../engine/missions";
+import { docksideUnitsUsed, missionFeasibility } from "../engine/missions";
 import { pirateChance } from "../engine/events";
 import { RUN_LENGTH } from "../engine/run-end";
 import { choiceOdds, choiceStakes } from "../engine/preview";
@@ -234,15 +234,12 @@ function daysLeftChip(daysLeft: number): string {
 }
 
 /**
- * Units of `m` that settlement would pay local spot on rather than the contract premium
- * (E2-2d) — mirrors settleMissions' hauled-pool math so the card can't promise a payout the
- * engine won't honour. Zero away from the destination: jump() clears boughtHere, so those
- * units will be hauled by the time they settle.
+ * Units the card should warn will pay spot. Defers to the engine's own split so the hint
+ * can't promise a payout settlement won't honour, and reports none away from the
+ * destination — jump() clears boughtHere, so those units will be hauled by then.
  */
-function docksideUnitsUsed(s: GameState, m: Mission): number {
-  if (s.location !== m.destination) return 0;
-  const hauledAvailable = Math.max(0, s.cargo[m.commodity] - s.boughtHere[m.commodity]);
-  return Math.max(0, m.qty - hauledAvailable);
+function docksideUnitsShown(s: GameState, m: Mission): number {
+  return s.location === m.destination ? docksideUnitsUsed(s, m) : 0;
 }
 
 function tradeHubPanel(s: GameState): string {
@@ -312,7 +309,7 @@ function tradeHubPanel(s: GameState): string {
       const atDestination = s.location === m.destination;
       const chip = daysLeftChip(m.deadlineDay - s.day);
       const daysChip = chip && ` · ${chip}`;
-      const boughtUsed = docksideUnitsUsed(s, m);
+      const boughtUsed = docksideUnitsShown(s, m);
       const provenance = ready && boughtUsed > 0 ? ` — ${boughtUsed} bought here pay spot` : "";
       const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
       const jumpHintId = `jump-hint-${m.id}`;
@@ -564,11 +561,19 @@ export function runEndScreen(
   const haul = s.biggestPayday
     ? `<div class="st-kv"><span class="st-kv__label">Best haul</span><span class="st-kv__value st-num">+${cr(s.biggestPayday.amount)} · ${s.biggestPayday.label}</span></div>`
     : "";
+  // A bond still open at run end is sunk, not forfeited — no refund path exists outside
+  // delivery (E2-2 decision 2) — so the row must appear for it too, or the debrief goes
+  // silent about money the player actually spent. That is the whole point of a bond.
+  const openBondCr = s.activeMissions.reduce((t, m) => t + m.deposit, 0);
+  const forfeitNote =
+    s.contracts.forfeitedCr > 0 ? ` (−${cr(s.contracts.forfeitedCr)} deposit)` : "";
+  const sunkNote =
+    s.activeMissions.length > 0
+      ? ` · ${cr(openBondCr)} sunk in ${s.activeMissions.length} unfinished`
+      : "";
   const contractsRow =
-    s.contracts.delivered + s.contracts.expired > 0
-      ? `<div class="st-kv"><span class="st-kv__label">Contracts</span><span class="st-kv__value st-num">${s.contracts.delivered} delivered · ${s.contracts.expired} expired${
-          s.contracts.forfeitedCr > 0 ? ` (−${cr(s.contracts.forfeitedCr)} deposit)` : ""
-        }</span></div>`
+    s.contracts.delivered + s.contracts.expired + s.activeMissions.length > 0
+      ? `<div class="st-kv"><span class="st-kv__label">Contracts</span><span class="st-kv__value st-num">${s.contracts.delivered} delivered · ${s.contracts.expired} expired${forfeitNote}${sunkNote}</span></div>`
       : "";
   const restart = restartArmed
     ? `<div class="retire-confirm">

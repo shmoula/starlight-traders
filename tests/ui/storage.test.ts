@@ -421,6 +421,36 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     const snap = { ...liveSnapshot(), state: mutate(createGame(42, BOOT)) };
     expect(parseSnapshot(JSON.stringify(snap), TODAY)).toBeNull();
   });
+
+  // These have to be built as raw text, not via JSON.stringify: stringify turns Infinity
+  // into null, which the weaker `typeof === "number"` check also rejects, so a
+  // round-tripped fixture would pass either way and prove nothing. `1e999` is what a
+  // hand-edited localStorage entry actually looks like, and JSON.parse yields Infinity.
+  it.each([
+    // Each `sound` string must be unique in the document — plain "water":0 would hit
+    // cargo, which is validated elsewhere, and prove nothing about boughtHere.
+    ["a non-finite deposit", '"deposit":1e999', '"deposit":50'],
+    ["a non-finite boughtHere count", '"boughtHere":{"water":1e999', '"boughtHere":{"water":0'],
+    ["a non-finite contract counter", '"delivered":1e999', '"delivered":0'],
+  ])("rejects %s from hand-edited JSON", (_why, poison, sound) => {
+    const bonded = {
+      id: "m",
+      commodity: "water",
+      qty: 5,
+      destination: "kiruna",
+      reward: 500,
+      deposit: 50,
+      deadlineDay: 9,
+    };
+    const snap = {
+      ...liveSnapshot(),
+      state: { ...createGame(42, BOOT), activeMissions: [bonded] },
+    };
+    const text = JSON.stringify(snap);
+    expect(text).toContain(sound); // the fixture really does carry the field we poison
+    expect(parseSnapshot(text, TODAY)).not.toBeNull(); // sound before poisoning
+    expect(parseSnapshot(text.replace(sound, poison), TODAY)).toBeNull();
+  });
 });
 
 describe("loadSnapshot / persistSnapshot / clearSnapshot", () => {

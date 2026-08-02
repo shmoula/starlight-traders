@@ -982,7 +982,29 @@ describe("run-end contracts row (E2-2b)", () => {
     );
   });
 
-  it("omits the row entirely when no contract resolved", () => {
+  it("names bonds still open at run end as sunk", () => {
+    // Decision 2: there is no refund path outside delivery, so retiring on an open contract
+    // is priced. Gating the row on delivered+expired alone hid that money entirely.
+    const open: Mission = {
+      id: "o1",
+      commodity: "water",
+      qty: 5,
+      destination: "kiruna",
+      reward: 500,
+      deposit: 50,
+      deadlineDay: 99,
+    };
+    const s = {
+      ...retire({ ...createGame(42), fuel: 20 }),
+      contracts: { delivered: 0, expired: 0, forfeitedCr: 0 },
+      activeMissions: [open, { ...open, id: "o2", deposit: 30 }],
+    };
+    expect(runEndScreen(s, s.runEnd!)).toContain(
+      "0 delivered · 0 expired · 80cr sunk in 2 unfinished"
+    );
+  });
+
+  it("omits the row entirely when no contract was ever taken", () => {
     expect(ended({ delivered: 0, expired: 0, forfeitedCr: 0 })).not.toContain("Contracts");
   });
 });

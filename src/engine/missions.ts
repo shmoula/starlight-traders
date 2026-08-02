@@ -58,3 +58,15 @@ export function missionFeasibility(
     daysLeft: m.deadlineDay - s.day,
   };
 }
+
+/**
+ * How many of `m`'s units would settle at local spot instead of earning the contract
+ * premium (E2-2d): everything the hauled pool can't cover. Lives here, not in the
+ * template, so the card's "N bought here pay spot" and settlement's payout split are the
+ * same number by construction — the B-1 precedent. Callers gate on being at the
+ * destination; away from it `jump` will have cleared `boughtHere` before settlement.
+ */
+export function docksideUnitsUsed(s: GameState, m: Mission): number {
+  const hauledAvailable = Math.max(0, s.cargo[m.commodity] - s.boughtHere[m.commodity]);
+  return m.qty - Math.min(m.qty, hauledAvailable);
+}

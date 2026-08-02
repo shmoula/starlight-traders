@@ -284,11 +284,15 @@ const CONTRACT_COUNTER_TABLE: Record<keyof GameState["contracts"], true> = {
 };
 const CONTRACT_COUNTERS = Object.keys(CONTRACT_COUNTER_TABLE);
 
-/** Every counter must be a non-negative number, or the ledger is corrupt. */
+/**
+ * Every counter must be a finite non-negative number, or the ledger is corrupt. Finiteness
+ * matters as much as the sign: `1e999` is valid JSON and parses to Infinity, which would
+ * reach settlement and take credits with it.
+ */
 const allNonNegativeNumbers = (v: unknown, keys: string[]): boolean => {
   if (typeof v !== "object" || v === null) return false;
   const rec = v as Record<string, unknown>;
-  return keys.every((k) => typeof rec[k] === "number" && (rec[k] as number) >= 0);
+  return keys.every((k) => Number.isFinite(rec[k]) && (rec[k] as number) >= 0);
 };
 
 /** boughtHere feeds settlement math on resume — a missing key or negative count is corrupt. */
@@ -308,7 +312,7 @@ function hasValidDeposits(missions: unknown): boolean {
       (m) =>
         typeof m === "object" &&
         m !== null &&
-        typeof (m as { deposit?: unknown }).deposit === "number" &&
+        Number.isFinite((m as { deposit?: unknown }).deposit) &&
         (m as { deposit: number }).deposit >= 0
     )
   );

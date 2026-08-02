@@ -21,7 +21,7 @@ import {
   cargoUsed,
   netWorth,
 } from "./economy";
-import { generateMissions } from "./missions";
+import { docksideUnitsUsed, generateMissions } from "./missions";
 import { rollEvent } from "./events";
 import { hashSeed } from "./rng";
 import {
@@ -326,12 +326,10 @@ function settleMissions(state: GameState): {
   for (const m of s.activeMissions) {
     if (m.destination === s.location && s.cargo[m.commodity] >= m.qty && s.day <= m.deadlineDay) {
       // E2-2d: only hauled units earn the contract premium; units bought at this dock
-      // since arrival settle at today's local spot — the instant-settle wash.
-      // max(0, …) keeps hauledUsed in [0, qty] structurally rather than relying on
-      // boughtHere <= cargo holding everywhere upstream.
-      const hauledAvailable = Math.max(0, s.cargo[m.commodity] - s.boughtHere[m.commodity]);
-      const hauledUsed = Math.min(m.qty, hauledAvailable);
-      const boughtUsed = m.qty - hauledUsed;
+      // since arrival settle at today's local spot — the instant-settle wash. The split
+      // comes from docksideUnitsUsed so the active card shows this same number.
+      const boughtUsed = docksideUnitsUsed(s, m);
+      const hauledUsed = m.qty - boughtUsed;
       const spot = getPrice(s.seed, s.day, m.destination, m.commodity);
       const payout = Math.round((m.reward * hauledUsed) / m.qty) + spot * boughtUsed;
       const inflow = payout + m.deposit;
