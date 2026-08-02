@@ -930,6 +930,20 @@ describe("expiry forfeiture (E2-2b)", () => {
     expect(entry.tone).toBe("bad");
     expect(entry.delta).toBeUndefined();
   });
+
+  it("a contract is still alive on its own deadline day", () => {
+    // The two arms must partition the day exactly: deliverable guards `day <= deadlineDay`,
+    // expiry `day > deadlineDay`. A `>=` slip in the expiry arm survives the whole suite
+    // otherwise — it forfeits the bond a day early and kills the arrive-empty-then-buy
+    // path on the due day, which is precisely when a player is racing the clock.
+    let s = acceptMission(createGame(42), { ...bond, deadlineDay: 2 });
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state; // day 2 === deadlineDay, carrying nothing
+    expect(s.activeMissions.map((m) => m.id)).toEqual(["x1"]); // not expired
+    expect(s.contracts.expired).toBe(0);
+    s = deliver(buy(s, "water", 5)); // the dockside settle is still available today
+    expect(s.contracts.delivered).toBe(1);
+  });
 });
 
 describe("escrow accounting is conservative (E2-2)", () => {
@@ -958,5 +972,35 @@ describe("escrow accounting is conservative (E2-2)", () => {
     s = { ...s, fuel: 20 };
     s = arrive(jump(s, "kiruna").state).state;
     expect(sumDeltas(s)).toBe(s.credits - STARTING.credits);
+  });
+
+  it("log deltas sum to net credit movement across every credit-moving action", () => {
+    // The two paths above touch only accept, the docking fee, buy, delivery and expiry —
+    // 5 of the engine's 11 credit-moving sites. This walks the rest: a taxed sale (the one
+    // delta that is proceeds - tax), refuel, repair, payDebt, a pirate toll, a customs
+    // bribe, and salvage loot, then retires. One assertion guards all of them.
+    const ev = (kind: GameEvent["kind"], id: string): GameEvent => ({
+      kind,
+      title: "",
+      description: "",
+      choices: [{ id, label: "" }],
+    });
+    // Baseline against the seeded purse, not STARTING.credits: the override itself moves
+    // credits without a log entry, and only logged movement is what's being reconciled.
+    const base = { ...createGame(42), credits: 10_000, fuel: 20 };
+    let s = acceptMission(base, bond);
+    s = buy(s, "water", 5);
+    s = resolveChoice(jump(s, "kiruna").state, ev("pirates", "pay"), "pay");
+    s = arrive(s).state; // settles the delivery
+    s = buy(s, "water", 4);
+    s = sell(s, "water", 4); // taxed sale
+    s = refuel(s, 3);
+    s = repair({ ...s, hull: 60 }, 20);
+    s = payDebt(s, 100);
+    s = resolveChoice(jump(s, "meridian").state, ev("customs", "bribe"), "bribe");
+    s = arrive(s).state;
+    s = resolveChoice(jump(s, "terra").state, ev("salvage", "collect"), "collect");
+    s = retire(arrive(s).state);
+    expect(sumDeltas(s)).toBe(s.credits - base.credits);
   });
 });
