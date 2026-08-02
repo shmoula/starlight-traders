@@ -360,7 +360,19 @@ function settleMissions(state: GameState): {
       s = markDay(s, inflow >= BIG_TRADE_CR ? "bigTrade" : "delivery");
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {
-      s = withLog(s, `Delivery to ${NODES[m.destination].name} expired.`, "bad");
+      // E2-2b: the bond is the penalty — the credits moved at accept, so no delta here.
+      s = withLog(
+        {
+          ...s,
+          contracts: {
+            ...s.contracts,
+            expired: s.contracts.expired + 1,
+            forfeitedCr: s.contracts.forfeitedCr + m.deposit,
+          },
+        },
+        `Delivery to ${NODES[m.destination].name} expired — ${m.deposit}cr deposit forfeit.`,
+        "bad"
+      );
       expired.push(m);
     } else {
       remaining.push(m);

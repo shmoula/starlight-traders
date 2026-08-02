@@ -18,7 +18,7 @@ import {
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
 import { dockingFee } from "../../src/engine/economy";
-import { GameEvent, Mission, NodeId } from "../../src/engine/types";
+import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
 import { SALVAGE_HAZARD_DIVISOR } from "../../src/engine/preview";
@@ -904,5 +904,59 @@ describe("proportional settlement (E2-2d)", () => {
     const before = s.credits;
     s = deliver(s);
     expect(s.credits - before).toBe(167 + spot * 2 + 50);
+  });
+});
+
+describe("expiry forfeiture (E2-2b)", () => {
+  const bond: Mission = {
+    id: "x1",
+    commodity: "water",
+    qty: 5,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 1,
+  };
+
+  it("expiry forfeits the deposit into the counters with no credit movement", () => {
+    let s = acceptMission(createGame(42), bond);
+    const creditsAfterAccept = s.credits;
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state; // day 2 > deadline 1
+    expect(s.credits).toBe(creditsAfterAccept - dockingFee("kiruna")); // only the dock fee moved
+    expect(s.contracts).toEqual({ delivered: 0, expired: 1, forfeitedCr: 50 });
+    const entry = s.log.find((l) => l.msg.includes("expired"))!;
+    expect(entry.msg).toBe("Delivery to Kiruna Belt expired — 50cr deposit forfeit.");
+    expect(entry.tone).toBe("bad");
+    expect(entry.delta).toBeUndefined();
+  });
+});
+
+describe("escrow accounting is conservative (E2-2)", () => {
+  const sumDeltas = (s: GameState) => s.log.reduce((t, l) => t + (l.delta ?? 0), 0);
+  const bond: Mission = {
+    id: "c9",
+    commodity: "water",
+    qty: 5,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 99,
+  };
+
+  it("log deltas sum to net credit movement across accept → jump → buy → deliver", () => {
+    let s = acceptMission(createGame(42), bond);
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state;
+    s = buy(s, "water", 5);
+    s = deliver(s);
+    expect(sumDeltas(s)).toBe(s.credits - STARTING.credits);
+  });
+
+  it("log deltas sum to net credit movement across accept → expire", () => {
+    let s = acceptMission(createGame(42), { ...bond, deadlineDay: 1 });
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state;
+    expect(sumDeltas(s)).toBe(s.credits - STARTING.credits);
   });
 });
