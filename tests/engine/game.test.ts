@@ -761,3 +761,79 @@ describe("contract deposit escrow (E2-2a)", () => {
     expect(after.activeMissions.map((m) => m.id)).toEqual(["b1"]);
   });
 });
+
+describe("proportional settlement (E2-2d)", () => {
+  const mission = (over: Partial<Mission> = {}): Mission => ({
+    id: "pv1",
+    commodity: "water",
+    qty: 10,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 99,
+    ...over,
+  });
+
+  it("a fully hauled delivery pays reward + deposit and counts as delivered", () => {
+    let s = acceptMission(createGame(42), mission());
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 10 } }; // hauled (never bought here)
+    const before = arrive(jump(s, "kiruna").state);
+    expect(before.delivered.map((m) => m.id)).toEqual(["pv1"]);
+    const entry = before.state.log[before.state.log.length - 1];
+    expect(entry).toEqual({
+      msg: "Delivery complete: +550cr (deposit returned).",
+      tone: "good",
+      delta: 550,
+    });
+    expect(before.state.contracts.delivered).toBe(1);
+  });
+
+  it("an all-dockside delivery pays spot only — the instant settle is a wash", () => {
+    let s = acceptMission(createGame(42), mission());
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state; // arrive empty-handed, day 2
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    const before = s.credits;
+    s = buy(s, "water", 10); // dockside
+    s = deliver(s);
+    expect(s.credits - before).toBe(50); // -10×spot buy, +10×spot payout, +50cr deposit back
+    const entry = s.log[s.log.length - 1];
+    expect(entry.msg).toBe(
+      `Delivery complete: +${spot * 10 + 50}cr — 10 bought dockside paid spot (deposit returned).`
+    );
+    expect(entry.delta).toBe(spot * 10 + 50);
+  });
+
+  it("a topped-up delivery pays the premium only on hauled units", () => {
+    let s = acceptMission(createGame(42), mission());
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 8 } }; // hauled 8, short 2
+    s = arrive(jump(s, "kiruna").state).state; // mission stays active
+    expect(s.activeMissions.map((m) => m.id)).toEqual(["pv1"]);
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    s = buy(s, "water", 2);
+    const before = s.credits;
+    s = deliver(s);
+    // 8/10 of the reward + 2 units at spot + the deposit back
+    expect(s.credits - before).toBe(Math.round((500 * 8) / 10) + spot * 2 + 50);
+  });
+
+  it("two missions on one commodity drain the hauled pool in list order", () => {
+    let s = acceptMission(createGame(42), mission({ id: "pv2", qty: 5, reward: 300, deposit: 30 }));
+    s = acceptMission(s, mission({ id: "pv3", qty: 5, reward: 300, deposit: 30 }));
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 5 } }; // hauled covers only the first
+    s = arrive(jump(s, "kiruna").state).state; // settles pv2 fully hauled; pv3 stays (short)
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    s = buy(s, "water", 5); // dockside top-up for pv3
+    const before = s.credits;
+    s = deliver(s);
+    expect(s.credits - before).toBe(spot * 5 + 30); // pv3: all five dockside → spot + deposit
+    expect(s.contracts.delivered).toBe(2);
+  });
+
+  it("the delivery payday records the actual inflow, not the face reward", () => {
+    let s = acceptMission(createGame(42), mission());
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 10 } };
+    s = arrive(jump(s, "kiruna").state).state;
+    expect(s.biggestPayday!.amount).toBe(550); // reward 500 + deposit 50
+  });
+});

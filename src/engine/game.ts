@@ -321,18 +321,37 @@ function settleMissions(state: GameState): {
   const expired: Mission[] = [];
   for (const m of s.activeMissions) {
     if (m.destination === s.location && s.cargo[m.commodity] >= m.qty && s.day <= m.deadlineDay) {
+      // E2-2d: only hauled units earn the contract premium; units bought at this dock
+      // since arrival settle at today's local spot — the instant-settle wash.
+      const boughtAvailable = Math.min(s.boughtHere[m.commodity], s.cargo[m.commodity]);
+      const hauledUsed = Math.min(m.qty, s.cargo[m.commodity] - boughtAvailable);
+      const boughtUsed = m.qty - hauledUsed;
+      const spot = getPrice(s.seed, s.day, m.destination, m.commodity);
+      const payout = Math.round((m.reward * hauledUsed) / m.qty) + spot * boughtUsed;
+      const inflow = payout + m.deposit;
       s = {
         ...s,
         cargo: { ...s.cargo, [m.commodity]: s.cargo[m.commodity] - m.qty },
-        credits: s.credits + m.reward,
+        boughtHere: {
+          ...s.boughtHere,
+          [m.commodity]: Math.max(0, s.boughtHere[m.commodity] - boughtUsed),
+        },
+        credits: s.credits + inflow,
+        contracts: { ...s.contracts, delivered: s.contracts.delivered + 1 },
       };
       s = trackPayday(
         s,
-        m.reward,
+        inflow,
         `${commodityName(m.commodity)} contract → ${NODES[m.destination].name}`
       );
-      s = withLog(s, `Delivery complete: +${m.reward}cr.`, "good", m.reward);
-      s = markDay(s, m.reward >= BIG_TRADE_CR ? "bigTrade" : "delivery");
+      const dockside = boughtUsed > 0 ? ` — ${boughtUsed} bought dockside paid spot` : "";
+      s = withLog(
+        s,
+        `Delivery complete: +${inflow}cr${dockside} (deposit returned).`,
+        "good",
+        inflow
+      );
+      s = markDay(s, inflow >= BIG_TRADE_CR ? "bigTrade" : "delivery");
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {
       s = withLog(s, `Delivery to ${NODES[m.destination].name} expired.`, "bad");
