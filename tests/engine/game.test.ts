@@ -19,7 +19,7 @@ import {
   STARTING,
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
-import { canEscape, dockingFee, escapeCost } from "../../src/engine/economy";
+import { canEscape, dockingFee, escapeCost, netWorth } from "../../src/engine/economy";
 import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
@@ -114,6 +114,24 @@ describe("arrival settlement reporting", () => {
     const s2 = deliver(s);
     expect(s2.activeMissions).toEqual([]);
     expect(s2.cargo.water).toBe(0);
+  });
+
+  it("a dockside delivery raises the peak net worth high-water mark", () => {
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, fuel: 20 }; // no cargo carried
+    s = arrive(jump(s, "kiruna").state).state; // arrives short; mission stays active
+
+    // Hand over the cargo without a `buy` so the mark can only come from `deliver`, and
+    // seed the peak at today's worth — the mark is upgrade-only, so the payout is the one
+    // thing that can lift it. Early-run net worth is still negative against the loan.
+    s = { ...s, cargo: { ...s.cargo, water: 5 } };
+    const before = netWorth(s);
+    s = { ...s, peakNetWorth: before };
+
+    const s2 = deliver(s);
+    expect(netWorth(s2)).toBeGreaterThan(before); // the payout really did raise net worth
+    expect(s2.peakNetWorth).toBe(netWorth(s2));
   });
 });
 

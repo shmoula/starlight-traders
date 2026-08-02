@@ -355,9 +355,14 @@ export function acceptMission(state: GameState, mission: Mission): GameState {
  * mission's destination is already the current station (e.g. cargo bought after
  * arriving empty-handed) — `jump` no-ops when `to === state.location`, so `arrive`
  * never runs for that case.
+ *
+ * The `trackPeak` mirrors `arrive`: this is the other path where a payout raises net
+ * worth, and the debrief's high-water mark has to see it. Safe to apply here even though
+ * `arrive` settles too — it calls `settleMissions` directly rather than routing through
+ * this function, and the mark is upgrade-only regardless.
  */
 export function deliver(state: GameState): GameState {
-  return settleMissions(state).state;
+  return trackPeak(settleMissions(state).state);
 }
 
 /**
