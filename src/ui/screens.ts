@@ -18,6 +18,7 @@ import {
   missionsHere,
   netProceeds,
 } from "../engine/game";
+import { missionFeasibility } from "../engine/missions";
 import { pirateChance } from "../engine/events";
 import { RUN_LENGTH } from "../engine/run-end";
 import { choiceOdds, choiceStakes } from "../engine/preview";
@@ -259,10 +260,23 @@ function tradeHubPanel(s: GameState): string {
   const acceptedIds = new Set(s.activeMissions.map((m) => m.id));
   const missions = missionsHere(s)
     .map((m) => {
+      const f = missionFeasibility(s, m);
+      const est =
+        f.estProfit >= 0 ? `est. +${cr(f.estProfit)}` : `est. −${cr(Math.abs(f.estProfit))}`;
+      const days = `<span class="contract-days${f.daysLeft <= 2 ? " contract-days--amber" : ""}">${f.daysLeft} day${f.daysLeft === 1 ? "" : "s"} left</span>`;
+      const feasibility = `<span class="contract-feas st-num">cost ~${cr(f.cargoCost)} · ${f.fuel}⛽ · ${est} · deposit ${cr(m.deposit)} · ${days}</span>`;
+      const acceptHintId = `accept-hint-${m.id}`;
+      const canAfford = s.credits >= m.deposit;
+      // Composed button + hint, aria-disabled to stay focusable — the shortfall-buy pattern.
       const action = acceptedIds.has(m.id)
         ? `<span class="accepted">✓ Accepted</span>`
-        : `<button class="st-btn st-btn--ghost st-btn--sm" data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name}">Accept</button>`;
-      return `<li>Deliver ${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}
+        : `<button class="st-btn st-btn--ghost st-btn--sm" data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name} for a ${cr(m.deposit)} deposit"${
+            canAfford ? "" : ` aria-disabled="true" aria-describedby="${acceptHintId}"`
+          }>Accept</button>` +
+          (canAfford
+            ? ""
+            : ` <span id="${acceptHintId}" class="bad">(need ${cr(m.deposit)} deposit)</span>`);
+      return `<li>Deliver ${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${feasibility}
       ${action}</li>`;
     })
     .join("");

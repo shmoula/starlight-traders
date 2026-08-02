@@ -8,6 +8,7 @@ import {
   retire,
   netProceeds,
 } from "../../src/engine/game";
+import { missionFeasibility } from "../../src/engine/missions";
 import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
 import { dockingFee } from "../../src/engine/economy";
 import { GameEvent, Mission } from "../../src/engine/types";
@@ -37,14 +38,14 @@ describe("stationScreen accessibility", () => {
     }
   });
 
-  it("gives each Accept button an accessible name describing the contract", () => {
+  it("gives each Accept button an accessible name describing the contract and its deposit", () => {
     const s = createGame(42);
     const offered = missionsHere(s);
     expect(offered.length).toBeGreaterThan(0);
     const html = stationScreen(s);
     for (const m of offered) {
       expect(html).toContain(
-        `aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name}"`
+        `aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name} for a ${cr2(m.deposit)} deposit"`
       );
     }
   });
@@ -820,5 +821,29 @@ describe("negative credits warning (B-3)", () => {
   it("adds no warning at zero or above", () => {
     const html = stationScreen({ ...createGame(42), credits: 0 });
     expect(html).not.toContain("credits-negative");
+  });
+});
+
+describe("contract feasibility card (P2-3)", () => {
+  it("prints cost, fuel, est. profit, deposit, and days left from missionFeasibility", () => {
+    const s = createGame(42);
+    const html = stationScreen(s);
+    for (const m of missionsHere(s)) {
+      const f = missionFeasibility(s, m);
+      const est =
+        f.estProfit >= 0 ? `est. +${cr2(f.estProfit)}` : `est. −${cr2(Math.abs(f.estProfit))}`;
+      expect(html).toContain(
+        `cost ~${cr2(f.cargoCost)} · ${f.fuel}⛽ · ${est} · deposit ${cr2(m.deposit)}`
+      );
+      expect(html).toContain(`${f.daysLeft} days left`);
+    }
+  });
+
+  it("disables Accept with a reason when credits cannot cover the deposit", () => {
+    const s = { ...createGame(42), credits: 0 };
+    const html = stationScreen(s);
+    const m = missionsHere(s)[0];
+    expect(html).toContain(`aria-disabled="true" aria-describedby="accept-hint-${m.id}"`);
+    expect(html).toContain(`(need ${cr2(m.deposit)} deposit)`);
   });
 });
