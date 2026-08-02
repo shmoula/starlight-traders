@@ -21,6 +21,7 @@ import { dockingFee } from "../../src/engine/economy";
 import { GameEvent, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
+import { SALVAGE_HAZARD_DIVISOR } from "../../src/engine/preview";
 
 describe("createGame goal line", () => {
   it("opens the log by stating the stake, the deadline, and the shared sky", () => {
@@ -658,13 +659,30 @@ describe("dockside provenance (E2-2d state)", () => {
     expect(s.boughtHere.water).toBe(5);
   });
 
-  it("selling consumes dockside units first (no laundering)", () => {
+  it("a whole-dockside sale leaves the hauled units hauled", () => {
     let s = createGame(42);
     s = { ...s, cargo: { ...s.cargo, water: 5 } }; // 5 hauled
     s = buy(s, "water", 5); // +5 dockside
     s = sell(s, "water", 5);
     expect(s.boughtHere.water).toBe(0); // the dockside units went first
     expect(s.cargo.water).toBe(5); // the hauled 5 remain hauled
+  });
+
+  it("dockside units accumulate and are consumed one-for-one, not wiped", () => {
+    // The whole-sale case above passes even if sell() clears boughtHere[id] outright, and
+    // the single-buy case above passes even if buy() assigns qty instead of adding it.
+    // Both mutants hand Task 5 a premium on units bought at the destination, so pin the
+    // partial sale and the second buy.
+    let s = createGame(42);
+    s = { ...s, credits: 10_000, cargo: { ...s.cargo, water: 5 } }; // 5 hauled; buy() no-ops if broke
+    s = buy(s, "water", 3); // dockside 3
+    s = buy(s, "water", 2); // dockside 5 — a second buy accumulates
+    expect(s.boughtHere.water).toBe(5);
+    s = buy(s, "parts", 4);
+    s = sell(s, "water", 2); // consumes 2 dockside, leaves 3
+    expect(s.boughtHere.water).toBe(3);
+    expect(s.boughtHere.parts).toBe(4); // an untouched commodity stays untouched
+    expect(s.cargo.water).toBe(8);
   });
 
   it("selling hauled cargo floors boughtHere at zero instead of going negative", () => {
@@ -684,9 +702,9 @@ describe("dockside provenance (E2-2d state)", () => {
   });
 
   it("event loot never counts as dockside", () => {
-    // Find a clean (non-trap) salvage day for seed 42: hashSeed(42, d) % 3 !== 0.
+    // Find a clean (non-trap) salvage day for seed 42 — same divisor resolveSalvage uses.
     const cleanDay = Array.from({ length: 30 }, (_, i) => i + 1).find(
-      (d) => hashSeed(42, d) % 3 !== 0
+      (d) => hashSeed(42, d) % SALVAGE_HAZARD_DIVISOR !== 0
     )!;
     const salvage: GameEvent = {
       kind: "salvage",
