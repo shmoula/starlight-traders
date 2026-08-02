@@ -164,7 +164,7 @@ const TODAY = utcDateKey(BOOT); // "2026-07-29"
 
 function liveSnapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
   return {
-    version: 2,
+    version: 3,
     dateKey: TODAY,
     label: "The Daily",
     state: createGame(42, BOOT),
@@ -224,7 +224,7 @@ describe("parseSnapshot", () => {
   });
 
   it.each([
-    ["a wrong version", { version: 3 }],
+    ["a wrong version", { version: 4 }],
     ["a bad label", { label: "Casual" }],
     ["a non-numeric logMarkBeforeJump", { logMarkBeforeJump: "3" }],
     ["a null state", { state: null }],
@@ -283,7 +283,7 @@ describe("snapshot v1 → v2 log migration (P2-1)", () => {
     };
     const parsed = parseSnapshot(JSON.stringify(v1), v1.dateKey);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(2);
+    expect(parsed!.version).toBe(3); // migration chains: v1 → v2 → v3
     expect(parsed!.state.log).toEqual([
       { msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" },
       { msg: "Bought 2 Water / Ice for 30cr.", tone: "neutral" },
@@ -318,6 +318,87 @@ describe("snapshot v1 → v2 log migration (P2-1)", () => {
     const log = [{ msg: "Sold 3 Water / Ice for 90cr.", tone: "good", delta: 90 }];
     const snap = { ...base, state: { ...base.state, log } };
     expect(parseSnapshot(JSON.stringify(snap), base.dateKey)).toEqual(snap);
+  });
+});
+
+describe("snapshot v2 → v3 contract migration (E2-2)", () => {
+  it("accepts a v2 snapshot: legacy missions get deposit 0, provenance and counters zero", () => {
+    const base = liveSnapshot({});
+    const legacyMission = {
+      id: "m-old",
+      commodity: "water",
+      qty: 5,
+      destination: "kiruna",
+      reward: 500,
+      deadlineDay: 9,
+    }; // no deposit — accepted under the old rules, so none is owed back
+    const v2state = { ...base.state, activeMissions: [legacyMission] } as Record<string, unknown>;
+    delete v2state.boughtHere;
+    delete v2state.contracts;
+    const v2 = { ...base, version: 2, state: v2state };
+    const parsed = parseSnapshot(JSON.stringify(v2), TODAY);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.version).toBe(3);
+    expect(parsed!.state.activeMissions[0].deposit).toBe(0);
+    expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+    expect(parsed!.state.contracts).toEqual({ delivered: 0, expired: 0, forfeitedCr: 0 });
+  });
+
+  it("chains v1 → v2 → v3 (string logs wrapped AND contract fields defaulted)", () => {
+    const base = liveSnapshot({});
+    const v1state = { ...base.state, log: ["Docked at Terra Hub, fee 40cr."] } as Record<
+      string,
+      unknown
+    >;
+    delete v1state.boughtHere;
+    delete v1state.contracts;
+    const v1 = { ...base, version: 1, state: v1state };
+    const parsed = parseSnapshot(JSON.stringify(v1), TODAY);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.version).toBe(3);
+    expect(parsed!.state.log).toEqual([{ msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" }]);
+    expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+  });
+
+  it.each([
+    [
+      "a mission with a non-numeric deposit",
+      (s: ReturnType<typeof createGame>) => ({
+        ...s,
+        activeMissions: [
+          {
+            id: "m",
+            commodity: "water",
+            qty: 5,
+            destination: "kiruna",
+            reward: 500,
+            deposit: "50",
+            deadlineDay: 9,
+          },
+        ],
+      }),
+    ],
+    [
+      "a negative boughtHere entry",
+      (s: ReturnType<typeof createGame>) => ({
+        ...s,
+        boughtHere: { water: -1, parts: 0, luxury: 0 },
+      }),
+    ],
+    [
+      "a boughtHere missing a commodity key",
+      (s: ReturnType<typeof createGame>) => ({ ...s, boughtHere: { water: 0, parts: 0 } }),
+    ],
+    [
+      "contract counters of the wrong type",
+      (s: ReturnType<typeof createGame>) => ({
+        ...s,
+        contracts: { delivered: "1", expired: 0, forfeitedCr: 0 },
+      }),
+    ],
+  ] as [string, (s: ReturnType<typeof createGame>) => unknown][])("rejects %s", (_why, mutate) => {
+    const snap = { ...liveSnapshot(), state: mutate(createGame(42, BOOT)) };
+    expect(parseSnapshot(JSON.stringify(snap), TODAY)).toBeNull();
   });
 });
 

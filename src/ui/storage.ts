@@ -5,6 +5,7 @@
 // from the I/O wrapper: `recordRunEnd`/`labelForDay` are deterministic and unit-tested;
 // `loadSave`/`persist` are the only browser-only functions and degrade silently.
 import {
+  CommodityId,
   DayHighlightKind,
   GameEvent,
   GameState,
@@ -137,7 +138,7 @@ export function persist(save: StarlightSave): void {
 // and unit-tested; the wrappers degrade silently.
 
 export interface RunSnapshot {
-  version: 2;
+  version: 3;
   dateKey: string; // UTC "YYYY-MM-DD" of the run (from state.bootDate)
   label: "The Daily" | "Practice";
   state: GameState;
@@ -210,6 +211,9 @@ function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (typeof st.dayHighlights !== "object" || st.dayHighlights === null) return false;
   if (!Object.values(st.dayHighlights).every((k) => HIGHLIGHT_KINDS.has(k))) return false;
   if (!isValidLog(st.log)) return false;
+  if (!isValidBoughtHere(st.boughtHere)) return false;
+  if (!isValidContracts(st.contracts)) return false;
+  if (!hasValidDeposits(st.activeMissions)) return false;
   return (
     st.status === "playing" &&
     typeof st.day === "number" &&
@@ -226,6 +230,28 @@ function migrateV1Log(state: unknown): void {
   }
 }
 
+/**
+ * v2 → v3 (E2-2): legacy missions predate deposits — none was paid, so none is owed
+ * back (`deposit: 0` refunds/forfeits nothing). Provenance and counters default to
+ * zeros; a one-time upgrade-day launder of dockside units is accepted.
+ */
+function migrateV2Contracts(state: unknown): void {
+  const st = state as {
+    activeMissions?: unknown[];
+    boughtHere?: unknown;
+    contracts?: unknown;
+  };
+  if (Array.isArray(st?.activeMissions)) {
+    st.activeMissions = st.activeMissions.map((m) =>
+      typeof m === "object" && m !== null && !("deposit" in m) ? { ...m, deposit: 0 } : m
+    );
+  }
+  if (typeof state === "object" && state !== null) {
+    if (st.boughtHere === undefined) st.boughtHere = { water: 0, parts: 0, luxury: 0 };
+    if (st.contracts === undefined) st.contracts = { delivered: 0, expired: 0, forfeitedCr: 0 };
+  }
+}
+
 function isValidLog(log: unknown): boolean {
   return Array.isArray(log) && log.every(isValidLogEntry);
 }
@@ -239,17 +265,55 @@ function isValidLogEntry(l: unknown): boolean {
   return entry.delta === undefined || Number.isFinite(entry.delta);
 }
 
+const COMMODITY_KEYS: CommodityId[] = ["water", "parts", "luxury"];
+
+/** boughtHere feeds settlement math on resume — a missing key or negative count is corrupt. */
+function isValidBoughtHere(b: unknown): boolean {
+  if (typeof b !== "object" || b === null) return false;
+  const rec = b as Record<string, unknown>;
+  return COMMODITY_KEYS.every((k) => typeof rec[k] === "number" && (rec[k] as number) >= 0);
+}
+
+function isValidContracts(c: unknown): boolean {
+  if (typeof c !== "object" || c === null) return false;
+  const rec = c as Record<string, unknown>;
+  return ["delivered", "expired", "forfeitedCr"].every(
+    (k) => typeof rec[k] === "number" && (rec[k] as number) >= 0
+  );
+}
+
+/** Only `deposit` is validated on missions — it is the one field the refund math reads. */
+function hasValidDeposits(missions: unknown): boolean {
+  return (
+    Array.isArray(missions) &&
+    missions.every(
+      (m) =>
+        typeof m === "object" &&
+        m !== null &&
+        typeof (m as { deposit?: unknown }).deposit === "number" &&
+        (m as { deposit: number }).deposit >= 0
+    )
+  );
+}
+
 type ParsedSnapshot = (Partial<Omit<RunSnapshot, "version">> & { version?: number }) | null;
 
 /**
- * Normalise an older snapshot envelope to the current version in place: a v1 doc with a
- * usable state has its bare-string log wrapped (migrateV1Log) and is stamped version 2.
- * Anything else is left untouched for the field-by-field validation in parseSnapshot to judge.
+ * Normalise an older snapshot envelope to the current version in place. The steps are
+ * chained and ordered, so a v1 doc passes through both: its bare-string log is wrapped
+ * (migrateV1Log) on the way to v2, then it gains contract fields (migrateV2Contracts) on
+ * the way to v3. Anything else is left untouched for the field-by-field validation in
+ * parseSnapshot to judge — which is why this must run *before* that validation, or a
+ * legitimately migrated doc would be rejected for lacking the fields it just gained.
  */
 function migrateSnapshotToCurrentVersion(p: ParsedSnapshot): void {
   if (p && p.version === 1 && typeof p.state === "object" && p.state !== null) {
     migrateV1Log(p.state);
     p.version = 2;
+  }
+  if (p && p.version === 2 && typeof p.state === "object" && p.state !== null) {
+    migrateV2Contracts(p.state);
+    p.version = 3;
   }
 }
 
@@ -265,7 +329,7 @@ export function parseSnapshot(raw: string | null, todayKey: string): RunSnapshot
     migrateSnapshotToCurrentVersion(p);
     if (
       !p ||
-      p.version !== 2 ||
+      p.version !== 3 ||
       p.dateKey !== todayKey ||
       (p.label !== "The Daily" && p.label !== "Practice") ||
       typeof p.logMarkBeforeJump !== "number" ||
