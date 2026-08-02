@@ -552,6 +552,12 @@ export function runEndScreen(
   const haul = s.biggestPayday
     ? `<div class="st-kv"><span class="st-kv__label">Best haul</span><span class="st-kv__value st-num">+${cr(s.biggestPayday.amount)} · ${s.biggestPayday.label}</span></div>`
     : "";
+  const contractsRow =
+    s.contracts.delivered + s.contracts.expired > 0
+      ? `<div class="st-kv"><span class="st-kv__label">Contracts</span><span class="st-kv__value st-num">${s.contracts.delivered} delivered · ${s.contracts.expired} expired${
+          s.contracts.forfeitedCr > 0 ? ` (−${cr(s.contracts.forfeitedCr)} deposit)` : ""
+        }</span></div>`
+      : "";
   const restart = restartArmed
     ? `<div class="retire-confirm">
             <button class="st-btn st-btn--ghost retire-confirm__go" data-act="restartConfirm">Start a Practice run?</button>
@@ -571,6 +577,7 @@ export function runEndScreen(
             <div class="st-kv"><span class="st-kv__label">Survival bonus</span><span class="st-kv__value st-num">${banked ? `+${r.survivalBonus}` : "forfeited"}</span></div>
             <div class="st-kv"><span class="st-kv__label">Peak net worth</span><span class="st-kv__value st-num">${cr(s.peakNetWorth)}</span></div>
             ${haul}
+            ${contractsRow}
           </div>
           ${pb}
           <p class="score st-num">Score: ${r.score.toLocaleString()}</p>

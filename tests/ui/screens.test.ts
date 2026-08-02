@@ -956,3 +956,25 @@ describe("active contract countdown + provenance (E2-2d/P2-3)", () => {
     expect(stationScreen(s)).not.toContain("bought here pay spot");
   });
 });
+
+describe("run-end contracts row (E2-2b)", () => {
+  const ended = (contracts: { delivered: number; expired: number; forfeitedCr: number }) => {
+    const s = { ...retire({ ...createGame(42), fuel: 20 }), contracts };
+    return runEndScreen(s, s.runEnd!);
+  };
+
+  it("shows delivered and expired counts with the forfeited total", () => {
+    const html = ended({ delivered: 2, expired: 1, forfeitedCr: 25 });
+    expect(html).toContain("2 delivered · 1 expired (−25cr deposit)");
+  });
+
+  it("omits the forfeit note when nothing was forfeited", () => {
+    const html = ended({ delivered: 3, expired: 0, forfeitedCr: 0 });
+    expect(html).toContain("3 delivered · 0 expired");
+    expect(html).not.toContain("deposit)");
+  });
+
+  it("omits the row entirely when no contract resolved", () => {
+    expect(ended({ delivered: 0, expired: 0, forfeitedCr: 0 })).not.toContain("Contracts");
+  });
+});
