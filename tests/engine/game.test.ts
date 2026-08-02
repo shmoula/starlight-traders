@@ -836,4 +836,52 @@ describe("proportional settlement (E2-2d)", () => {
     s = arrive(jump(s, "kiruna").state).state;
     expect(s.biggestPayday!.amount).toBe(550); // reward 500 + deposit 50
   });
+
+  it("two missions settling in ONE call share the hauled pool", () => {
+    // The list-order test above settles its two missions in *separate* settleMissions
+    // calls (one in arrive, one in deliver), so it never exercises the shared pool the
+    // loop actually maintains. Settle both in one call: without the boughtHere decrement
+    // after the first mission, the second would recompute its hauled pool from a stale
+    // count and collect the premium on dockside units.
+    // The first mission must draw *partially* on the dockside pool for this to bite: if it
+    // consumes zero dockside units the decrement is a no-op and the case proves nothing.
+    let s = acceptMission(createGame(42), mission({ id: "a", qty: 5, reward: 300, deposit: 30 }));
+    s = acceptMission(s, mission({ id: "b", qty: 5, reward: 300, deposit: 30 }));
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 2 } }; // 2 hauled
+    s = jump(s, "kiruna").state; // boughtHere cleared; do NOT arrive — that would settle `a` early
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    s = buy(s, "water", 8); // cargo 10 = 2 hauled + 8 dockside
+    const before = s.credits;
+    s = deliver(s); // both settle in one loop against the shared pool
+    // a: 2 hauled + 3 dockside -> round(300×2/5)=120 + spot×3, +30 deposit
+    // b: the pool is spent, so all 5 dockside -> spot×5, +30 deposit
+    expect(s.credits - before).toBe(120 + spot * 3 + 30 + spot * 5 + 30);
+    expect(s.contracts.delivered).toBe(2);
+  });
+
+  it("a whale reward settled entirely dockside is not a bigTrade day", () => {
+    // markDay must rank the day on the actual inflow, not the face reward — otherwise the
+    // share strip brags about a 5,000cr contract that paid spot.
+    let s = acceptMission(createGame(42), mission({ reward: 5000, deposit: 50 }));
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state; // arrive empty-handed
+    s = buy(s, "water", 10);
+    s = deliver(s);
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    expect(spot * 10 + 50).toBeLessThan(900); // modest inflow despite the whale reward
+    expect(s.dayHighlights[s.day]).toBe("delivery");
+  });
+
+  it("rounds the premium on a split that does not divide evenly", () => {
+    // The even 8/10 split above hides the rounding the spec accepts (≤1cr, house-favorable).
+    let s = acceptMission(createGame(42), mission({ qty: 3, reward: 500, deposit: 30 }));
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 1 } }; // hauled 1 of 3
+    s = arrive(jump(s, "kiruna").state).state;
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    s = buy(s, "water", 2);
+    const before = s.credits;
+    s = deliver(s);
+    expect(Math.round((500 * 1) / 3)).toBe(167); // 166.67 rounds up
+    expect(s.credits - before).toBe(167 + spot * 2 + 30);
+  });
 });
