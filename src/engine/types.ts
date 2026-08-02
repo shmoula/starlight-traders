@@ -94,6 +94,15 @@ export interface GameState {
   cargo: Record<CommodityId, number>;
   cargoCapacity: number;
   activeMissions: Mission[];
+  /** Units of each commodity bought at the current dock since arrival — reset on jump.
+   *  Delivery pays the contract premium only on units that are NOT in here (E2-2d). */
+  boughtHere: Record<CommodityId, number>;
+  /** Run-long contract ledger for the debrief (E2-2b). */
+  contracts: {
+    delivered: number;
+    expired: number;
+    forfeitedCr: number;
+  };
   peakNetWorth: number;
   /** Largest single credit inflow of the run (sale net proceeds or delivery reward) — the debrief's "best haul". */
   biggestPayday?: { amount: number; label: string };

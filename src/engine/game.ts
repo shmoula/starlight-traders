@@ -71,6 +71,8 @@ export function createGame(seed: number, bootDate = ""): GameState {
     cargo: { water: 0, parts: 0, luxury: 0 },
     cargoCapacity: STARTING.cargoCapacity,
     activeMissions: [],
+    boughtHere: { water: 0, parts: 0, luxury: 0 },
+    contracts: { delivered: 0, expired: 0, forfeitedCr: 0 },
     peakNetWorth: 0,
     dayHighlights: {},
     status: "playing",
@@ -156,6 +158,7 @@ export function buy(state: GameState, id: CommodityId, qty: number): GameState {
     ...state,
     credits: state.credits - cost,
     cargo: { ...state.cargo, [id]: state.cargo[id] + qty },
+    boughtHere: { ...state.boughtHere, [id]: state.boughtHere[id] + qty },
   };
   return trackPeak(
     withLog(next, `Bought ${qty} ${commodityName(id)} for ${cost}cr.`, "neutral", -cost)
@@ -171,6 +174,7 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
     ...state,
     credits: state.credits + proceeds - tax,
     cargo: { ...state.cargo, [id]: state.cargo[id] - qty },
+    boughtHere: { ...state.boughtHere, [id]: Math.max(0, state.boughtHere[id] - qty) },
   };
   next = trackPayday(next, proceeds - tax, `${commodityName(id)} at ${NODES[state.location].name}`);
   if (proceeds - tax >= BIG_TRADE_CR) next = markDay(next, "bigTrade");
@@ -357,7 +361,13 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
   const cost = fuelCost(state.location, to);
   if (state.fuel < cost) return { state, event: null };
 
-  let s: GameState = { ...state, fuel: state.fuel - cost, location: to, day: state.day + 1 };
+  let s: GameState = {
+    ...state,
+    fuel: state.fuel - cost,
+    location: to,
+    day: state.day + 1,
+    boughtHere: { water: 0, parts: 0, luxury: 0 },
+  };
 
   // Interest accrues on a fixed cadence.
   if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {

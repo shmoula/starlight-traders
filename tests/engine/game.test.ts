@@ -645,3 +645,57 @@ describe("interestForecast (P1-2)", () => {
     expect(cur.debt - startDebt).toBe(fc.amount); // and accrued exactly what the chip promised
   });
 });
+
+describe("dockside provenance (E2-2d state)", () => {
+  it("starts with zeroed provenance and contract counters", () => {
+    const s = createGame(42);
+    expect(s.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+    expect(s.contracts).toEqual({ delivered: 0, expired: 0, forfeitedCr: 0 });
+  });
+
+  it("buy marks units as bought at this dock", () => {
+    const s = buy(createGame(42), "water", 5);
+    expect(s.boughtHere.water).toBe(5);
+  });
+
+  it("selling consumes dockside units first (no laundering)", () => {
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, water: 5 } }; // 5 hauled
+    s = buy(s, "water", 5); // +5 dockside
+    s = sell(s, "water", 5);
+    expect(s.boughtHere.water).toBe(0); // the dockside units went first
+    expect(s.cargo.water).toBe(5); // the hauled 5 remain hauled
+  });
+
+  it("selling hauled cargo floors boughtHere at zero instead of going negative", () => {
+    // Task 5 derives the hauled pool as cargo - boughtHere, so a negative count would
+    // inflate it and pay the contract premium on dockside units — the exploit reopening.
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, water: 5 } }; // all hauled, nothing bought here
+    s = sell(s, "water", 5);
+    expect(s.boughtHere.water).toBe(0);
+  });
+
+  it("boughtHere resets on jump — cargo that traveled is hauled", () => {
+    let s = buy(createGame(42), "water", 5);
+    s = { ...s, fuel: 20 };
+    s = jump(s, "kiruna").state;
+    expect(s.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+  });
+
+  it("event loot never counts as dockside", () => {
+    // Find a clean (non-trap) salvage day for seed 42: hashSeed(42, d) % 3 !== 0.
+    const cleanDay = Array.from({ length: 30 }, (_, i) => i + 1).find(
+      (d) => hashSeed(42, d) % 3 !== 0
+    )!;
+    const salvage: GameEvent = {
+      kind: "salvage",
+      title: "",
+      description: "",
+      choices: [{ id: "collect", label: "" }],
+    };
+    const s = resolveChoice({ ...createGame(42), day: cleanDay }, salvage, "collect");
+    expect(s.cargo.parts).toBeGreaterThan(0);
+    expect(s.boughtHere.parts).toBe(0);
+  });
+});
