@@ -287,6 +287,17 @@ function tradeHubPanel(s: GameState): string {
       const ready = have >= m.qty;
       const expired = s.day > m.deadlineDay;
       const atDestination = s.location === m.destination;
+      const daysLeft = m.deadlineDay - s.day;
+      const daysChip =
+        daysLeft >= 0
+          ? ` · <span class="contract-days${daysLeft <= 2 ? " contract-days--amber" : ""}">${daysLeft} day${daysLeft === 1 ? "" : "s"} left</span>`
+          : "";
+      // Mirror settlement's provenance math so the nerf is visible before the click (E2-2d).
+      const boughtUsed = Math.max(
+        0,
+        m.qty - Math.max(0, s.cargo[m.commodity] - s.boughtHere[m.commodity])
+      );
+      const provenance = ready && boughtUsed > 0 ? ` — ${boughtUsed} bought here pay spot` : "";
       const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
       const jumpHintId = `jump-hint-${m.id}`;
       // Shortfall shortcut: buys the full missing amount at the local price, or
@@ -322,9 +333,9 @@ function tradeHubPanel(s: GameState): string {
       const hint = expired
         ? `<span class="bad">✗ deadline passed</span>`
         : ready
-          ? `<span class="good">✓ carrying ${have}/${m.qty} — ready, ${readyBtn}</span>`
+          ? `<span class="good">✓ carrying ${have}/${m.qty}${provenance} — ready, ${readyBtn}</span>`
           : `<span class="bad">✗ carrying ${have}/${m.qty} — ${shortfallBtn}</span>`;
-      return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${hint}</li>`;
+      return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}${daysChip}<br>${hint}</li>`;
     })
     .join("");
 

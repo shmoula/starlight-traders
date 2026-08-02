@@ -867,3 +867,38 @@ describe("contract feasibility card (P2-3)", () => {
     expect(html).not.toContain(`data-act="accept" data-id="${m.id}"`);
   });
 });
+
+describe("active contract countdown + provenance (E2-2d/P2-3)", () => {
+  const mission: Mission = {
+    id: "m3",
+    commodity: "water",
+    qty: 10,
+    destination: "verge",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 5,
+  };
+
+  it("shows days left on the active card, amber at ≤ 2 days", () => {
+    const far = withMission(mission); // day 1 → 4 days left
+    expect(stationScreen(far)).toContain("4 days left");
+    expect(stationScreen(far)).not.toContain("contract-days--amber");
+    const near = { ...withMission(mission), day: 3 }; // 2 days left
+    expect(stationScreen(near)).toContain(
+      `<span class="contract-days contract-days--amber">2 days left</span>`
+    );
+  });
+
+  it("names dockside units on a ready card before the deliver click", () => {
+    const s = {
+      ...withMission({ ...mission, destination: "terra" }), // ready at the current dock
+      boughtHere: { water: 4, parts: 0, luxury: 0 },
+    };
+    expect(stationScreen(s)).toContain("✓ carrying 10/10 — 4 bought here pay spot");
+  });
+
+  it("keeps the plain ready line when everything was hauled", () => {
+    const s = withMission({ ...mission, destination: "terra" });
+    expect(stationScreen(s)).toContain("✓ carrying 10/10 — ready,");
+  });
+});
