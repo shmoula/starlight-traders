@@ -1,5 +1,5 @@
 // src/ui/screens.ts
-import { CommodityId, GameEvent, GameState, LogEntry, RunEnd } from "../engine/types";
+import { CommodityId, GameEvent, GameState, LogEntry, Mission, RunEnd } from "../engine/types";
 import {
   COMMODITIES,
   DEMAND_PRICE_MULTIPLIER,
@@ -222,6 +222,29 @@ function cargoPanel(s: GameState): string {
   );
 }
 
+/**
+ * The shared contract countdown chip (P2-3). One definition for offer and active cards, so
+ * the amber threshold and the singular can't drift between them. Renders nothing once the
+ * deadline has passed — the active card shows "deadline passed" instead of a negative count.
+ */
+function daysLeftChip(daysLeft: number): string {
+  if (daysLeft < 0) return "";
+  const amber = daysLeft <= 2 ? " contract-days--amber" : "";
+  return `<span class="contract-days${amber}">${daysLeft} day${daysLeft === 1 ? "" : "s"} left</span>`;
+}
+
+/**
+ * Units of `m` that settlement would pay local spot on rather than the contract premium
+ * (E2-2d) — mirrors settleMissions' hauled-pool math so the card can't promise a payout the
+ * engine won't honour. Zero away from the destination: jump() clears boughtHere, so those
+ * units will be hauled by the time they settle.
+ */
+function docksideUnitsUsed(s: GameState, m: Mission): number {
+  if (s.location !== m.destination) return 0;
+  const hauledAvailable = Math.max(0, s.cargo[m.commodity] - s.boughtHere[m.commodity]);
+  return Math.max(0, m.qty - hauledAvailable);
+}
+
 function tradeHubPanel(s: GameState): string {
   const marketRows = COMMODITIES.map((c) => {
     const price = getPrice(s.seed, s.day, s.location, c.id);
@@ -263,7 +286,7 @@ function tradeHubPanel(s: GameState): string {
       const f = missionFeasibility(s, m);
       const est =
         f.estProfit >= 0 ? `est. +${cr(f.estProfit)}` : `est. −${cr(Math.abs(f.estProfit))}`;
-      const days = `<span class="contract-days${f.daysLeft <= 2 ? " contract-days--amber" : ""}">${f.daysLeft} day${f.daysLeft === 1 ? "" : "s"} left</span>`;
+      const days = daysLeftChip(f.daysLeft);
       const feasibility = `<span class="contract-feas st-num">cost ~${cr(f.cargoCost)} · ${f.fuel}⛽ · ${est} · deposit ${cr(m.deposit)} · ${days}</span>`;
       const acceptHintId = `accept-hint-${m.id}`;
       const canAfford = s.credits >= m.deposit;
@@ -287,21 +310,10 @@ function tradeHubPanel(s: GameState): string {
       const ready = have >= m.qty;
       const expired = s.day > m.deadlineDay;
       const atDestination = s.location === m.destination;
-      const daysLeft = m.deadlineDay - s.day;
-      const daysChip =
-        daysLeft >= 0
-          ? ` · <span class="contract-days${daysLeft <= 2 ? " contract-days--amber" : ""}">${daysLeft} day${daysLeft === 1 ? "" : "s"} left</span>`
-          : "";
-      // Mirror settlement's provenance math so the nerf is visible before the click (E2-2d).
-      // Gated on atDestination as settlement is: away from the destination these units will
-      // be hauled by the time they settle, because jump() zeroes boughtHere — claiming they
-      // pay spot would understate the payout on the most common ready card.
-      const boughtUsed = Math.max(
-        0,
-        m.qty - Math.max(0, s.cargo[m.commodity] - s.boughtHere[m.commodity])
-      );
-      const provenance =
-        ready && atDestination && boughtUsed > 0 ? ` — ${boughtUsed} bought here pay spot` : "";
+      const chip = daysLeftChip(m.deadlineDay - s.day);
+      const daysChip = chip && ` · ${chip}`;
+      const boughtUsed = docksideUnitsUsed(s, m);
+      const provenance = ready && boughtUsed > 0 ? ` — ${boughtUsed} bought here pay spot` : "";
       const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
       const jumpHintId = `jump-hint-${m.id}`;
       // Shortfall shortcut: buys the full missing amount at the local price, or

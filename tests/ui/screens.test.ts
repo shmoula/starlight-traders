@@ -974,6 +974,14 @@ describe("run-end contracts row (E2-2b)", () => {
     expect(html).not.toContain("deposit)");
   });
 
+  it("shows the row for an expiry-only run", () => {
+    // The E2-2b case: nothing delivered, a bond forfeited. A `delivered > 0` visibility
+    // check would hide exactly the run this row exists to explain.
+    expect(ended({ delivered: 0, expired: 1, forfeitedCr: 50 })).toContain(
+      "0 delivered · 1 expired (−50cr deposit)"
+    );
+  });
+
   it("omits the row entirely when no contract resolved", () => {
     expect(ended({ delivered: 0, expired: 0, forfeitedCr: 0 })).not.toContain("Contracts");
   });
