@@ -717,3 +717,36 @@ describe("dockside provenance (E2-2d state)", () => {
     expect(s.boughtHere.parts).toBe(0);
   });
 });
+
+describe("contract deposit escrow (E2-2a)", () => {
+  const bonded: Mission = {
+    id: "b1",
+    commodity: "water",
+    qty: 5,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 99,
+  };
+
+  it("accept debits the deposit and logs the escrow", () => {
+    const s = createGame(42);
+    const after = acceptMission(s, bonded);
+    expect(after.credits).toBe(s.credits - 50);
+    expect(after.log[after.log.length - 1]).toEqual({
+      msg: "Accepted delivery to Kiruna Belt — 50cr deposit held.",
+      tone: "neutral",
+      delta: -50,
+    });
+  });
+
+  it("accept is a silent no-op when credits cannot cover the deposit", () => {
+    const s = { ...createGame(42), credits: 49 };
+    expect(acceptMission(s, bonded)).toBe(s);
+  });
+
+  it("double-accept still no-ops (no double escrow)", () => {
+    const once = acceptMission(createGame(42), bonded);
+    expect(acceptMission(once, bonded)).toBe(once);
+  });
+});

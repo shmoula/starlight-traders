@@ -279,9 +279,16 @@ export function retire(state: GameState): GameState {
 
 export function acceptMission(state: GameState, mission: Mission): GameState {
   if (state.activeMissions.some((m) => m.id === mission.id)) return state;
+  if (state.credits < mission.deposit) return state; // E2-2a: can't post the bond
   return withLog(
-    { ...state, activeMissions: [...state.activeMissions, mission] },
-    `Accepted delivery to ${NODES[mission.destination].name}.`
+    {
+      ...state,
+      credits: state.credits - mission.deposit,
+      activeMissions: [...state.activeMissions, mission],
+    },
+    `Accepted delivery to ${NODES[mission.destination].name} — ${mission.deposit}cr deposit held.`,
+    "neutral",
+    -mission.deposit
   );
 }
 
