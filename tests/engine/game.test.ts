@@ -749,4 +749,14 @@ describe("contract deposit escrow (E2-2a)", () => {
     const once = acceptMission(createGame(42), bonded);
     expect(acceptMission(once, bonded)).toBe(once);
   });
+
+  it("accept succeeds when credits exactly cover the deposit", () => {
+    // 49 < 50 and 49 <= 50 are both true, so the no-op test above can't tell the guard's
+    // operator apart. Only the boundary can — and a `<=` slip would block the player at
+    // the exact moment the bond is affordable.
+    const s = { ...createGame(42), credits: 50 };
+    const after = acceptMission(s, bonded);
+    expect(after.credits).toBe(0);
+    expect(after.activeMissions.map((m) => m.id)).toEqual(["b1"]);
+  });
 });
