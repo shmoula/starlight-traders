@@ -265,21 +265,39 @@ function isValidLogEntry(l: unknown): boolean {
   return entry.delta === undefined || Number.isFinite(entry.delta);
 }
 
-const COMMODITY_KEYS: CommodityId[] = ["water", "parts", "luxury"];
+/**
+ * Exhaustive over `CommodityId`, mirroring HIGHLIGHT_KIND_TABLE: a fourth commodity is a
+ * compile error here rather than a key that silently goes unvalidated on resume.
+ */
+const COMMODITY_KEY_TABLE: Record<CommodityId, true> = {
+  water: true,
+  parts: true,
+  luxury: true,
+};
+const COMMODITY_KEYS = Object.keys(COMMODITY_KEY_TABLE) as CommodityId[];
+
+/** Exhaustive over the contract ledger — a new counter must be validated to be persisted. */
+const CONTRACT_COUNTER_TABLE: Record<keyof GameState["contracts"], true> = {
+  delivered: true,
+  expired: true,
+  forfeitedCr: true,
+};
+const CONTRACT_COUNTERS = Object.keys(CONTRACT_COUNTER_TABLE);
+
+/** Every counter must be a non-negative number, or the ledger is corrupt. */
+const allNonNegativeNumbers = (v: unknown, keys: string[]): boolean => {
+  if (typeof v !== "object" || v === null) return false;
+  const rec = v as Record<string, unknown>;
+  return keys.every((k) => typeof rec[k] === "number" && (rec[k] as number) >= 0);
+};
 
 /** boughtHere feeds settlement math on resume — a missing key or negative count is corrupt. */
 function isValidBoughtHere(b: unknown): boolean {
-  if (typeof b !== "object" || b === null) return false;
-  const rec = b as Record<string, unknown>;
-  return COMMODITY_KEYS.every((k) => typeof rec[k] === "number" && (rec[k] as number) >= 0);
+  return allNonNegativeNumbers(b, COMMODITY_KEYS);
 }
 
 function isValidContracts(c: unknown): boolean {
-  if (typeof c !== "object" || c === null) return false;
-  const rec = c as Record<string, unknown>;
-  return ["delivered", "expired", "forfeitedCr"].every(
-    (k) => typeof rec[k] === "number" && (rec[k] as number) >= 0
-  );
+  return allNonNegativeNumbers(c, CONTRACT_COUNTERS);
 }
 
 /** Only `deposit` is validated on missions — it is the one field the refund math reads. */

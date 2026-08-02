@@ -344,6 +344,27 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     expect(parsed!.state.contracts).toEqual({ delivered: 0, expired: 0, forfeitedCr: 0 });
   });
 
+  it("leaves an existing deposit alone when migrating a v2 doc", () => {
+    // The zeroing test above only proves a *missing* deposit becomes 0. If the presence
+    // check were inverted, a real bond would be clobbered to 0 and silently forfeited on
+    // delivery — and that inversion is caught above only incidentally, because the legacy
+    // mission then has no deposit at all and the whole snapshot fails validation.
+    const base = liveSnapshot({});
+    const bonded = {
+      id: "m",
+      commodity: "water",
+      qty: 5,
+      destination: "kiruna",
+      reward: 500,
+      deposit: 50,
+      deadlineDay: 9,
+    };
+    const v2 = { ...base, version: 2, state: { ...base.state, activeMissions: [bonded] } };
+    const parsed = parseSnapshot(JSON.stringify(v2), TODAY);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.state.activeMissions[0].deposit).toBe(50); // not zeroed
+  });
+
   it("chains v1 → v2 → v3 (string logs wrapped AND contract fields defaulted)", () => {
     const base = liveSnapshot({});
     const v1state = { ...base.state, log: ["Docked at Terra Hub, fee 40cr."] } as Record<
