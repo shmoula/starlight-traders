@@ -126,9 +126,20 @@ describe("missionFeasibility (P2-3)", () => {
   });
 
   it("skips fuel and dock fee when already at the destination (no jump, no fee)", () => {
-    const s = { ...createGame(42), location: "kiruna" as const };
+    const s = { ...createGame(42), location: "kiruna" as const, day: 4 };
     const f = missionFeasibility(s, m);
     expect(f.fuel).toBe(0);
-    expect(f.estProfit).toBe(500 - 10 * getPrice(42, 1, "kiruna", "water"));
+    expect(f.estProfit).toBe(500 - 10 * getPrice(42, 4, "kiruna", "water"));
+    expect(f.daysLeft).toBe(5);
+  });
+
+  it("passes a negative estProfit through unrounded and unclamped", () => {
+    const underwater: Mission = { ...m, reward: 10 };
+    const s = createGame(42); // terra, day 1
+    const f = missionFeasibility(s, underwater);
+    const cargoCost = 10 * getPrice(42, 1, "terra", "water");
+    const fuel = fuelCost("terra", "kiruna"); // 4
+    expect(f.estProfit).toBe(10 - cargoCost - fuel * REFUEL_PRICE - dockingFee("kiruna"));
+    expect(f.estProfit).toBeLessThan(0);
   });
 });
