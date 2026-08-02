@@ -14,10 +14,12 @@ import {
   retire,
   payDebt,
   interestForecast,
+  buyBlockReason,
+  maxBuyable,
   STARTING,
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
-import { dockingFee } from "../../src/engine/economy";
+import { canEscape, dockingFee, escapeCost } from "../../src/engine/economy";
 import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
@@ -1002,5 +1004,143 @@ describe("escrow accounting is conservative (E2-2)", () => {
     s = resolveChoice(jump(s, "terra").state, ev("salvage", "collect"), "collect");
     s = retire(arrive(s).state);
     expect(sumDeltas(s)).toBe(s.credits - base.credits);
+  });
+});
+
+describe("dock-side stranding guard (E2-2h)", () => {
+  // Terra's cheapest hop is Vulcan at 3 fuel, so an empty tank there costs
+  // 3 × REFUEL_PRICE = 24cr to make flyable. That 24cr is the escape fare.
+  const FARE_AT_TERRA = 24;
+  const drained = (over: Partial<GameState> = {}): GameState => ({
+    ...createGame(42),
+    fuel: 0,
+    cargo: { water: 0, parts: 0, luxury: 0 },
+    ...over,
+  });
+
+  const bond: Mission = {
+    id: "lock1",
+    commodity: "water",
+    qty: 5,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 99,
+  };
+
+  it("escapeCost prices the cheapest way back into the sky", () => {
+    expect(escapeCost(drained())).toBe(FARE_AT_TERRA);
+    expect(escapeCost(drained({ fuel: 1 }))).toBe(16);
+    expect(escapeCost(drained({ fuel: 3 }))).toBe(0);
+    expect(escapeCost(createGame(42))).toBe(0); // a full tank owes nothing
+  });
+
+  it("refuses a bond that would escrow the escape fare (the E2-2h repro)", () => {
+    // The reported soft-lock: 60cr and a dry tank passes checkLoss, but a 50cr bond
+    // leaves 10cr — every jump refused, no refuel affordable, status still "playing".
+    const s = drained({ credits: 60 });
+    expect(checkLoss(s).status).toBe("playing"); // the state is legal going in
+    expect(acceptMission(s, bond)).toBe(s); // …and stays legal
+    expect(canEscape(s)).toBe(true);
+  });
+
+  it("still posts a bond that leaves the fare intact", () => {
+    const s = drained({ credits: 100 });
+    const after = acceptMission(s, bond);
+    expect(after.credits).toBe(50);
+    expect(after.activeMissions.map((m) => m.id)).toEqual(["lock1"]);
+    expect(canEscape(after)).toBe(true);
+  });
+
+  it("posts a bond that spends down to exactly the fare", () => {
+    const s = drained({ credits: bond.deposit + FARE_AT_TERRA });
+    expect(acceptMission(s, bond).credits).toBe(FARE_AT_TERRA);
+  });
+
+  it("refuses a repair that would spend the escape fare", () => {
+    // 130cr covers the 120cr repair, so the old `cost > credits` guard let it through
+    // and left 10cr — under the 24cr fare, with no jump and no loss ever checked.
+    const s = drained({ credits: 130, hull: 80 });
+    expect(repair(s, 20)).toBe(s);
+    expect(canEscape(s)).toBe(true);
+  });
+
+  it("still repairs what fits alongside the fare", () => {
+    const s = drained({ credits: 130, hull: 90 }); // 10 points × 6cr = 60cr
+    const after = repair(s, 20);
+    expect(after.hull).toBe(100);
+    expect(after.credits).toBe(70);
+  });
+
+  it("clamps a debt payment to what is left over the escape fare", () => {
+    // payDebt already pays less than asked when the purse is short, so the fare is one
+    // more ceiling on the same clamp — both purses land on exactly the fare, not on 0.
+    expect(payDebt(drained({ credits: 60 }), 200).credits).toBe(FARE_AT_TERRA);
+    expect(payDebt(drained({ credits: 200 }), 200).credits).toBe(FARE_AT_TERRA);
+    expect(payDebt(drained({ credits: 200 }), 200).debt).toBe(1500 - 176);
+  });
+
+  it("counts the hold, so a loaded ship may still spend its last credit", () => {
+    // Cargo is escape money too: this hold sells here for far more than the fare, so
+    // nothing about the repair strands the run even though it empties the purse.
+    const s = drained({ credits: 120, hull: 80, cargo: { water: 0, parts: 0, luxury: 5 } });
+    const after = repair(s, 20);
+    expect(after.credits).toBe(0);
+    expect(after.hull).toBe(100);
+    expect(canEscape(after)).toBe(true);
+  });
+
+  it("stops a purchase whose sale tax would eat the escape fare", () => {
+    // Meridian taxes sales 18%, so credits spent on cargo do not come back whole:
+    // with exactly the fare in the purse, buying anything at all strands the run.
+    const base = drained({ location: "meridian" });
+    const s = { ...base, credits: escapeCost(base) };
+    expect(s.credits).toBeGreaterThan(getPrice(s.seed, s.day, "meridian", "water"));
+    expect(buyBlockReason(s, "water", 1)).toBe("reserve");
+    expect(buy(s, "water", 1)).toBe(s);
+    expect(maxBuyable(s, "water")).toBe(0);
+  });
+
+  it("leaves buying alone where the hold sells back whole", () => {
+    // The Verge taxes nothing, so credits and cargo are interchangeable there and the
+    // guard has no reason to bite — the same purse that is blocked above goes through.
+    const base = drained({ location: "verge" });
+    const s = { ...base, credits: escapeCost(base) };
+    expect(buyBlockReason(s, "water", 1)).toBe("");
+    expect(buy(s, "water", 1).cargo.water).toBe(1);
+  });
+
+  it("keeps the dockside shortfall buy available on a dry tank", () => {
+    // P2-3's "buy N here and deliver" shortcut must survive the guard: the purchase
+    // converts credits into cargo worth about the same, so the fare is still coverable.
+    let s = drained({ credits: 400, location: "kiruna" });
+    s = acceptMission(s, { ...bond, destination: "kiruna" });
+    const shortfall = bond.qty;
+    expect(buyBlockReason(s, "water", shortfall)).toBe("");
+    s = buy(s, "water", shortfall);
+    expect(s.cargo.water).toBe(shortfall);
+    expect(deliver(s).activeMissions).toEqual([]);
+  });
+
+  it("ends a run that reaches the dock already stranded instead of freezing it", () => {
+    // Pre-fix snapshots can rehydrate a run that is already past the fare. The spend is
+    // still refused, but the loss check that never ran now runs rather than dead-ending.
+    const s = drained({ credits: 10, hull: 99 });
+    expect(canEscape(s)).toBe(false);
+    const after = repair(s, 1); // 6cr — affordable, so the guard is what decides
+    expect(after.status).toBe("lost");
+    expect(after.runEnd?.lossCause).toBe("fuel");
+  });
+});
+
+describe("checkLoss counts the hold (E2-2h)", () => {
+  it("is not stranded while the hold can be sold for the fare", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 0, cargo: { water: 5, parts: 0, luxury: 0 } };
+    expect(checkLoss(s).status).toBe("playing");
+  });
+
+  it("is stranded when the hold sells for less than the fare", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 0, cargo: { water: 1, parts: 0, luxury: 0 } };
+    expect(checkLoss(s).status).toBe("lost");
   });
 });

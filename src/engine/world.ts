@@ -79,6 +79,15 @@ export function fuelCost(from: NodeId, to: NodeId): number {
   return d;
 }
 
+/**
+ * Fuel burned by the cheapest jump out of `from` — the minimum price of leaving at all.
+ * The loss check, the dock-side escape guard (E2-2h) and the UI's fuel warning all key
+ * off this one number, so "can I still get out of here?" means the same thing everywhere.
+ */
+export function cheapestJumpCost(from: NodeId): number {
+  return Math.min(...NODE_IDS.filter((n) => n !== from).map((n) => fuelCost(from, n)));
+}
+
 const COMMODITY_BY_ID: Record<CommodityId, Commodity> = Object.fromEntries(
   COMMODITIES.map((c) => [c.id, c])
 ) as Record<CommodityId, Commodity>;

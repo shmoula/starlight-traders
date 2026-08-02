@@ -4,6 +4,7 @@ import {
   createGame,
   missionsHere,
   refuel,
+  repair,
   checkLoss,
   retire,
   netProceeds,
@@ -1006,5 +1007,66 @@ describe("run-end contracts row (E2-2b)", () => {
 
   it("omits the row entirely when no contract was ever taken", () => {
     expect(ended({ delivered: 0, expired: 0, forfeitedCr: 0 })).not.toContain("Contracts");
+  });
+});
+
+describe("escape-fare affordances (E2-2h)", () => {
+  // Terra's cheapest hop is 3 fuel, so a dry tank holds 24cr back for the fare.
+  const dry = (over: Record<string, unknown> = {}) => ({ ...createGame(42), fuel: 0, ...over });
+
+  it("names the held-back fare on the stranding banner", () => {
+    const html = stationScreen(dry({ credits: 130 }));
+    expect(html).toContain(
+      "Not enough fuel to jump anywhere — refuel below (8cr/unit). 24cr of your credits is held back for it."
+    );
+  });
+
+  it("disables a repair the engine would refuse for eating the fare", () => {
+    // 130cr covers the 120cr repair but not the 24cr fare on top, so the engine says no
+    // — the button has to say the same thing, and say why (B-1).
+    const s = dry({ credits: 130, hull: 80 });
+    expect(repair(s, 20)).toBe(s);
+    expect(stationScreen(s)).toContain(
+      'data-act="repair" disabled title="Credits held back for fuel — 24cr to fly again"'
+    );
+  });
+
+  it("keeps the plain affordability reason when the purse is simply too small", () => {
+    expect(stationScreen(dry({ credits: 10, hull: 80 }))).toContain(
+      'data-act="repair" disabled title="Not enough credits"'
+    );
+  });
+
+  it("disables Pay debt once every credit is spoken for by the fare", () => {
+    expect(stationScreen(dry({ credits: 20 }))).toContain(
+      'data-act="payDebt" disabled title="Credits held back for fuel — 24cr to fly again"'
+    );
+  });
+
+  it("keeps Pay debt live for the credits above the fare", () => {
+    expect(stationScreen(dry({ credits: 200 }))).not.toContain('data-act="payDebt" disabled');
+  });
+
+  it("blocks Accept with the fare reason, not a missing-deposit reason", () => {
+    // Seed 42's Terra board offers deposits of 17cr and 91cr. At 100cr the purse covers
+    // the 91cr bond outright, so only the 24cr fare stands in the way — and the cheap
+    // bond beside it stays live, which is what tells the two reasons apart.
+    const s = dry({ credits: 100 });
+    const [cheap, dear] = missionsHere(s);
+    expect([cheap.deposit, dear.deposit]).toEqual([17, 91]);
+    const html = stationScreen(s);
+    expect(html).toContain(`aria-disabled="true" aria-describedby="accept-hint-${dear.id}"`);
+    expect(html).toContain("(deposit would strand you — 24cr is held back for fuel)");
+    expect(html).not.toContain(`aria-describedby="accept-hint-${cheap.id}"`);
+  });
+
+  it("labels a buy blocked by the fare as held-back credits", () => {
+    // Meridian taxes sales 18%, so cargo does not sell back for what it cost: with only
+    // the 40cr fare in the purse, even one unit of water strands the run.
+    const s = dry({ location: "meridian" as const, credits: 40 });
+    expect(getPrice(s.seed, s.day, "meridian", "water")).toBeLessThan(40); // affordable…
+    expect(stationScreen(s)).toContain(
+      'data-act="buy" data-id="water" data-qty="1" aria-label="Buy 1 Water / Ice" disabled title="Credits held back for fuel"'
+    );
   });
 });

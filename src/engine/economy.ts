@@ -1,6 +1,6 @@
 // src/engine/economy.ts
 import { CommodityId, GameState, NodeId } from "./types";
-import { NODES, getPrice } from "./world";
+import { COMMODITIES, NODES, cheapestJumpCost, getPrice } from "./world";
 
 export const BASE_DOCKING_FEE = 25;
 export const REFUEL_PRICE = 8; // credits per fuel unit
@@ -63,4 +63,54 @@ export function cargoValue(state: GameState): number {
 
 export function netWorth(state: GameState): number {
   return state.credits + cargoValue(state) - state.debt;
+}
+
+// --- Escape math (E2-2h) -----------------------------------------------------------
+// One shared answer to "can this run still leave the station?", used by the loss check,
+// by the dock-side guard that keeps a spend from stranding the player, and by the UI
+// affordances that disable those spends. Three surfaces, one definition — the B-1 rule.
+
+/** Net credits a sale of `qty` `id` yields at the current dock, after the local tax. */
+export function netSaleProceeds(state: GameState, id: CommodityId, qty: number): number {
+  const gross = getPrice(state.seed, state.day, state.location, id) * qty;
+  return gross - taxOnSale(state.location, gross);
+}
+
+/**
+ * What the whole hold would fetch here today if sold outright, after tax. This is the
+ * part of `cargoValue` the player can actually spend, which is why the escape check uses
+ * it instead: a ship with a full hold and an empty purse is not stranded, it is unsold.
+ */
+export function liquidationValue(state: GameState): number {
+  return COMMODITIES.reduce((sum, c) => sum + netSaleProceeds(state, c.id, state.cargo[c.id]), 0);
+}
+
+/** Credits needed to top the tank up to the cheapest jump out — 0 once it is flyable. */
+export function escapeCost(state: GameState): number {
+  const shortfall = Math.max(0, cheapestJumpCost(state.location) - state.fuel);
+  return shortfall * REFUEL_PRICE;
+}
+
+/**
+ * Can this run still leave the station — flying now, or after selling up and refueling?
+ * The fuel test comes first and is unconditional: docking fees are charged without a
+ * floor, so a ship with a full tank can be carrying a negative purse and is still free
+ * to go. Only a tank too short for the cheapest hop has to be bought out of trouble.
+ */
+export function canEscape(state: GameState): boolean {
+  if (state.fuel >= cheapestJumpCost(state.location)) return true;
+  return state.credits + liquidationValue(state) >= escapeCost(state);
+}
+
+/**
+ * The most credits a dock-side spend may consume and still leave the run able to leave.
+ * Exact for spends that hand back nothing sellable (repair, debt, a contract bond); a
+ * purchase turns credits into cargo worth nearly as much, so `buyBlockReason` prices
+ * that one against the resulting state instead.
+ */
+export function spendableCredits(state: GameState): number {
+  return Math.max(
+    0,
+    Math.min(state.credits, state.credits + liquidationValue(state) - escapeCost(state))
+  );
 }

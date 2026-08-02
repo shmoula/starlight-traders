@@ -6,12 +6,22 @@ import {
   NODES,
   NODE_IDS,
   PRODUCE_PRICE_MULTIPLIER,
+  cheapestJumpCost,
   commodityName,
   fuelCost,
   getPrice,
 } from "../engine/world";
-import { REFUEL_PRICE, REPAIR_PRICE, cargoUsed, dockingFee, netWorth } from "../engine/economy";
 import {
+  REFUEL_PRICE,
+  REPAIR_PRICE,
+  cargoUsed,
+  dockingFee,
+  escapeCost,
+  netWorth,
+  spendableCredits,
+} from "../engine/economy";
+import {
+  BuyBlock,
   buyBlockReason,
   interestForecast,
   maxBuyable,
@@ -39,18 +49,24 @@ export interface RunMeta {
   debrief?: { pbDelta: number; isNewPB: boolean; prevBest: number; isFirstEver: boolean };
 }
 
+/**
+ * Disabled-button copy per `buyBlockReason`, so the market buttons name the same three
+ * ceilings buy() enforces — including E2-2h's escape fare (B-1).
+ */
+const BUY_BLOCK_TITLE: Record<BuyBlock, string> = {
+  "": "",
+  credits: "Not enough credits",
+  room: "Cargo hold full",
+  reserve: "Credits held back for fuel",
+};
+
 /** Renders ` disabled title="…"` for a control, or nothing when it is enabled. */
 const disabledAttr = (disabled: boolean, title: string): string =>
   disabled ? ` disabled title="${title}"` : "";
 
-/** Fuel cost of the cheapest jump away from the current location. */
-function cheapestJumpCost(s: GameState): number {
-  return Math.min(...NODE_IDS.filter((n) => n !== s.location).map((n) => fuelCost(s.location, n)));
-}
-
 /** Statbar/bar warning class shared by the station and event screens. */
 function fuelWarnClass(s: GameState): string {
-  const cheapest = cheapestJumpCost(s);
+  const cheapest = cheapestJumpCost(s.location);
   return s.fuel < cheapest ? "stat-critical" : s.fuel < cheapest * 2 ? "stat-warn" : "";
 }
 
@@ -109,12 +125,13 @@ function panel(title: string, body: string, attrs = ""): string {
   </section>`;
 }
 
-function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): string {
-  const fuelPct = Math.round((s.fuel / s.fuelCapacity) * 100);
-  const hullPct = Math.round((s.hull / s.hullMax) * 100);
-  const barMod = fuelClass === "stat-critical" ? "st-bar--critical" : "st-bar--gold";
-  // Mirror engine refuel(): it buys min(units, tankRoom, affordable) — the label
-  // must promise exactly what the click delivers (B-1).
+/**
+ * The three dock services, each labelled with exactly what its click delivers (B-1).
+ * Refuel mirrors refuel()'s min(units, tankRoom, affordable) clamp; repair and Pay debt
+ * spend credits and hand back nothing sellable, so they answer to E2-2h's escape fare —
+ * `spendableCredits`, the same ceiling the engine enforces, not the raw purse.
+ */
+function servicesRow(s: GameState): string {
   const tankRoom = s.fuelCapacity - s.fuel;
   const affordable = Math.floor(s.credits / REFUEL_PRICE);
   const refuelUnits = Math.min(5, tankRoom, affordable);
@@ -123,12 +140,34 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
   const shownUnits = refuelDisabled ? 5 : refuelUnits;
   const clampedByCredits = !refuelDisabled && affordable < Math.min(5, tankRoom);
   const refuelLabel = `Refuel +${shownUnits} (${cr(shownUnits * REFUEL_PRICE)})${clampedByCredits ? " — all you can afford" : ""}`;
+  const spendable = spendableCredits(s);
+  const heldForFuel = `Credits held back for fuel — ${cr(escapeCost(s))} to fly again`;
   const hullFull = s.hull >= s.hullMax;
-  const repairDisabled = hullFull || s.credits < REPAIR_PRICE;
-  const repairTitle = hullFull ? "Hull fully repaired" : "Not enough credits";
+  // repair() is all-or-nothing on the points it can fit, so price that exact bundle
+  // rather than a single hull point.
+  const repairCost = Math.min(20, s.hullMax - s.hull) * REPAIR_PRICE;
+  const repairTitle = hullFull
+    ? "Hull fully repaired"
+    : repairCost > s.credits
+      ? "Not enough credits"
+      : heldForFuel;
   const noDebt = s.debt <= 0;
-  const payDisabled = noDebt || s.credits <= 0;
-  const payTitle = noDebt ? "No debt to pay" : "No credits to pay with";
+  const payTitle = noDebt
+    ? "No debt to pay"
+    : s.credits <= 0
+      ? "No credits to pay with"
+      : heldForFuel;
+  return `<div class="svc-row">
+      <button class="st-btn st-btn--ghost" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}${refuelLabel}</button>
+      <button class="st-btn st-btn--ghost" data-act="repair"${disabledAttr(hullFull || repairCost > spendable, repairTitle)}>${hullIcon()}Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
+      <button class="st-btn st-btn--ghost" data-act="payDebt"${disabledAttr(noDebt || spendable <= 0, payTitle)}>Pay 200 debt</button>
+    </div>`;
+}
+
+function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): string {
+  const fuelPct = Math.round((s.fuel / s.fuelCapacity) * 100);
+  const hullPct = Math.round((s.hull / s.hullMax) * 100);
+  const barMod = fuelClass === "stat-critical" ? "st-bar--critical" : "st-bar--gold";
   const kv = (label: string, value: string, gold = false, extra = "") =>
     `<div class="st-kv"><span class="st-kv__label">${label}</span><span class="st-kv__value${gold ? " st-kv__value--gold" : ""}${extra ? ` ${extra}` : ""} st-num">${value}</span></div>`;
   const fc = interestForecast(s);
@@ -149,11 +188,7 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
     </div>
     <hr class="st-divider" />
     <div class="st-kv__label">Services</div>
-    <div class="svc-row">
-      <button class="st-btn st-btn--ghost" data-act="refuel"${disabledAttr(refuelDisabled, refuelTitle)}>${fuelIcon()}${refuelLabel}</button>
-      <button class="st-btn st-btn--ghost" data-act="repair"${disabledAttr(repairDisabled, repairTitle)}>${hullIcon()}Repair +20 (${cr(20 * REPAIR_PRICE)})</button>
-      <button class="st-btn st-btn--ghost" data-act="payDebt"${disabledAttr(payDisabled, payTitle)}>Pay 200 debt</button>
-    </div>
+    ${servicesRow(s)}
     <div class="st-kv"><span class="st-kv__label">Docking fee here</span><span class="fee st-kv__value st-kv__value--gold st-num">${cr(dockingFee(s.location))}</span></div>
     <hr class="st-divider" />
     ${
@@ -181,8 +216,8 @@ function logPanel(s: GameState): string {
 
 function navigatorPanel(s: GameState): string {
   const banner =
-    s.fuel < cheapestJumpCost(s)
-      ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Not enough fuel to jump anywhere — refuel below (${REFUEL_PRICE}cr/unit)</div>`
+    s.fuel < cheapestJumpCost(s.location)
+      ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Not enough fuel to jump anywhere — refuel below (${REFUEL_PRICE}cr/unit). ${cr(escapeCost(s))} of your credits is held back for it.</div>`
       : "";
   const orbs = NODE_IDS.filter((n) => n !== s.location)
     .map((n) => {
@@ -251,7 +286,7 @@ function tradeHubPanel(s: GameState): string {
     const maxBuy = maxBuyable(s, c.id);
     const buy1Reason = buyBlockReason(s, c.id, 1);
     const buyDisabled = buy1Reason !== "";
-    const buyTitle = buy1Reason === "room" ? "Cargo hold full" : "Not enough credits";
+    const buyTitle = BUY_BLOCK_TITLE[buy1Reason];
     const buy5Disabled = maxBuy < 5;
     // Attribute the ×5 limit to whichever constraint binds one unit past the max, so a
     // hold-limited player isn't sent looking for credits they already have.
@@ -286,16 +321,20 @@ function tradeHubPanel(s: GameState): string {
       const days = daysLeftChip(f.daysLeft);
       const feasibility = `<span class="contract-feas st-num">cost ~${cr(f.cargoCost)} · ${f.fuel}⛽ · ${est} · deposit ${cr(m.deposit)} · ${days}</span>`;
       const acceptHintId = `accept-hint-${m.id}`;
-      const canAfford = s.credits >= m.deposit;
+      // The bond is an outright sink until delivery, so it answers to the escape fare
+      // too — same ceiling acceptMission() enforces (E2-2h).
+      const canAfford = m.deposit <= spendableCredits(s);
+      const acceptHint =
+        s.credits < m.deposit
+          ? `(need ${cr(m.deposit)} deposit)`
+          : `(deposit would strand you — ${cr(escapeCost(s))} is held back for fuel)`;
       // Composed button + hint, aria-disabled to stay focusable — the shortfall-buy pattern.
       const action = acceptedIds.has(m.id)
         ? `<span class="accepted">✓ Accepted</span>`
         : `<button class="st-btn st-btn--ghost st-btn--sm" data-act="accept" data-id="${m.id}" aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name} for a ${cr(m.deposit)} deposit"${
             canAfford ? "" : ` aria-disabled="true" aria-describedby="${acceptHintId}"`
           }>Accept</button>` +
-          (canAfford
-            ? ""
-            : ` <span id="${acceptHintId}" class="bad">(need ${cr(m.deposit)} deposit)</span>`);
+          (canAfford ? "" : ` <span id="${acceptHintId}" class="bad">${acceptHint}</span>`);
       return `<li>Deliver ${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${feasibility}
       ${action}</li>`;
     })
@@ -324,7 +363,9 @@ function tradeHubPanel(s: GameState): string {
           ? "not enough credits"
           : shortfallReason === "room"
             ? "not enough hold space"
-            : "";
+            : shortfallReason === "reserve"
+              ? "credits held back for fuel"
+              : "";
       const buyHintId = `buy-hint-${m.id}`;
       // Compose the button once and splice on the disabled fragment, so the two states
       // can't diverge. aria-disabled (not `disabled`) keeps it focusable to announce the
