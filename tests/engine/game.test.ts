@@ -1149,6 +1149,20 @@ describe("dock-side stranding guard (E2-2h)", () => {
     expect(after.status).toBe("lost");
     expect(after.runEnd?.lossCause).toBe("fuel");
   });
+
+  it("ends an already-stranded run on a buy rather than freezing it", () => {
+    // The buy sibling of the repair backstop above. After buy stopped duplicating the
+    // affordability guards and deferred to buyBlockReason, the "reserve" verdict must
+    // still fall through to keepEscapable so a rehydrated past-the-fare run runs the loss
+    // check — a bare early return on refusal would silently leave it frozen at the dock.
+    const base = drained();
+    const price = getPrice(base.seed, base.day, base.location, "water");
+    const s = { ...base, credits: price }; // affords one unit, still short of the fare
+    expect(canEscape(s)).toBe(false);
+    const after = buy(s, "water", 1);
+    expect(after.status).toBe("lost");
+    expect(after.runEnd?.lossCause).toBe("fuel");
+  });
 });
 
 describe("checkLoss counts the hold (E2-2h)", () => {

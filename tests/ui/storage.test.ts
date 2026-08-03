@@ -430,6 +430,10 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     // Each `sound` string must be unique in the document — plain "water":0 would hit
     // cargo, which is validated elsewhere, and prove nothing about boughtHere.
     ["a non-finite deposit", '"deposit":1e999', '"deposit":50'],
+    // reward and qty both feed the delivery payout (reward * hauledUsed / qty); qty is
+    // also the divisor, so an Infinity here corrupts settlement just as a deposit would.
+    ["a non-finite reward", '"reward":1e999', '"reward":500'],
+    ["a non-finite qty", '"qty":1e999', '"qty":5'],
     ["a non-finite boughtHere count", '"boughtHere":{"water":1e999', '"boughtHere":{"water":0'],
     ["a non-finite contract counter", '"delivered":1e999', '"delivered":0'],
   ])("rejects %s from hand-edited JSON", (_why, poison, sound) => {

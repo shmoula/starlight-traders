@@ -174,10 +174,14 @@ function keepEscapable(before: GameState, after: GameState): GameState {
 
 export function buy(state: GameState, id: CommodityId, qty: number): GameState {
   if (qty <= 0) return state;
+  // buyBlockReason owns the guard values so the UI and buy can never disagree. The hard
+  // affordability refusals return early; the "reserve" (escape-fare) verdict is left to
+  // keepEscapable below, which refuses an escapable run's purchase but still runs the loss
+  // check on a run that arrived already stranded (E2-2h) — a bare return would freeze it.
+  const block = buyBlockReason(state, id, qty);
+  if (block === "credits" || block === "room") return state;
   const price = getPrice(state.seed, state.day, state.location, id);
   const cost = price * qty;
-  if (cost > state.credits) return state;
-  if (cargoUsed(state.cargo) + qty > state.cargoCapacity) return state;
   const next = {
     ...state,
     credits: state.credits - cost,

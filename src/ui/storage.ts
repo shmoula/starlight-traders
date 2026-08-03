@@ -213,7 +213,7 @@ function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (!isValidLog(st.log)) return false;
   if (!isValidBoughtHere(st.boughtHere)) return false;
   if (!isValidContracts(st.contracts)) return false;
-  if (!hasValidDeposits(st.activeMissions)) return false;
+  if (!hasValidMissionFields(st.activeMissions)) return false;
   return (
     st.status === "playing" &&
     typeof st.day === "number" &&
@@ -304,17 +304,17 @@ function isValidContracts(c: unknown): boolean {
   return allNonNegativeNumbers(c, CONTRACT_COUNTERS);
 }
 
-/** Only `deposit` is validated on missions — it is the one field the refund math reads. */
-function hasValidDeposits(missions: unknown): boolean {
+/**
+ * Every numeric mission field that reaches credit math must be finite and non-negative.
+ * `deposit` drives refund/forfeit; `reward` and `qty` drive the delivery payout
+ * (`reward * hauledUsed / qty`, where `qty` is also the divisor). A parsed `1e999`
+ * (Infinity) or a stray negative in any of them would corrupt settlement, so all three
+ * are checked — not `deposit` alone.
+ */
+const MISSION_NUMERIC_KEYS = ["deposit", "reward", "qty"];
+function hasValidMissionFields(missions: unknown): boolean {
   return (
-    Array.isArray(missions) &&
-    missions.every(
-      (m) =>
-        typeof m === "object" &&
-        m !== null &&
-        Number.isFinite((m as { deposit?: unknown }).deposit) &&
-        (m as { deposit: number }).deposit >= 0
-    )
+    Array.isArray(missions) && missions.every((m) => allNonNegativeNumbers(m, MISSION_NUMERIC_KEYS))
   );
 }
 
