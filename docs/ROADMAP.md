@@ -45,10 +45,16 @@ Cashes in the E0 pivot: the ending becomes retention.
 
 ## 🟢 Milestone 3 — E2 "Systems depth" (kill degenerate strategies)
 
+Sequence decided 2026-08-01: **round 1 = E2-2 + P2-3**, then texture (E2-4 → E2-3 →
+E2-5), then **E2-1 dead last** — the star map changes route viability, so E2-1's
+sim gate only measures the real game after E2-3 lands.
+
+**Round 1 closed 2026-08-02.** Next up: E2-4 (fiction pack).
+
 | Item     | What                                                                            | Notes                                                                                                                                                                    |
 | :------- | :------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **E2-2** | Contract integrity (deposit, expiry penalty, reward floor, instant-settle nerf) | Closes the riskless-option exploit.                                                                                                                                      |
-| **P2-3** | Contract feasibility card (cost/fuel/profit/days-left)                          | Same cards as E2-2 — bundle.                                                                                                                                             |
+| **E2-2** | Contract integrity (deposit, expiry penalty, reward floor, instant-settle nerf) | ✅ **Shipped 2026-08-02.** Riskless-option exploit closed: 0 of 2,406 generated offers profit from accept→jump→buy-dockside→deliver.                                     |
+| **P2-3** | Contract feasibility card (cost/fuel/profit/days-left)                          | ✅ **Shipped 2026-08-02** (bundled with E2-2).                                                                                                                           |
 | **E2-4** | Fiction pack (station dossiers, named crew, death epilogues)                    | Template strings; reuses E0-4's Syndicate voice.                                                                                                                         |
 | **E2-3** | Star map + per-edge danger                                                      | Biggest single feature (L); restores path-planning.                                                                                                                      |
 | **E2-5** | Achievements-lite + calendar                                                    | Needs E0-3.                                                                                                                                                              |

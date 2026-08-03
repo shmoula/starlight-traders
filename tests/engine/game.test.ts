@@ -14,13 +14,16 @@ import {
   retire,
   payDebt,
   interestForecast,
+  buyBlockReason,
+  maxBuyable,
   STARTING,
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
-import { dockingFee } from "../../src/engine/economy";
-import { GameEvent, Mission, NodeId } from "../../src/engine/types";
+import { canEscape, dockingFee, escapeCost, netWorth } from "../../src/engine/economy";
+import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
+import { SALVAGE_HAZARD_DIVISOR } from "../../src/engine/preview";
 
 describe("createGame goal line", () => {
   it("opens the log by stating the stake, the deadline, and the shared sky", () => {
@@ -37,6 +40,7 @@ describe("arrival settlement reporting", () => {
     qty: 5,
     destination: "kiruna",
     reward: 500,
+    deposit: 50,
     deadlineDay: 99,
   };
 
@@ -77,6 +81,7 @@ describe("arrival settlement reporting", () => {
       qty: 10,
       destination: "kiruna",
       reward: 600,
+      deposit: 60,
       deadlineDay: 99,
     };
     let s = createGame(42);
@@ -109,6 +114,24 @@ describe("arrival settlement reporting", () => {
     const s2 = deliver(s);
     expect(s2.activeMissions).toEqual([]);
     expect(s2.cargo.water).toBe(0);
+  });
+
+  it("a dockside delivery raises the peak net worth high-water mark", () => {
+    let s = createGame(42);
+    s = acceptMission(s, contract);
+    s = { ...s, fuel: 20 }; // no cargo carried
+    s = arrive(jump(s, "kiruna").state).state; // arrives short; mission stays active
+
+    // Hand over the cargo without a `buy` so the mark can only come from `deliver`, and
+    // seed the peak at today's worth — the mark is upgrade-only, so the payout is the one
+    // thing that can lift it. Early-run net worth is still negative against the loan.
+    s = { ...s, cargo: { ...s.cargo, water: 5 } };
+    const before = netWorth(s);
+    s = { ...s, peakNetWorth: before };
+
+    const s2 = deliver(s);
+    expect(netWorth(s2)).toBeGreaterThan(before); // the payout really did raise net worth
+    expect(s2.peakNetWorth).toBe(netWorth(s2));
   });
 });
 
@@ -307,6 +330,7 @@ describe("the Daily Audit (E0-1)", () => {
       qty: 5,
       destination: "kiruna",
       reward: 500,
+      deposit: 50,
       deadlineDay: 99,
     };
     let s = createGame(42);
@@ -406,6 +430,7 @@ describe("hull death (B-6)", () => {
       qty: 5,
       destination: "kiruna",
       reward: 500,
+      deposit: 50,
       deadlineDay: 99,
     };
     let s = createGame(42);
@@ -513,6 +538,7 @@ describe("dayHighlights", () => {
       qty: 2,
       destination: "terra",
       reward: 100,
+      deposit: 10,
       deadlineDay: 99,
     });
     s = { ...s, cargo: { ...s.cargo, water: 2 } };
@@ -528,6 +554,7 @@ describe("dayHighlights", () => {
       qty: 2,
       destination: "terra",
       reward: 5000,
+      deposit: 500,
       deadlineDay: 99,
     });
     s = { ...s, cargo: { ...s.cargo, water: 2 } };
@@ -637,5 +664,515 @@ describe("interestForecast (P1-2)", () => {
     }
     expect(cur.day).toBe(start.day + fc.inDays); // the run actually reached the forecast day
     expect(cur.debt - startDebt).toBe(fc.amount); // and accrued exactly what the chip promised
+  });
+});
+
+describe("dockside provenance (E2-2d state)", () => {
+  it("starts with zeroed provenance and contract counters", () => {
+    const s = createGame(42);
+    expect(s.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+    expect(s.contracts).toEqual({ delivered: 0, expired: 0, forfeitedCr: 0 });
+  });
+
+  it("buy marks units as bought at this dock", () => {
+    const s = buy(createGame(42), "water", 5);
+    expect(s.boughtHere.water).toBe(5);
+  });
+
+  it("a whole-dockside sale leaves the hauled units hauled", () => {
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, water: 5 } }; // 5 hauled
+    s = buy(s, "water", 5); // +5 dockside
+    s = sell(s, "water", 5);
+    expect(s.boughtHere.water).toBe(0); // the dockside units went first
+    expect(s.cargo.water).toBe(5); // the hauled 5 remain hauled
+  });
+
+  it("dockside units accumulate and are consumed one-for-one, not wiped", () => {
+    // The whole-sale case above passes even if sell() clears boughtHere[id] outright, and
+    // the single-buy case above passes even if buy() assigns qty instead of adding it.
+    // Both mutants hand Task 5 a premium on units bought at the destination, so pin the
+    // partial sale and the second buy.
+    let s = createGame(42);
+    s = { ...s, credits: 10_000, cargo: { ...s.cargo, water: 5 } }; // 5 hauled; buy() no-ops if broke
+    s = buy(s, "water", 3); // dockside 3
+    s = buy(s, "water", 2); // dockside 5 — a second buy accumulates
+    expect(s.boughtHere.water).toBe(5);
+    s = buy(s, "parts", 4);
+    s = sell(s, "water", 2); // consumes 2 dockside, leaves 3
+    expect(s.boughtHere.water).toBe(3);
+    expect(s.boughtHere.parts).toBe(4); // an untouched commodity stays untouched
+    expect(s.cargo.water).toBe(8);
+  });
+
+  it("selling hauled cargo floors boughtHere at zero instead of going negative", () => {
+    // Task 5 derives the hauled pool as cargo - boughtHere, so a negative count would
+    // inflate it and pay the contract premium on dockside units — the exploit reopening.
+    let s = createGame(42);
+    s = { ...s, cargo: { ...s.cargo, water: 5 } }; // all hauled, nothing bought here
+    s = sell(s, "water", 5);
+    expect(s.boughtHere.water).toBe(0);
+  });
+
+  it("a customs seizure takes the seized units' provenance with them", () => {
+    // Confiscation empties cargo.luxury. If boughtHere.luxury survived it, the count would
+    // outlive the units it describes: rebuying 5 dockside would leave boughtHere 15 against
+    // cargo 5, and settlement would price a luxury contract off a hauled pool of -10.
+    const customs: GameEvent = {
+      kind: "customs",
+      title: "",
+      description: "",
+      choices: [{ id: "comply", label: "" }],
+    };
+    let s = buy({ ...createGame(42), credits: 10_000 }, "luxury", 4); // luxury outprices the purse
+    expect(s.boughtHere.luxury).toBe(4);
+    s = resolveChoice(s, customs, "comply");
+    expect(s.cargo.luxury).toBe(0);
+    expect(s.boughtHere.luxury).toBe(0);
+  });
+
+  it("boughtHere resets on jump — cargo that traveled is hauled", () => {
+    let s = buy(createGame(42), "water", 5);
+    s = { ...s, fuel: 20 };
+    s = jump(s, "kiruna").state;
+    expect(s.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+  });
+
+  it("event loot never counts as dockside", () => {
+    // Find a clean (non-trap) salvage day for seed 42 — same divisor resolveSalvage uses.
+    const cleanDay = Array.from({ length: 30 }, (_, i) => i + 1).find(
+      (d) => hashSeed(42, d) % SALVAGE_HAZARD_DIVISOR !== 0
+    )!;
+    const salvage: GameEvent = {
+      kind: "salvage",
+      title: "",
+      description: "",
+      choices: [{ id: "collect", label: "" }],
+    };
+    const s = resolveChoice({ ...createGame(42), day: cleanDay }, salvage, "collect");
+    expect(s.cargo.parts).toBeGreaterThan(0);
+    expect(s.boughtHere.parts).toBe(0);
+  });
+});
+
+describe("contract deposit escrow (E2-2a)", () => {
+  const bonded: Mission = {
+    id: "b1",
+    commodity: "water",
+    qty: 5,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 99,
+  };
+
+  it("accept debits the deposit and logs the escrow", () => {
+    const s = createGame(42);
+    const after = acceptMission(s, bonded);
+    expect(after.credits).toBe(s.credits - 50);
+    expect(after.log[after.log.length - 1]).toEqual({
+      msg: "Accepted delivery to Kiruna Belt — 50cr deposit held.",
+      tone: "neutral",
+      delta: -50,
+    });
+  });
+
+  it("accept is a silent no-op when credits cannot cover the deposit", () => {
+    const s = { ...createGame(42), credits: 49 };
+    expect(acceptMission(s, bonded)).toBe(s);
+  });
+
+  it("double-accept still no-ops (no double escrow)", () => {
+    const once = acceptMission(createGame(42), bonded);
+    expect(acceptMission(once, bonded)).toBe(once);
+  });
+
+  it("accept succeeds when credits exactly cover the deposit", () => {
+    // 49 < 50 and 49 <= 50 are both true, so the no-op test above can't tell the guard's
+    // operator apart. Only the boundary can — and a `<=` slip would block the player at
+    // the exact moment the bond is affordable.
+    const s = { ...createGame(42), credits: 50 };
+    expect(s.credits).toBe(bonded.deposit); // assert the setup is actually the boundary
+    const after = acceptMission(s, bonded);
+    expect(after.credits).toBe(0);
+    expect(after.activeMissions.map((m) => m.id)).toEqual(["b1"]);
+  });
+});
+
+describe("proportional settlement (E2-2d)", () => {
+  const mission = (over: Partial<Mission> = {}): Mission => ({
+    id: "pv1",
+    commodity: "water",
+    qty: 10,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 99,
+    ...over,
+  });
+
+  it("a fully hauled delivery pays reward + deposit and counts as delivered", () => {
+    let s = acceptMission(createGame(42), mission());
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 10 } }; // hauled (never bought here)
+    const before = arrive(jump(s, "kiruna").state);
+    expect(before.delivered.map((m) => m.id)).toEqual(["pv1"]);
+    const entry = before.state.log[before.state.log.length - 1];
+    expect(entry).toEqual({
+      msg: "Delivery complete: +550cr (deposit returned).",
+      tone: "good",
+      delta: 550,
+    });
+    expect(before.state.contracts.delivered).toBe(1);
+  });
+
+  it("an all-dockside delivery pays spot only — the instant settle is a wash", () => {
+    let s = acceptMission(createGame(42), mission());
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state; // arrive empty-handed, day 2
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    const before = s.credits;
+    s = buy(s, "water", 10); // dockside
+    s = deliver(s);
+    expect(s.credits - before).toBe(50); // -10×spot buy, +10×spot payout, +50cr deposit back
+    const entry = s.log[s.log.length - 1];
+    expect(entry.msg).toBe(
+      `Delivery complete: +${spot * 10 + 50}cr — 10 bought dockside paid spot (deposit returned).`
+    );
+    expect(entry.delta).toBe(spot * 10 + 50);
+  });
+
+  it("a topped-up delivery pays the premium only on hauled units", () => {
+    let s = acceptMission(createGame(42), mission());
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 8 } }; // hauled 8, short 2
+    s = arrive(jump(s, "kiruna").state).state; // mission stays active
+    expect(s.activeMissions.map((m) => m.id)).toEqual(["pv1"]);
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    s = buy(s, "water", 2);
+    const before = s.credits;
+    s = deliver(s);
+    // 8/10 of the reward + 2 units at spot + the deposit back
+    expect(s.credits - before).toBe(Math.round((500 * 8) / 10) + spot * 2 + 50);
+  });
+
+  it("two missions on one commodity drain the hauled pool in list order", () => {
+    let s = acceptMission(createGame(42), mission({ id: "pv2", qty: 5, reward: 300, deposit: 30 }));
+    s = acceptMission(s, mission({ id: "pv3", qty: 5, reward: 300, deposit: 30 }));
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 5 } }; // hauled covers only the first
+    s = arrive(jump(s, "kiruna").state).state; // settles pv2 fully hauled; pv3 stays (short)
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    s = buy(s, "water", 5); // dockside top-up for pv3
+    const before = s.credits;
+    s = deliver(s);
+    expect(s.credits - before).toBe(spot * 5 + 30); // pv3: all five dockside → spot + deposit
+    expect(s.contracts.delivered).toBe(2);
+  });
+
+  it("the delivery payday records the actual inflow, not the face reward", () => {
+    let s = acceptMission(createGame(42), mission());
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 10 } };
+    s = arrive(jump(s, "kiruna").state).state;
+    expect(s.biggestPayday!.amount).toBe(550); // reward 500 + deposit 50
+  });
+
+  it("two missions settling in ONE call share the hauled pool", () => {
+    // The list-order test above settles its two missions in *separate* settleMissions
+    // calls (one in arrive, one in deliver), so it never exercises the shared pool the
+    // loop actually maintains. Settle both in one call: without the boughtHere decrement
+    // after the first mission, the second would recompute its hauled pool from a stale
+    // count and collect the premium on dockside units.
+    // The first mission must draw *partially* on the dockside pool for this to bite: if it
+    // consumes zero dockside units the decrement is a no-op and the case proves nothing.
+    // Rewards must DIFFER, or the sum is order-invariant and a reversed loop passes: with
+    // both at 300 the total depends only on how many hauled units were used in aggregate,
+    // not on which contract got them.
+    let s = acceptMission(createGame(42), mission({ id: "a", qty: 5, reward: 300, deposit: 30 }));
+    s = acceptMission(s, mission({ id: "b", qty: 5, reward: 900, deposit: 90 }));
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 2 } }; // 2 hauled
+    s = jump(s, "kiruna").state; // boughtHere cleared; do NOT arrive — that would settle `a` early
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    s = buy(s, "water", 8); // cargo 10 = 2 hauled + 8 dockside
+    const before = s.credits;
+    s = deliver(s); // both settle in one loop against the shared pool
+    // a is first, so it takes the hauled pair: round(300×2/5)=120 + spot×3, +30 deposit
+    // b finds the pool spent, so all 5 dockside -> spot×5, +90 deposit
+    expect(s.credits - before).toBe(120 + spot * 3 + 30 + spot * 5 + 90);
+    expect(s.contracts.delivered).toBe(2);
+    expect(s.boughtHere.water).toBe(0); // the dockside pool was drawn down, not left stale
+  });
+
+  it("a whale reward settled entirely dockside is not a bigTrade day", () => {
+    // markDay must rank the day on the actual inflow, not the face reward — otherwise the
+    // share strip brags about a 5,000cr contract that paid spot.
+    let s = acceptMission(createGame(42), mission({ reward: 5000, deposit: 500 }));
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state; // arrive empty-handed
+    s = buy(s, "water", 10);
+    s = deliver(s);
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    expect(spot * 10 + 500).toBeLessThan(900); // modest inflow despite the whale reward
+    expect(s.dayHighlights[s.day]).toBe("delivery");
+  });
+
+  it("rounds the premium on a split that does not divide evenly", () => {
+    // The even 8/10 split above hides the rounding entirely. Math.round is half-up, so a
+    // split can land ≤1cr either side of the exact share — here 166.67 pays 167.
+    let s = acceptMission(createGame(42), mission({ qty: 3, reward: 500, deposit: 50 }));
+    s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 1 } }; // hauled 1 of 3
+    s = arrive(jump(s, "kiruna").state).state;
+    const spot = getPrice(s.seed, s.day, "kiruna", "water");
+    s = buy(s, "water", 2);
+    const before = s.credits;
+    s = deliver(s);
+    expect(s.credits - before).toBe(167 + spot * 2 + 50);
+  });
+});
+
+describe("expiry forfeiture (E2-2b)", () => {
+  const bond: Mission = {
+    id: "x1",
+    commodity: "water",
+    qty: 5,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 1,
+  };
+
+  it("expiry forfeits the deposit into the counters with no credit movement", () => {
+    let s = acceptMission(createGame(42), bond);
+    const creditsAfterAccept = s.credits;
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state; // day 2 > deadline 1
+    expect(s.credits).toBe(creditsAfterAccept - dockingFee("kiruna")); // only the dock fee moved
+    expect(s.contracts).toEqual({ delivered: 0, expired: 1, forfeitedCr: 50 });
+    const entry = s.log.find((l) => l.msg.includes("expired"))!;
+    expect(entry.msg).toBe("Delivery to Kiruna Belt expired — 50cr deposit forfeit.");
+    expect(entry.tone).toBe("bad");
+    expect(entry.delta).toBeUndefined();
+  });
+
+  it("a contract is still alive on its own deadline day", () => {
+    // The two arms must partition the day exactly: deliverable guards `day <= deadlineDay`,
+    // expiry `day > deadlineDay`. A `>=` slip in the expiry arm survives the whole suite
+    // otherwise — it forfeits the bond a day early and kills the arrive-empty-then-buy
+    // path on the due day, which is precisely when a player is racing the clock.
+    let s = acceptMission(createGame(42), { ...bond, deadlineDay: 2 });
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state; // day 2 === deadlineDay, carrying nothing
+    expect(s.activeMissions.map((m) => m.id)).toEqual(["x1"]); // not expired
+    expect(s.contracts.expired).toBe(0);
+    s = deliver(buy(s, "water", 5)); // the dockside settle is still available today
+    expect(s.contracts.delivered).toBe(1);
+  });
+});
+
+describe("escrow accounting is conservative (E2-2)", () => {
+  const sumDeltas = (s: GameState) => s.log.reduce((t, l) => t + (l.delta ?? 0), 0);
+  const bond: Mission = {
+    id: "c9",
+    commodity: "water",
+    qty: 5,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 99,
+  };
+
+  it("log deltas sum to net credit movement across accept → jump → buy → deliver", () => {
+    let s = acceptMission(createGame(42), bond);
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state;
+    s = buy(s, "water", 5);
+    s = deliver(s);
+    expect(sumDeltas(s)).toBe(s.credits - STARTING.credits);
+  });
+
+  it("log deltas sum to net credit movement across accept → expire", () => {
+    let s = acceptMission(createGame(42), { ...bond, deadlineDay: 1 });
+    s = { ...s, fuel: 20 };
+    s = arrive(jump(s, "kiruna").state).state;
+    expect(sumDeltas(s)).toBe(s.credits - STARTING.credits);
+  });
+
+  it("log deltas sum to net credit movement across every credit-moving action", () => {
+    // The two paths above touch only accept, the docking fee, buy, delivery and expiry —
+    // 5 of the engine's 11 credit-moving sites. This walks the rest: a taxed sale (the one
+    // delta that is proceeds - tax), refuel, repair, payDebt, a pirate toll, a customs
+    // bribe, and salvage loot, then retires. One assertion guards all of them.
+    const ev = (kind: GameEvent["kind"], id: string): GameEvent => ({
+      kind,
+      title: "",
+      description: "",
+      choices: [{ id, label: "" }],
+    });
+    // Baseline against the seeded purse, not STARTING.credits: the override itself moves
+    // credits without a log entry, and only logged movement is what's being reconciled.
+    const base = { ...createGame(42), credits: 10_000, fuel: 20 };
+    let s = acceptMission(base, bond);
+    s = buy(s, "water", 5);
+    s = resolveChoice(jump(s, "kiruna").state, ev("pirates", "pay"), "pay");
+    s = arrive(s).state; // settles the delivery
+    s = buy(s, "water", 4);
+    s = sell(s, "water", 4); // taxed sale
+    s = refuel(s, 3);
+    s = repair({ ...s, hull: 60 }, 20);
+    s = payDebt(s, 100);
+    s = resolveChoice(jump(s, "meridian").state, ev("customs", "bribe"), "bribe");
+    s = arrive(s).state;
+    s = resolveChoice(jump(s, "terra").state, ev("salvage", "collect"), "collect");
+    s = retire(arrive(s).state);
+    expect(sumDeltas(s)).toBe(s.credits - base.credits);
+  });
+});
+
+describe("dock-side stranding guard (E2-2h)", () => {
+  // Terra's cheapest hop is Vulcan at 3 fuel, so an empty tank there costs
+  // 3 × REFUEL_PRICE = 24cr to make flyable. That 24cr is the escape fare.
+  const FARE_AT_TERRA = 24;
+  const drained = (over: Partial<GameState> = {}): GameState => ({
+    ...createGame(42),
+    fuel: 0,
+    cargo: { water: 0, parts: 0, luxury: 0 },
+    ...over,
+  });
+
+  const bond: Mission = {
+    id: "lock1",
+    commodity: "water",
+    qty: 5,
+    destination: "kiruna",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 99,
+  };
+
+  it("escapeCost prices the cheapest way back into the sky", () => {
+    expect(escapeCost(drained())).toBe(FARE_AT_TERRA);
+    expect(escapeCost(drained({ fuel: 1 }))).toBe(16);
+    expect(escapeCost(drained({ fuel: 3 }))).toBe(0);
+    expect(escapeCost(createGame(42))).toBe(0); // a full tank owes nothing
+  });
+
+  it("refuses a bond that would escrow the escape fare (the E2-2h repro)", () => {
+    // The reported soft-lock: 60cr and a dry tank passes checkLoss, but a 50cr bond
+    // leaves 10cr — every jump refused, no refuel affordable, status still "playing".
+    const s = drained({ credits: 60 });
+    expect(checkLoss(s).status).toBe("playing"); // the state is legal going in
+    expect(acceptMission(s, bond)).toBe(s); // …and stays legal
+    expect(canEscape(s)).toBe(true);
+  });
+
+  it("still posts a bond that leaves the fare intact", () => {
+    const s = drained({ credits: 100 });
+    const after = acceptMission(s, bond);
+    expect(after.credits).toBe(50);
+    expect(after.activeMissions.map((m) => m.id)).toEqual(["lock1"]);
+    expect(canEscape(after)).toBe(true);
+  });
+
+  it("posts a bond that spends down to exactly the fare", () => {
+    const s = drained({ credits: bond.deposit + FARE_AT_TERRA });
+    expect(acceptMission(s, bond).credits).toBe(FARE_AT_TERRA);
+  });
+
+  it("refuses a repair that would spend the escape fare", () => {
+    // 130cr covers the 120cr repair, so the old `cost > credits` guard let it through
+    // and left 10cr — under the 24cr fare, with no jump and no loss ever checked.
+    const s = drained({ credits: 130, hull: 80 });
+    expect(repair(s, 20)).toBe(s);
+    expect(canEscape(s)).toBe(true);
+  });
+
+  it("still repairs what fits alongside the fare", () => {
+    const s = drained({ credits: 130, hull: 90 }); // 10 points × 6cr = 60cr
+    const after = repair(s, 20);
+    expect(after.hull).toBe(100);
+    expect(after.credits).toBe(70);
+  });
+
+  it("clamps a debt payment to what is left over the escape fare", () => {
+    // payDebt already pays less than asked when the purse is short, so the fare is one
+    // more ceiling on the same clamp — both purses land on exactly the fare, not on 0.
+    expect(payDebt(drained({ credits: 60 }), 200).credits).toBe(FARE_AT_TERRA);
+    expect(payDebt(drained({ credits: 200 }), 200).credits).toBe(FARE_AT_TERRA);
+    expect(payDebt(drained({ credits: 200 }), 200).debt).toBe(1500 - 176);
+  });
+
+  it("counts the hold, so a loaded ship may still spend its last credit", () => {
+    // Cargo is escape money too: this hold sells here for far more than the fare, so
+    // nothing about the repair strands the run even though it empties the purse.
+    const s = drained({ credits: 120, hull: 80, cargo: { water: 0, parts: 0, luxury: 5 } });
+    const after = repair(s, 20);
+    expect(after.credits).toBe(0);
+    expect(after.hull).toBe(100);
+    expect(canEscape(after)).toBe(true);
+  });
+
+  it("stops a purchase whose sale tax would eat the escape fare", () => {
+    // Meridian taxes sales 18%, so credits spent on cargo do not come back whole:
+    // with exactly the fare in the purse, buying anything at all strands the run.
+    const base = drained({ location: "meridian" });
+    const s = { ...base, credits: escapeCost(base) };
+    expect(s.credits).toBeGreaterThan(getPrice(s.seed, s.day, "meridian", "water"));
+    expect(buyBlockReason(s, "water", 1)).toBe("reserve");
+    expect(buy(s, "water", 1)).toBe(s);
+    expect(maxBuyable(s, "water")).toBe(0);
+  });
+
+  it("leaves buying alone where the hold sells back whole", () => {
+    // The Verge taxes nothing, so credits and cargo are interchangeable there and the
+    // guard has no reason to bite — the same purse that is blocked above goes through.
+    const base = drained({ location: "verge" });
+    const s = { ...base, credits: escapeCost(base) };
+    expect(buyBlockReason(s, "water", 1)).toBe("");
+    expect(buy(s, "water", 1).cargo.water).toBe(1);
+  });
+
+  it("keeps the dockside shortfall buy available on a dry tank", () => {
+    // P2-3's "buy N here and deliver" shortcut must survive the guard: the purchase
+    // converts credits into cargo worth about the same, so the fare is still coverable.
+    let s = drained({ credits: 400, location: "kiruna" });
+    s = acceptMission(s, { ...bond, destination: "kiruna" });
+    const shortfall = bond.qty;
+    expect(buyBlockReason(s, "water", shortfall)).toBe("");
+    s = buy(s, "water", shortfall);
+    expect(s.cargo.water).toBe(shortfall);
+    expect(deliver(s).activeMissions).toEqual([]);
+  });
+
+  it("ends a run that reaches the dock already stranded instead of freezing it", () => {
+    // Pre-fix snapshots can rehydrate a run that is already past the fare. The spend is
+    // still refused, but the loss check that never ran now runs rather than dead-ending.
+    const s = drained({ credits: 10, hull: 99 });
+    expect(canEscape(s)).toBe(false);
+    const after = repair(s, 1); // 6cr — affordable, so the guard is what decides
+    expect(after.status).toBe("lost");
+    expect(after.runEnd?.lossCause).toBe("fuel");
+  });
+
+  it("ends an already-stranded run on a buy rather than freezing it", () => {
+    // The buy sibling of the repair backstop above. After buy stopped duplicating the
+    // affordability guards and deferred to buyBlockReason, the "reserve" verdict must
+    // still fall through to keepEscapable so a rehydrated past-the-fare run runs the loss
+    // check — a bare early return on refusal would silently leave it frozen at the dock.
+    const base = drained();
+    const price = getPrice(base.seed, base.day, base.location, "water");
+    const s = { ...base, credits: price }; // affords one unit, still short of the fare
+    expect(canEscape(s)).toBe(false);
+    const after = buy(s, "water", 1);
+    expect(after.status).toBe("lost");
+    expect(after.runEnd?.lossCause).toBe("fuel");
+  });
+});
+
+describe("checkLoss counts the hold (E2-2h)", () => {
+  it("is not stranded while the hold can be sold for the fare", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 0, cargo: { water: 5, parts: 0, luxury: 0 } };
+    expect(checkLoss(s).status).toBe("playing");
+  });
+
+  it("is stranded when the hold sells for less than the fare", () => {
+    const s = { ...createGame(42), fuel: 0, credits: 0, cargo: { water: 1, parts: 0, luxury: 0 } };
+    expect(checkLoss(s).status).toBe("lost");
   });
 });

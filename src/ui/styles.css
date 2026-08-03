@@ -475,3 +475,14 @@ body {
   opacity: 0.8;
   white-space: nowrap;
 }
+
+/* P2-3 contract feasibility line */
+.contract-feas {
+  display: inline-block;
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+
+.contract-days--amber {
+  color: var(--st-accent-alert);
+}

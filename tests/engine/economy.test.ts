@@ -16,6 +16,8 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     cargo: { water: 0, parts: 0, luxury: 0 },
     cargoCapacity: 30,
     activeMissions: [],
+    boughtHere: { water: 0, parts: 0, luxury: 0 },
+    contracts: { delivered: 0, expired: 0, forfeitedCr: 0 },
     peakNetWorth: 0,
     dayHighlights: {},
     status: "playing",

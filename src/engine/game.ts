@@ -8,20 +8,23 @@ import {
   Mission,
   NodeId,
 } from "./types";
-import { NODES, NODE_IDS, commodityName, fuelCost, getPrice } from "./world";
+import { NODES, commodityName, fuelCost, getPrice } from "./world";
 import {
   BIG_TRADE_CR,
   REFUEL_PRICE,
   REPAIR_PRICE,
+  canEscape,
   dockingFee,
+  netSaleProceeds,
   taxOnSale,
   loanInterest,
   LOAN_STEP_IMPATIENT,
   LOAN_STEP_DESPERATE,
   cargoUsed,
   netWorth,
+  spendableCredits,
 } from "./economy";
-import { generateMissions } from "./missions";
+import { docksideUnitsUsed, generateMissions } from "./missions";
 import { rollEvent } from "./events";
 import { hashSeed } from "./rng";
 import {
@@ -71,6 +74,8 @@ export function createGame(seed: number, bootDate = ""): GameState {
     cargo: { water: 0, parts: 0, luxury: 0 },
     cargoCapacity: STARTING.cargoCapacity,
     activeMissions: [],
+    boughtHere: { water: 0, parts: 0, luxury: 0 },
+    contracts: { delivered: 0, expired: 0, forfeitedCr: 0 },
     peakNetWorth: 0,
     dayHighlights: {},
     status: "playing",
@@ -146,19 +151,46 @@ export function missionsHere(state: GameState): Mission[] {
   return generateMissions(state.seed, state.day, state.location);
 }
 
+/**
+ * E2-2h: a dock-side spend may not leave the run unable to leave the station. `jump`
+ * refuses silently when fuel is short, so nothing downstream would ever notice —
+ * `checkLoss` has one caller, inside `arrive`, and a run stranded at its own dock never
+ * gets there. It would sit in `status: "playing"` with Retire (which pays a survival
+ * bonus) as its only move, scoring *better* than being stranded honestly.
+ *
+ * So the spend is refused instead, in the same silent style as the affordability guards
+ * it sits beside: the credits are still the player's, and refusing hands them back the
+ * choice. `refuel` needs no guard — a unit of fuel costs exactly what it removes from
+ * the fare — and `sell`/`deliver` only ever raise the escape money.
+ *
+ * The one exception is a run that was *already* past the fare on the way in, which a
+ * snapshot written before this guard could still rehydrate: freezing its dock would trap
+ * it forever, so the loss check that never ran runs now.
+ */
+function keepEscapable(before: GameState, after: GameState): GameState {
+  if (canEscape(after)) return after;
+  return canEscape(before) ? before : checkLoss(before);
+}
+
 export function buy(state: GameState, id: CommodityId, qty: number): GameState {
   if (qty <= 0) return state;
+  // buyBlockReason owns the guard values so the UI and buy can never disagree. The hard
+  // affordability refusals return early; the "reserve" (escape-fare) verdict is left to
+  // keepEscapable below, which refuses an escapable run's purchase but still runs the loss
+  // check on a run that arrived already stranded (E2-2h) — a bare return would freeze it.
+  const block = buyBlockReason(state, id, qty);
+  if (block === "credits" || block === "room") return state;
   const price = getPrice(state.seed, state.day, state.location, id);
   const cost = price * qty;
-  if (cost > state.credits) return state;
-  if (cargoUsed(state.cargo) + qty > state.cargoCapacity) return state;
   const next = {
     ...state,
     credits: state.credits - cost,
     cargo: { ...state.cargo, [id]: state.cargo[id] + qty },
+    boughtHere: { ...state.boughtHere, [id]: state.boughtHere[id] + qty },
   };
-  return trackPeak(
-    withLog(next, `Bought ${qty} ${commodityName(id)} for ${cost}cr.`, "neutral", -cost)
+  return keepEscapable(
+    state,
+    trackPeak(withLog(next, `Bought ${qty} ${commodityName(id)} for ${cost}cr.`, "neutral", -cost))
   );
 }
 
@@ -171,6 +203,7 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
     ...state,
     credits: state.credits + proceeds - tax,
     cargo: { ...state.cargo, [id]: state.cargo[id] - qty },
+    boughtHere: { ...state.boughtHere, [id]: Math.max(0, state.boughtHere[id] - qty) },
   };
   next = trackPayday(next, proceeds - tax, `${commodityName(id)} at ${NODES[state.location].name}`);
   if (proceeds - tax >= BIG_TRADE_CR) next = markDay(next, "bigTrade");
@@ -188,18 +221,23 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
 // that computes its clamped quantity or net proceeds from these helpers stays honest
 // about what a click delivers even if buy()/sell() later grows a fee or rounding rule (B-1).
 
-/** Largest quantity of `id` buyable here, clamped by both credits and hold room. */
+/**
+ * Largest quantity of `id` buyable here, clamped by credits, hold room, and the E2-2h
+ * escape fare. The fare clamp walks down rather than solving for a quantity: each unit
+ * costs only the sale tax on it, and `taxOnSale` rounds per sale, so the exact cap is the
+ * one `buyBlockReason` — the same guard `buy` runs — actually agrees with.
+ */
 export function maxBuyable(state: GameState, id: CommodityId): number {
   const price = getPrice(state.seed, state.day, state.location, id);
   const room = state.cargoCapacity - cargoUsed(state.cargo);
-  return Math.max(0, Math.min(Math.floor(state.credits / price), room));
+  let qty = Math.max(0, Math.min(Math.floor(state.credits / price), room));
+  while (qty > 0 && buyBlockReason(state, id, qty) !== "") qty--;
+  return qty;
 }
 
 /** Net credits from selling `qty` of `id` here, after sale tax — what sell() actually pays. */
 export function netProceeds(state: GameState, id: CommodityId, qty: number): number {
-  const price = getPrice(state.seed, state.day, state.location, id);
-  const gross = price * qty;
-  return gross - taxOnSale(state.location, gross);
+  return netSaleProceeds(state, id, qty);
 }
 
 /**
@@ -214,12 +252,20 @@ export function interestForecast(s: GameState): { inDays: number; amount: number
 }
 
 /** Why buying `qty` of `id` here is blocked — "" when it would succeed. Mirrors buy()'s guard order. */
-export type BuyBlock = "" | "credits" | "room";
+export type BuyBlock = "" | "credits" | "room" | "reserve";
 export function buyBlockReason(state: GameState, id: CommodityId, qty: number): BuyBlock {
   if (qty <= 0) return "";
   const price = getPrice(state.seed, state.day, state.location, id);
   if (price * qty > state.credits) return "credits";
   if (cargoUsed(state.cargo) + qty > state.cargoCapacity) return "room";
+  // A purchase is nearly escape-money-neutral — the hold sells back — so it can only
+  // strand the run by the sale tax on it. That is enough at Meridian's 18% (E2-2h).
+  const after = {
+    ...state,
+    credits: state.credits - price * qty,
+    cargo: { ...state.cargo, [id]: state.cargo[id] + qty },
+  };
+  if (!canEscape(after)) return "reserve";
   return "";
 }
 
@@ -243,23 +289,33 @@ export function repair(state: GameState, points: number): GameState {
   if (fix <= 0) return state;
   const cost = fix * REPAIR_PRICE;
   if (cost > state.credits) return state;
-  return withLog(
-    { ...state, hull: state.hull + fix, credits: state.credits - cost },
-    `Repaired ${fix} hull for ${cost}cr.`,
-    "neutral",
-    -cost
+  return keepEscapable(
+    state,
+    withLog(
+      { ...state, hull: state.hull + fix, credits: state.credits - cost },
+      `Repaired ${fix} hull for ${cost}cr.`,
+      "neutral",
+      -cost
+    )
   );
 }
 
 export function payDebt(state: GameState, amount: number): GameState {
-  const pay = Math.min(amount, state.debt, state.credits);
+  // Clamped, not refused: paying down debt already pays less than asked when the purse
+  // is short, so E2-2h's escape fare is just one more ceiling on the same clamp. A
+  // player who asks to pay 200 on a dry tank pays what is left over the fare instead of
+  // being told no. `keepEscapable` below stays as the backstop for an inbound strand.
+  const pay = Math.min(amount, state.debt, spendableCredits(state));
   if (pay <= 0) return state;
-  return trackPeak(
-    withLog(
-      { ...state, debt: state.debt - pay, credits: state.credits - pay },
-      `Paid down ${pay}cr of debt.`,
-      "good",
-      -pay
+  return keepEscapable(
+    state,
+    trackPeak(
+      withLog(
+        { ...state, debt: state.debt - pay, credits: state.credits - pay },
+        `Paid down ${pay}cr of debt.`,
+        "good",
+        -pay
+      )
     )
   );
 }
@@ -273,11 +329,28 @@ export function retire(state: GameState): GameState {
   );
 }
 
+/**
+ * Post the bond and take the contract (E2-2a). The `-deposit` delta is load-bearing beyond
+ * this function: the escrow is accounted once per direction, so delivery returns
+ * `payout + deposit` as a single credited delta and expiry logs none at all (the money
+ * already moved here). Summed log deltas must equal net credit movement. Delivery is the
+ * only path that gives the bond back — bonds open at audit, retire, or death are sunk.
+ */
 export function acceptMission(state: GameState, mission: Mission): GameState {
   if (state.activeMissions.some((m) => m.id === mission.id)) return state;
-  return withLog(
-    { ...state, activeMissions: [...state.activeMissions, mission] },
-    `Accepted delivery to ${NODES[mission.destination].name}.`
+  if (state.credits < mission.deposit) return state; // E2-2a: can't post the bond
+  return keepEscapable(
+    state,
+    withLog(
+      {
+        ...state,
+        credits: state.credits - mission.deposit,
+        activeMissions: [...state.activeMissions, mission],
+      },
+      `Accepted delivery to ${NODES[mission.destination].name} — ${mission.deposit}cr deposit held.`,
+      "neutral",
+      -mission.deposit
+    )
   );
 }
 
@@ -286,12 +359,21 @@ export function acceptMission(state: GameState, mission: Mission): GameState {
  * mission's destination is already the current station (e.g. cargo bought after
  * arriving empty-handed) — `jump` no-ops when `to === state.location`, so `arrive`
  * never runs for that case.
+ *
+ * The `trackPeak` mirrors `arrive`: this is the other path where a payout raises net
+ * worth, and the debrief's high-water mark has to see it. Safe to apply here even though
+ * `arrive` settles too — it calls `settleMissions` directly rather than routing through
+ * this function, and the mark is upgrade-only regardless.
  */
 export function deliver(state: GameState): GameState {
-  return settleMissions(state).state;
+  return trackPeak(settleMissions(state).state);
 }
 
-/** Complete any active missions satisfied by current location + cargo, paying rewards. */
+/**
+ * Complete any active missions satisfied by current location + cargo. Hauled units earn the
+ * contract premium; units bought at this dock since arrival pay local spot (E2-2d). Each
+ * settlement returns the bond and bumps the delivered counter; expiry is handled below.
+ */
 function settleMissions(state: GameState): {
   state: GameState;
   delivered: Mission[];
@@ -303,21 +385,52 @@ function settleMissions(state: GameState): {
   const expired: Mission[] = [];
   for (const m of s.activeMissions) {
     if (m.destination === s.location && s.cargo[m.commodity] >= m.qty && s.day <= m.deadlineDay) {
+      // E2-2d: only hauled units earn the contract premium; units bought at this dock
+      // since arrival settle at today's local spot — the instant-settle wash. The split
+      // comes from docksideUnitsUsed so the active card shows this same number.
+      const boughtUsed = docksideUnitsUsed(s, m);
+      const hauledUsed = m.qty - boughtUsed;
+      const spot = getPrice(s.seed, s.day, m.destination, m.commodity);
+      const payout = Math.round((m.reward * hauledUsed) / m.qty) + spot * boughtUsed;
+      const inflow = payout + m.deposit;
       s = {
         ...s,
         cargo: { ...s.cargo, [m.commodity]: s.cargo[m.commodity] - m.qty },
-        credits: s.credits + m.reward,
+        boughtHere: {
+          ...s.boughtHere,
+          [m.commodity]: Math.max(0, s.boughtHere[m.commodity] - boughtUsed),
+        },
+        credits: s.credits + inflow,
+        contracts: { ...s.contracts, delivered: s.contracts.delivered + 1 },
       };
       s = trackPayday(
         s,
-        m.reward,
+        inflow,
         `${commodityName(m.commodity)} contract → ${NODES[m.destination].name}`
       );
-      s = withLog(s, `Delivery complete: +${m.reward}cr.`, "good", m.reward);
-      s = markDay(s, m.reward >= BIG_TRADE_CR ? "bigTrade" : "delivery");
+      const dockside = boughtUsed > 0 ? ` — ${boughtUsed} bought dockside paid spot` : "";
+      s = withLog(
+        s,
+        `Delivery complete: +${inflow}cr${dockside} (deposit returned).`,
+        "good",
+        inflow
+      );
+      s = markDay(s, inflow >= BIG_TRADE_CR ? "bigTrade" : "delivery");
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {
-      s = withLog(s, `Delivery to ${NODES[m.destination].name} expired.`, "bad");
+      // E2-2b: the bond is the penalty — the credits moved at accept, so no delta here.
+      s = withLog(
+        {
+          ...s,
+          contracts: {
+            ...s.contracts,
+            expired: s.contracts.expired + 1,
+            forfeitedCr: s.contracts.forfeitedCr + m.deposit,
+          },
+        },
+        `Delivery to ${NODES[m.destination].name} expired — ${m.deposit}cr deposit forfeit.`,
+        "bad"
+      );
       expired.push(m);
     } else {
       remaining.push(m);
@@ -326,15 +439,15 @@ function settleMissions(state: GameState): {
   return { state: { ...s, activeMissions: remaining }, delivered, expired };
 }
 
+/**
+ * End the run when the station has become a dead end. "Escape" counts the hold as well
+ * as the purse (see `canEscape`): a ship that can sell its cargo here and refuel on the
+ * proceeds is not stranded, it is merely illiquid — and treating it as stranded is what
+ * would make E2-2h's dock-side guard kill players for buying cargo.
+ */
 export function checkLoss(state: GameState): GameState {
   if (state.status !== "playing") return state;
-  const cheapest = Math.min(
-    ...NODE_IDS.filter((n) => n !== state.location).map((n) => fuelCost(state.location, n))
-  );
-  const canJumpNow = state.fuel >= cheapest;
-  const fuelShort = Math.max(0, cheapest - state.fuel);
-  const canBuyFuel = state.credits >= fuelShort * REFUEL_PRICE;
-  if (!canJumpNow && !canBuyFuel) {
+  if (!canEscape(state)) {
     return endRun(
       state,
       "lost",
@@ -357,7 +470,13 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
   const cost = fuelCost(state.location, to);
   if (state.fuel < cost) return { state, event: null };
 
-  let s: GameState = { ...state, fuel: state.fuel - cost, location: to, day: state.day + 1 };
+  let s: GameState = {
+    ...state,
+    fuel: state.fuel - cost,
+    location: to,
+    day: state.day + 1,
+    boughtHere: { water: 0, parts: 0, luxury: 0 },
+  };
 
   // Interest accrues on a fixed cadence.
   if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
@@ -473,7 +592,11 @@ function resolveCustoms(s: GameState, choiceId: string): GameState {
   if (choiceId === "comply" && s.cargo.luxury > 0) {
     const seized = s.cargo.luxury;
     return withLog(
-      { ...s, cargo: { ...s.cargo, luxury: 0 } },
+      // Seized units leave the hold, so their provenance goes with them. Belt-and-braces
+      // today: resolveChoice only runs after jump, which already zeroed boughtHere, so
+      // there is nothing to clear. Kept so the invariant boughtHere[c] <= cargo[c] holds
+      // locally rather than depending on that call order staying true.
+      { ...s, cargo: { ...s.cargo, luxury: 0 }, boughtHere: { ...s.boughtHere, luxury: 0 } },
       `Customs seized ${seized} luxury goods.`,
       "bad"
     );

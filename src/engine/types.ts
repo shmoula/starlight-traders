@@ -26,6 +26,12 @@ export interface Mission {
   qty: number;
   destination: NodeId;
   reward: number;
+  /**
+   * Credits escrowed on accept, returned on delivery, forfeited on expiry (E2-2). Set at
+   * generation to `MISSION_DEPOSIT_RATE` of reward, rounded; pre-v3 missions carry 0 —
+   * always read this field, never re-derive it from `reward`.
+   */
+  deposit: number;
   deadlineDay: number; // absolute game day by which cargo must arrive
 }
 
@@ -88,6 +94,15 @@ export interface GameState {
   cargo: Record<CommodityId, number>;
   cargoCapacity: number;
   activeMissions: Mission[];
+  /** Units of each commodity bought at the current dock since arrival — reset on jump.
+   *  Delivery pays the contract premium only on units that are NOT in here (E2-2d). */
+  boughtHere: Record<CommodityId, number>;
+  /** Run-long contract ledger for the debrief (E2-2b). */
+  contracts: {
+    delivered: number;
+    expired: number;
+    forfeitedCr: number;
+  };
   peakNetWorth: number;
   /** Largest single credit inflow of the run (sale net proceeds or delivery reward) — the debrief's "best haul". */
   biggestPayday?: { amount: number; label: string };

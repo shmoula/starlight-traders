@@ -4,10 +4,12 @@ import {
   createGame,
   missionsHere,
   refuel,
+  repair,
   checkLoss,
   retire,
   netProceeds,
 } from "../../src/engine/game";
+import { missionFeasibility } from "../../src/engine/missions";
 import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
 import { dockingFee } from "../../src/engine/economy";
 import { GameEvent, Mission } from "../../src/engine/types";
@@ -37,14 +39,14 @@ describe("stationScreen accessibility", () => {
     }
   });
 
-  it("gives each Accept button an accessible name describing the contract", () => {
+  it("gives each Accept button an accessible name describing the contract and its deposit", () => {
     const s = createGame(42);
     const offered = missionsHere(s);
     expect(offered.length).toBeGreaterThan(0);
     const html = stationScreen(s);
     for (const m of offered) {
       expect(html).toContain(
-        `aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name}"`
+        `aria-label="Accept contract: deliver ${m.qty} ${commodityName(m.commodity)} to ${NODES[m.destination].name} for a ${cr2(m.deposit)} deposit"`
       );
     }
   });
@@ -58,6 +60,7 @@ describe("stationScreen ready contract jump control", () => {
     qty: 5,
     destination,
     reward: 500,
+    deposit: 50,
     deadlineDay: 30,
   };
 
@@ -710,6 +713,7 @@ describe("active contract shortfall shortcut (P1-1)", () => {
     qty: 10,
     destination: "verge",
     reward: 500,
+    deposit: 50,
     deadlineDay: 30,
   };
 
@@ -818,5 +822,251 @@ describe("negative credits warning (B-3)", () => {
   it("adds no warning at zero or above", () => {
     const html = stationScreen({ ...createGame(42), credits: 0 });
     expect(html).not.toContain("credits-negative");
+  });
+});
+
+describe("contract feasibility card (P2-3)", () => {
+  it("prints cost, fuel, est. profit, deposit, and days left from missionFeasibility", () => {
+    const s = createGame(42);
+    const html = stationScreen(s);
+    for (const m of missionsHere(s)) {
+      const f = missionFeasibility(s, m);
+      const est =
+        f.estProfit >= 0 ? `est. +${cr2(f.estProfit)}` : `est. −${cr2(Math.abs(f.estProfit))}`;
+      expect(html).toContain(
+        `cost ~${cr2(f.cargoCost)} · ${f.fuel}⛽ · ${est} · deposit ${cr2(m.deposit)}`
+      );
+      expect(html).toContain(`${f.daysLeft} days left`);
+    }
+  });
+
+  it("disables Accept with a reason when credits cannot cover the deposit", () => {
+    const s = { ...createGame(42), credits: 0 };
+    const html = stationScreen(s);
+    const m = missionsHere(s)[0];
+    expect(html).toContain(`aria-disabled="true" aria-describedby="accept-hint-${m.id}"`);
+    expect(html).toContain(`(need ${cr2(m.deposit)} deposit)`);
+  });
+
+  it("keeps Accept enabled when credits exactly cover the deposit", () => {
+    // The engine's guard is `credits < deposit`, so a UI-side `>` would disable an accept
+    // the engine would honour. Both other tests sit far from the boundary (800 vs 17/91,
+    // and 0), so nothing else pins that the two agree at the edge.
+    const m = missionsHere(createGame(42))[0];
+    const html = stationScreen({ ...createGame(42), credits: m.deposit });
+    expect(html).not.toContain(`aria-describedby="accept-hint-${m.id}"`);
+    expect(html).not.toContain(`(need ${cr2(m.deposit)} deposit)`);
+  });
+
+  it("replaces the Accept button with a confirmation once a contract is taken", () => {
+    // The accepted branch now guards the whole feasibility/affordability else-arm, so an
+    // inverted check would silently suppress all of it.
+    const s = createGame(42);
+    const m = missionsHere(s)[0];
+    const html = stationScreen({ ...s, activeMissions: [m] });
+    expect(html).toContain("✓ Accepted");
+    expect(html).not.toContain(`data-act="accept" data-id="${m.id}"`);
+  });
+});
+
+describe("active contract countdown + provenance (E2-2d/P2-3)", () => {
+  const mission: Mission = {
+    id: "m3",
+    commodity: "water",
+    qty: 10,
+    destination: "verge",
+    reward: 500,
+    deposit: 50,
+    deadlineDay: 5,
+  };
+
+  it("shows days left on the active card, amber at ≤ 2 days", () => {
+    const far = withMission(mission); // day 1 → 4 days left
+    expect(stationScreen(far)).toContain("4 days left");
+    expect(stationScreen(far)).not.toContain("contract-days--amber");
+    const near = { ...withMission(mission), day: 3 }; // 2 days left
+    expect(stationScreen(near)).toContain(
+      `<span class="contract-days contract-days--amber">2 days left</span>`
+    );
+  });
+
+  it("names dockside units on a ready card before the deliver click", () => {
+    const s = {
+      ...withMission({ ...mission, destination: "terra" }), // ready at the current dock
+      boughtHere: { water: 4, parts: 0, luxury: 0 },
+    };
+    expect(stationScreen(s)).toContain("✓ carrying 10/10 — 4 bought here pay spot");
+  });
+
+  it("keeps the plain ready line when everything was hauled", () => {
+    const s = withMission({ ...mission, destination: "terra" });
+    expect(stationScreen(s)).toContain("✓ carrying 10/10 — ready,");
+  });
+
+  it("renders 3 days left without amber — the threshold is 2, not 3", () => {
+    const s = { ...withMission(mission), day: 2 };
+    expect(stationScreen(s)).toContain(`<span class="contract-days">3 days left</span>`);
+  });
+
+  it("says '1 day left' in the singular", () => {
+    const s = { ...withMission(mission), day: 4 };
+    expect(stationScreen(s)).toContain(
+      `<span class="contract-days contract-days--amber">1 day left</span>`
+    );
+  });
+
+  it("shows no countdown once the deadline has passed", () => {
+    // A bare not.toContain("days left") would fail against correct code — offer cards
+    // always carry a chip. Assert only that no negative countdown is rendered.
+    const s = { ...withMission(mission), day: 7 }; // deadline 5
+    const html = stationScreen(s);
+    expect(html).toContain("✗ deadline passed");
+    expect(html).not.toMatch(/-\d+ days? left/);
+  });
+
+  it("counts only the units settlement would actually pay spot on", () => {
+    // Hauling 10 and topping up 4 leaves 14 in the hold: settlement takes the 10 hauled
+    // units, so nothing pays spot. Using boughtHere directly would wrongly claim 4.
+    const s = {
+      ...withMission({ ...mission, destination: "terra" }),
+      cargo: { water: 14, parts: 0, luxury: 0 },
+      boughtHere: { water: 4, parts: 0, luxury: 0 },
+    };
+    expect(stationScreen(s)).toContain("✓ carrying 14/10 — ready,");
+    expect(stationScreen(s)).not.toContain("bought here pay spot");
+
+    // Haul 8, top up 4 -> 12 in hold, 10 required: 2 of the dockside units get used.
+    const partial = { ...s, cargo: { water: 12, parts: 0, luxury: 0 } };
+    expect(stationScreen(partial)).toContain("✓ carrying 12/10 — 2 bought here pay spot");
+  });
+
+  it("clamps the dockside count to the hold, as settlement does", () => {
+    const s = {
+      ...withMission({ ...mission, destination: "terra" }),
+      boughtHere: { water: 14, parts: 0, luxury: 0 }, // more than the 10 carried
+    };
+    expect(stationScreen(s)).toContain("✓ carrying 10/10 — 10 bought here pay spot");
+  });
+
+  it("does not claim dockside units away from the destination", () => {
+    // jump() zeroes boughtHere, so these 4 will be hauled by the time they settle.
+    const s = {
+      ...withMission(mission), // destination verge, standing at terra
+      boughtHere: { water: 4, parts: 0, luxury: 0 },
+    };
+    expect(stationScreen(s)).not.toContain("bought here pay spot");
+  });
+});
+
+describe("run-end contracts row (E2-2b)", () => {
+  const ended = (contracts: { delivered: number; expired: number; forfeitedCr: number }) => {
+    const s = { ...retire({ ...createGame(42), fuel: 20 }), contracts };
+    return runEndScreen(s, s.runEnd!);
+  };
+
+  it("shows delivered and expired counts with the forfeited total", () => {
+    const html = ended({ delivered: 2, expired: 1, forfeitedCr: 25 });
+    expect(html).toContain("2 delivered · 1 expired (−25cr deposit)");
+  });
+
+  it("omits the forfeit note when nothing was forfeited", () => {
+    const html = ended({ delivered: 3, expired: 0, forfeitedCr: 0 });
+    expect(html).toContain("3 delivered · 0 expired");
+    expect(html).not.toContain("deposit)");
+  });
+
+  it("shows the row for an expiry-only run", () => {
+    // The E2-2b case: nothing delivered, a bond forfeited. A `delivered > 0` visibility
+    // check would hide exactly the run this row exists to explain.
+    expect(ended({ delivered: 0, expired: 1, forfeitedCr: 50 })).toContain(
+      "0 delivered · 1 expired (−50cr deposit)"
+    );
+  });
+
+  it("names bonds still open at run end as sunk", () => {
+    // Decision 2: there is no refund path outside delivery, so retiring on an open contract
+    // is priced. Gating the row on delivered+expired alone hid that money entirely.
+    const open: Mission = {
+      id: "o1",
+      commodity: "water",
+      qty: 5,
+      destination: "kiruna",
+      reward: 500,
+      deposit: 50,
+      deadlineDay: 99,
+    };
+    const s = {
+      ...retire({ ...createGame(42), fuel: 20 }),
+      contracts: { delivered: 0, expired: 0, forfeitedCr: 0 },
+      activeMissions: [open, { ...open, id: "o2", deposit: 30 }],
+    };
+    expect(runEndScreen(s, s.runEnd!)).toContain(
+      "0 delivered · 0 expired · 80cr sunk in 2 unfinished"
+    );
+  });
+
+  it("omits the row entirely when no contract was ever taken", () => {
+    expect(ended({ delivered: 0, expired: 0, forfeitedCr: 0 })).not.toContain("Contracts");
+  });
+});
+
+describe("escape-fare affordances (E2-2h)", () => {
+  // Terra's cheapest hop is 3 fuel, so a dry tank holds 24cr back for the fare.
+  const dry = (over: Record<string, unknown> = {}) => ({ ...createGame(42), fuel: 0, ...over });
+
+  it("names the held-back fare on the stranding banner", () => {
+    const html = stationScreen(dry({ credits: 130 }));
+    expect(html).toContain(
+      "Not enough fuel to jump anywhere — refuel below (8cr/unit). 24cr of your credits is held back for it."
+    );
+  });
+
+  it("disables a repair the engine would refuse for eating the fare", () => {
+    // 130cr covers the 120cr repair but not the 24cr fare on top, so the engine says no
+    // — the button has to say the same thing, and say why (B-1).
+    const s = dry({ credits: 130, hull: 80 });
+    expect(repair(s, 20)).toBe(s);
+    expect(stationScreen(s)).toContain(
+      'data-act="repair" disabled title="Credits held back for fuel — 24cr to fly again"'
+    );
+  });
+
+  it("keeps the plain affordability reason when the purse is simply too small", () => {
+    expect(stationScreen(dry({ credits: 10, hull: 80 }))).toContain(
+      'data-act="repair" disabled title="Not enough credits"'
+    );
+  });
+
+  it("disables Pay debt once every credit is spoken for by the fare", () => {
+    expect(stationScreen(dry({ credits: 20 }))).toContain(
+      'data-act="payDebt" disabled title="Credits held back for fuel — 24cr to fly again"'
+    );
+  });
+
+  it("keeps Pay debt live for the credits above the fare", () => {
+    expect(stationScreen(dry({ credits: 200 }))).not.toContain('data-act="payDebt" disabled');
+  });
+
+  it("blocks Accept with the fare reason, not a missing-deposit reason", () => {
+    // Seed 42's Terra board offers deposits of 17cr and 91cr. At 100cr the purse covers
+    // the 91cr bond outright, so only the 24cr fare stands in the way — and the cheap
+    // bond beside it stays live, which is what tells the two reasons apart.
+    const s = dry({ credits: 100 });
+    const [cheap, dear] = missionsHere(s);
+    expect([cheap.deposit, dear.deposit]).toEqual([17, 91]);
+    const html = stationScreen(s);
+    expect(html).toContain(`aria-disabled="true" aria-describedby="accept-hint-${dear.id}"`);
+    expect(html).toContain("(deposit would strand you — 24cr is held back for fuel)");
+    expect(html).not.toContain(`aria-describedby="accept-hint-${cheap.id}"`);
+  });
+
+  it("labels a buy blocked by the fare as held-back credits", () => {
+    // Meridian taxes sales 18%, so cargo does not sell back for what it cost: with only
+    // the 40cr fare in the purse, even one unit of water strands the run.
+    const s = dry({ location: "meridian" as const, credits: 40 });
+    expect(getPrice(s.seed, s.day, "meridian", "water")).toBeLessThan(40); // affordable…
+    expect(stationScreen(s)).toContain(
+      'data-act="buy" data-id="water" data-qty="1" aria-label="Buy 1 Water / Ice" disabled title="Credits held back for fuel"'
+    );
   });
 });
