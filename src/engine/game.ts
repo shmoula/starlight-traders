@@ -26,6 +26,7 @@ import {
 } from "./economy";
 import { docksideUnitsUsed, generateMissions } from "./missions";
 import { rollEvent } from "./events";
+import { crewName } from "./fiction";
 import { hashSeed } from "./rng";
 import {
   DERELICT_REWARD_DIVISOR,
@@ -524,17 +525,22 @@ export function arrive(state: GameState): {
 
 function resolvePirates(s: GameState, choiceId: string): GameState {
   const marked = markDay(s, "pirates");
+  const crew = crewName(marked.seed);
   if (choiceId === "pay") {
     const toll = pirateToll(marked);
     return withLog(
       { ...marked, credits: marked.credits - toll },
-      `Paid pirates ${toll}cr.`,
+      `Paid ${crew} ${toll}cr to pass.`,
       "bad",
       -toll
     );
   }
   const dmg = fleeDamage(marked.day);
-  return withLog({ ...marked, hull: marked.hull - dmg }, `Fled — took ${dmg} hull damage.`, "bad");
+  return withLog(
+    { ...marked, hull: marked.hull - dmg },
+    `Outran ${crew} — took ${dmg} hull damage.`,
+    "bad"
+  );
 }
 
 function resolveSalvage(s: GameState, choiceId: string): GameState {

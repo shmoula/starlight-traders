@@ -19,6 +19,7 @@ import {
   STARTING,
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
+import { crewName } from "../../src/engine/fiction";
 import { canEscape, dockingFee, escapeCost, netWorth } from "../../src/engine/economy";
 import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
@@ -258,6 +259,32 @@ describe("resolveChoice", () => {
     };
     const s2 = resolveChoice(s, evt, "pay");
     expect(s2.credits).toBeLessThanOrEqual(s.credits);
+  });
+
+  it("pirate resolution lines name the daily crew, tones and deltas unchanged (E2-4b)", () => {
+    const s = createGame(42);
+    const evt = {
+      kind: "pirates" as const,
+      title: "",
+      description: "",
+      choices: [
+        { id: "pay", label: "" },
+        { id: "flee", label: "" },
+      ],
+    };
+    const crew = crewName(42);
+
+    const paid = resolveChoice(s, evt, "pay");
+    const payLine = paid.log[paid.log.length - 1];
+    expect(payLine.msg).toContain(crew);
+    expect(payLine.tone).toBe("bad");
+    expect(payLine.delta).toBe(paid.credits - s.credits); // still the negative toll
+
+    const fled = resolveChoice(s, evt, "flee");
+    const fleeLine = fled.log[fled.log.length - 1];
+    expect(fleeLine.msg).toContain(crew);
+    expect(fleeLine.tone).toBe("bad");
+    expect(fleeLine.delta).toBeUndefined();
   });
 });
 
