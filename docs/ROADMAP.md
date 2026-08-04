@@ -49,13 +49,13 @@ Sequence decided 2026-08-01: **round 1 = E2-2 + P2-3**, then texture (E2-4 → E
 E2-5), then **E2-1 dead last** — the star map changes route viability, so E2-1's
 sim gate only measures the real game after E2-3 lands.
 
-**Round 1 closed 2026-08-02.** Next up: E2-4 (fiction pack).
+**Round 1 closed 2026-08-02; round 2 (E2-4 + P3-1) closed 2026-08-04.** Next up: E2-3 (star map).
 
 | Item     | What                                                                            | Notes                                                                                                                                                                    |
 | :------- | :------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **E2-2** | Contract integrity (deposit, expiry penalty, reward floor, instant-settle nerf) | ✅ **Shipped 2026-08-02.** Riskless-option exploit closed: 0 of 2,406 generated offers profit from accept→jump→buy-dockside→deliver.                                     |
 | **P2-3** | Contract feasibility card (cost/fuel/profit/days-left)                          | ✅ **Shipped 2026-08-02** (bundled with E2-2).                                                                                                                           |
-| **E2-4** | Fiction pack (station dossiers, named crew, death epilogues)                    | Template strings; reuses E0-4's Syndicate voice.                                                                                                                         |
+| **E2-4** | Fiction pack (station dossiers, named crew, death epilogues)                    | ✅ **Shipped 2026-08-04.** Template strings; reuses E0-4's Syndicate voice.                                                                                              |
 | **E2-3** | Star map + per-edge danger                                                      | Biggest single feature (L); restores path-planning.                                                                                                                      |
 | **E2-5** | Achievements-lite + calendar                                                    | Needs E0-3.                                                                                                                                                              |
 | **E2-1** | Market depth (per-day trade volume, price degrades on repeat)                   | **LAST + sim-gated** — heaviest balance change; re-run the 100-seed sweep and tighten tests.                                                                             |
@@ -83,7 +83,6 @@ sim gate only measures the real game after E2-3 lands.
 | Item     | What                                                         | Why not now                                                                                                                                                           |
 | :------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **E3-3** | Distress Call (7th event)                                    | Additive content, not corrective.                                                                                                                                     |
-| **P3-1** | Log spam/ordering (collapse repeats, newest-first, dividers) | Polish; depends on P2-1.                                                                                                                                              |
 | **E3-5** | Image share card (canvas → PNG, real icons instead of emoji) | Craft on the acquisition surface only pays once the loop it advertises is worth joining. E1-2's text card ships now and stays the fallback. Spec in ENGAGEMENT §3 P3. |
 
 ---
@@ -100,4 +99,5 @@ debrief, 2026-07-29), E0-5 (same-day resume, 2026-07-30), E1-2 (share card v2,
 (forecast sinks, 2026-07-31), E1-4 (honest events, 2026-07-31), B-2 (event-hash fix,
 2026-07-31), and P2-1 (structured log entries, 2026-07-31). The M3 item P2-2 also had
 its intel half (▲▼ vs base + station intel) ship 2026-07-31 with the M2 close-out; its
-cost-basis/P&L half remains. See the two backlog files for details.
+cost-basis/P&L half remains. P3-1 (log collapse/newest-first/day dividers) shipped
+2026-08-04 with M3 round 2. See the two backlog files for details.

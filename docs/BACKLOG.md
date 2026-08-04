@@ -12,10 +12,9 @@ audit), see [ENGAGEMENT_BACKLOG.md](ENGAGEMENT_BACKLOG.md).
 
 > **Triage 2026-07-21** — see [ROADMAP.md](ROADMAP.md) for the sequenced plan.
 >
-> - ✅ **Committed:** P1-2 (with E1-1) · P2-1 · P2-3 (with E2-2) · P2-2 · P3-2 · P3-3.
+> - ✅ **Committed:** P1-2 (with E1-1) · P2-1 · P2-3 (with E2-2) · P2-2 · P3-2 · P3-3 · P3-1 (2026-08-04, with E2-4).
 > - 🔀 **Absorbed:** P2-4 — score semantics move to E0-2; copy-confirm superseded by
 >   E1-2 share card v2. The live score-chase display folds into E0-2.
-> - ⚪ **Left in backlog:** P3-1 log spam/ordering (depends on P2-1).
 
 ## Already shipped (commit `e090e3d`)
 
@@ -55,7 +54,7 @@ These three "quick wins" from the audit are done and are **not** listed below:
 
 | #    | Friction point                                                                                                                                                                                                                                                                                                                                     | Proposed improvement                                                                                                                                                                                    | Effort |
 | :--- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----: |
-| P3-1 | **Log spam and ordering.** Consecutive identical lines ("Sold 1 water…" ×5) aren't collapsed; the `.log-entries` box (`styles.css:235`) renders oldest-first and doesn't auto-scroll to the newest entry.                                                                                                                                          | Collapse consecutive repeats into "…×5", order newest-first, and dim previous days with a "Day N" divider.                                                                                              |   M    |
+| P3-1 | ✅ **Shipped 2026-08-04** (with E2-4, M3 round 2). **Log spam and ordering.** Consecutive identical lines ("Sold 1 water…" ×5) aren't collapsed; the `.log-entries` box (`styles.css:235`) renders oldest-first and doesn't auto-scroll to the newest entry.                                                                                       | Collapse consecutive repeats into "…×5", order newest-first, and dim previous days with a "Day N" divider.                                                                                              |   M    |
 | P3-2 | **No "juice" on state changes.** HUD numbers never react — hull 100→80 or +860cr just changes text. **Partially addressed:** the turn report's `flash-in`, segmented fuel/hull meter bars (`screens.ts:81`), and a critical-fuel pulse now exist (`design-system.css:803`).                                                                        | CSS-only wins **still open:** pulse the affected stat keyed off delta sign, a floating "+860cr" toast, and green→amber→red danger pips on route buttons. (Thin meter bars under ⛽/🛡️ already shipped.) |   M    |
 | P3-3 | **Shipped —** Full-DOM re-render drops keyboard focus to `<body>` every action (no focus-restore code in `main.ts`); `document.title` never reflects Day/location (never set anywhere); event screens use `<h2>`, not `<h1>` (`screens.ts:264`); "Restart" (`screens.ts:282`) wipes a run with no confirm and silently reuses the same daily seed. | After render, restore focus to the acted-on control (match by `data-act`/`data-id`); set `document.title = "Day 4 · The Verge — Starlight Traders"`; confirm restart.                                   |   M    |
 
