@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { bulletin } from "../../src/engine/bulletin";
 import { COMMODITIES, NODES, NODE_IDS, getPrice } from "../../src/engine/world";
 import { CommodityId, NodeId } from "../../src/engine/types";
+import { crewName, capFirst } from "../../src/engine/fiction";
 
 const SEEDS = Array.from({ length: 50 }, (_, i) => i + 1);
 
@@ -64,9 +65,11 @@ describe("bulletin (E1-1)", () => {
     }
   });
 
-  it("the riskiest line reads correctly (no doubled article) for the highest-raid node", () => {
+  it("the riskiest line names today's crew on the approach to the highest-raid node", () => {
     for (const seed of SEEDS) {
-      expect(bulletin(seed)[2]).toBe("Raider chatter thick on the approach to The Verge");
+      expect(bulletin(seed)[2]).toBe(
+        `${capFirst(crewName(seed))} chatter thick on the approach to The Verge`
+      );
     }
   });
 
