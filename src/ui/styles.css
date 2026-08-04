@@ -75,6 +75,12 @@ body {
   color: var(--st-text-dim);
   font-style: italic;
 }
+.run-end__epilogue {
+  margin: 2px auto 0;
+  max-width: 46ch;
+  color: var(--st-text-dim);
+  font-style: italic;
+}
 /* The emoji run-strip — a preview of what "Copy score card" puts on the clipboard.
  * Wraps rather than overflows: a 12-day strip is wide, and the panel is narrow on phones. */
 .run-end__strip {
@@ -487,6 +493,12 @@ body {
   padding: 6px 10px 0;
   font-size: 0.8em;
   opacity: 0.75;
+}
+.station-dossier {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--st-text);
+  font-style: italic;
 }
 
 .debt-forecast {

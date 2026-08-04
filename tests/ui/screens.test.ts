@@ -16,10 +16,11 @@ import {
   netProceeds,
 } from "../../src/engine/game";
 import { missionFeasibility } from "../../src/engine/missions";
-import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
+import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice } from "../../src/engine/world";
 import { dockingFee } from "../../src/engine/economy";
 import { GameEvent, Mission } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
+import { STATION_DOSSIERS, epilogue } from "../../src/engine/fiction";
 
 const cr2 = (n: number) => `${n.toLocaleString()}cr`;
 
@@ -1164,5 +1165,37 @@ describe("logPanel rendering (P3-1)", () => {
     expect(html).toContain("Refueled 2 for 24cr. ×3");
     expect(html).toContain(">−72cr<");
     expect(html).not.toContain("×1");
+  });
+});
+
+describe("station dossier (E2-4a)", () => {
+  it("every station shows its dossier ahead of the unchanged mechanical intel", () => {
+    for (const node of NODE_IDS) {
+      const s = { ...createGame(42), location: node };
+      const html = stationScreen(s);
+      expect(html).toContain(`<span class="station-dossier">${STATION_DOSSIERS[node]}</span>`);
+      // The mechanical intel survives verbatim next to the voice line.
+      const taxPct = Math.round(NODES[node].taxRate * 100);
+      expect(html).toContain(taxPct > 0 ? `Sales taxed ${taxPct}%` : "Tax-free port");
+    }
+  });
+});
+
+describe("death epilogue (E2-4d)", () => {
+  it("a lost run shows the cause-matched epilogue under the cause line", () => {
+    const lostRun = endRun(
+      { ...createGame(42), fuel: 0 },
+      "lost",
+      "Stranded at Terra Hub.",
+      "fuel"
+    );
+    const html = runEndScreen(lostRun, lostRun.runEnd!);
+    expect(html).toContain(`<p class="run-end__epilogue">${epilogue(42, "fuel")}</p>`);
+    expect(html.indexOf("run-end__cause")).toBeLessThan(html.indexOf("run-end__epilogue"));
+  });
+
+  it("banked runs show no epilogue", () => {
+    const banked = endRun(createGame(42), "retired", "Retired at Terra Hub.");
+    expect(runEndScreen(banked, banked.runEnd!)).not.toContain("run-end__epilogue");
   });
 });

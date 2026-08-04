@@ -31,6 +31,7 @@ import {
 import { docksideUnitsUsed, missionFeasibility } from "../engine/missions";
 import { pirateChance } from "../engine/events";
 import { RUN_LENGTH } from "../engine/run-end";
+import { STATION_DOSSIERS, epilogue } from "../engine/fiction";
 import { choiceOdds, choiceStakes } from "../engine/preview";
 import { bulletin } from "../engine/bulletin";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
@@ -462,7 +463,7 @@ function tradeHubPanel(s: GameState): string {
   if (st.produces.length === 0 && st.demands.length === 0) {
     intelParts.unshift("A trade crossroads — no local specialities");
   }
-  const intel = `<p class="station-intel">${intelParts.join(" · ")}</p>`;
+  const intel = `<p class="station-intel"><span class="station-dossier">${STATION_DOSSIERS[s.location]}</span> ${intelParts.join(" · ")}</p>`;
 
   return `<section class="st-panel st-panel--tab">
     <header class="st-panel__header"><h2 class="st-panel__title">Trade Hub — ${NODES[s.location].name}</h2></header>
@@ -682,6 +683,7 @@ export function runEndScreen(
           ${identity}
           <p>You survived ${r.daysSurvived} day${r.daysSurvived === 1 ? "" : "s"}.</p>
           <p class="run-end__cause">${r.cause}</p>
+          ${r.status === "lost" ? `<p class="run-end__epilogue">${epilogue(s.seed, r.lossCause)}</p>` : ""}
           <div class="run-end__breakdown">
             <div class="st-kv"><span class="st-kv__label">Net worth${banked ? "" : " (cargo lost with the ship)"}</span><span class="st-kv__value st-num">${cr(r.netWorthAtEnd)}</span></div>
             <div class="st-kv"><span class="st-kv__label">Survival bonus</span><span class="st-kv__value st-num">${banked ? `+${r.survivalBonus}` : "forfeited"}</span></div>
