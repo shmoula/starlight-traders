@@ -258,7 +258,7 @@ function isValidLog(log: unknown): boolean {
 
 /**
  * A rehydrated log line must carry a string msg, a known tone, and — when present —
- * a finite numeric delta and a finite day ≥ 1 (P3-1a; absent on pre-round snapshots).
+ * a finite numeric delta and a safe integer day ≥ 1 (P3-1a; absent on pre-round snapshots).
  */
 function isValidLogEntry(l: unknown): boolean {
   if (typeof l !== "object" || l === null) return false;
@@ -266,7 +266,7 @@ function isValidLogEntry(l: unknown): boolean {
   if (typeof entry.msg !== "string") return false;
   if (!LOG_TONES.has(entry.tone)) return false;
   if (entry.delta !== undefined && !Number.isFinite(entry.delta)) return false;
-  return entry.day === undefined || (Number.isFinite(entry.day) && (entry.day as number) >= 1);
+  return entry.day === undefined || (Number.isSafeInteger(entry.day) && (entry.day as number) >= 1);
 }
 
 /**

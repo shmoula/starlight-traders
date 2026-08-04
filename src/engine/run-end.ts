@@ -23,7 +23,11 @@ export function endRun(
   cause: string,
   lossCause: LossCause
 ): GameState;
-export function endRun(state: GameState, status: "audited" | "retired", cause: string): GameState;
+export function endRun(
+  state: GameState,
+  status: "audited" | "retired",
+  cause: string
+): GameState;
 export function endRun(
   state: GameState,
   status: RunEndStatus,

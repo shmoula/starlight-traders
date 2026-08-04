@@ -683,7 +683,7 @@ export function runEndScreen(
           ${identity}
           <p>You survived ${r.daysSurvived} day${r.daysSurvived === 1 ? "" : "s"}.</p>
           <p class="run-end__cause">${r.cause}</p>
-          ${r.status === "lost" ? `<p class="run-end__epilogue">${epilogue(s.seed, r.lossCause)}</p>` : ""}
+          ${r.status === "lost" && r.lossCause ? `<p class="run-end__epilogue">${epilogue(s.seed, r.lossCause)}</p>` : ""}
           <div class="run-end__breakdown">
             <div class="st-kv"><span class="st-kv__label">Net worth${banked ? "" : " (cargo lost with the ship)"}</span><span class="st-kv__value st-num">${cr(r.netWorthAtEnd)}</span></div>
             <div class="st-kv"><span class="st-kv__label">Survival bonus</span><span class="st-kv__value st-num">${banked ? `+${r.survivalBonus}` : "forfeited"}</span></div>

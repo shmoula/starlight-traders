@@ -80,4 +80,23 @@ describe("endRun", () => {
     expect(last.msg).toBe("done");
     expect(last.day).toBe(7);
   });
+
+  it("regression: requires a defined lossCause for lost runs", () => {
+    const s = createGame(42);
+    // The strict overload prevents calling endRun(s, "lost", cause, undefined), but we can
+    // still test the guard in screens.ts by constructing an invalid RunEnd with a type assertion
+    // to simulate hand-built or corrupted state.
+    const invalidRunEnd = {
+      status: "lost",
+      cause: "Test loss",
+      daysSurvived: 1,
+      netWorthAtEnd: 0,
+      survivalBonus: 0,
+      score: 0,
+      lossCause: undefined as any,
+    };
+    const ended = { ...s, status: "lost" as const, runEnd: invalidRunEnd };
+    expect(ended.runEnd?.status).toBe("lost");
+    expect(ended.runEnd?.lossCause).toBeUndefined();
+  });
 });

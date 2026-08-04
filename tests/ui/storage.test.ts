@@ -287,7 +287,7 @@ describe("log day stamps in snapshots (P3-1a)", () => {
 
   it("rejects a corrupt day on a log entry", () => {
     const base = createGame(42, BOOT);
-    for (const day of [-1, 0, "x"]) {
+    for (const day of [-1, 0, 1.5, "x"]) {
       const bad = {
         ...base,
         log: [{ msg: "old", tone: "neutral", day }],
