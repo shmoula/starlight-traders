@@ -318,6 +318,25 @@ body {
   margin-left: auto;
   white-space: nowrap;
 }
+.log-day-divider {
+  margin-top: var(--st-space-2);
+  padding-top: 3px;
+  border-top: 1px solid var(--st-border);
+  font-size: var(--st-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--st-track-label);
+  text-transform: uppercase;
+  color: var(--st-text-dim);
+}
+.log-entries .log-day-divider:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+/* Dim previous days; 0.7 keeps body text comfortably above the AA contrast floor. */
+.log-line--past {
+  opacity: 0.7;
+}
 @media (min-width: 1100px) {
   .st-statbar {
     display: none;

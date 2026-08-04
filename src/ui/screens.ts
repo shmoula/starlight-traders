@@ -238,14 +238,30 @@ export function collapseLog(log: LogEntry[]): CollapsedLine[] {
   return out;
 }
 
+/** How many collapsed lines the panel shows; dividers render on top of these. */
+const LOG_WINDOW = 10;
+
 function logPanel(s: GameState): string {
-  const logEntries = s.log
-    .slice(-8)
-    .map((l) => `<div class="log-line tr-${l.tone}"><span>${l.msg}</span>${deltaHtml(l)}</div>`)
-    .join("");
+  // Newest-first (P3-1c): collapse the raw log, window it, then reverse — today's
+  // lines sit at the top under their divider, so no auto-scroll is needed.
+  const lines = collapseLog(s.log).slice(-LOG_WINDOW).reverse();
+  const parts: string[] = [];
+  let dividerDay: number | undefined;
+  for (const l of lines) {
+    if (l.day !== undefined && l.day !== dividerDay) {
+      parts.push(`<div class="log-day-divider">Day ${l.day}</div>`);
+      dividerDay = l.day;
+    }
+    // Day-less lines predate this round's snapshots — render them dimmed, no divider.
+    const past = l.day === undefined || l.day < s.day ? " log-line--past" : "";
+    const times = l.count > 1 ? ` ×${l.count}` : "";
+    parts.push(
+      `<div class="log-line tr-${l.tone}${past}"><span>${l.msg}${times}</span>${deltaHtml(l)}</div>`
+    );
+  }
   return panel(
     "Ship's Log",
-    `<div class="log-entries">${logEntries}</div>`,
+    `<div class="log-entries">${parts.join("")}</div>`,
     ` aria-label="Ship's log"`
   );
 }
