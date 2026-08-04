@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { stationScreen, eventScreen, runEndScreen, RunMeta } from "../../src/ui/screens";
+import {
+  stationScreen,
+  eventScreen,
+  runEndScreen,
+  RunMeta,
+  collapseLog,
+} from "../../src/ui/screens";
 import {
   createGame,
   missionsHere,
@@ -1068,5 +1074,43 @@ describe("escape-fare affordances (E2-2h)", () => {
     expect(stationScreen(s)).toContain(
       'data-act="buy" data-id="water" data-qty="1" aria-label="Buy 1 Water / Ice" disabled title="Credits held back for fuel"'
     );
+  });
+});
+
+describe("collapseLog (P3-1b)", () => {
+  const sold = {
+    msg: "Sold 1 Water / Ice for 18cr (tax 0).",
+    tone: "good" as const,
+    delta: 18,
+    day: 2,
+  };
+
+  it("folds consecutive identical lines and sums their deltas", () => {
+    const out = collapseLog([sold, sold, sold, { msg: "Docked", tone: "neutral", day: 2 }, sold]);
+    expect(out).toHaveLength(3);
+    expect(out[0]).toMatchObject({ msg: sold.msg, count: 3, delta: 54 });
+    expect(out[1]).toMatchObject({ msg: "Docked", count: 1 });
+    expect(out[2]).toMatchObject({ count: 1, delta: 18 });
+  });
+
+  it("keeps delta undefined for non-money runs (no spurious +0)", () => {
+    const a = { msg: "x", tone: "neutral" as const, day: 2 };
+    const out = collapseLog([a, a]);
+    expect(out).toHaveLength(1);
+    expect(out[0].count).toBe(2);
+    expect(out[0].delta).toBeUndefined();
+  });
+
+  it("a day change breaks a run — collapsed lines never straddle a divider", () => {
+    const a = { msg: "x", tone: "neutral" as const, day: 2 };
+    const out = collapseLog([a, a, { ...a, day: 3 }]);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ count: 2, day: 2 });
+    expect(out[1]).toMatchObject({ count: 1, day: 3 });
+  });
+
+  it("a tone change breaks a run", () => {
+    const a = { msg: "x", tone: "neutral" as const, day: 2 };
+    expect(collapseLog([a, { ...a, tone: "bad" as const }])).toHaveLength(2);
   });
 });

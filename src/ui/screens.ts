@@ -202,6 +202,42 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
   );
 }
 
+/** One rendered log line: a run of consecutive identical (msg, tone, day) entries (P3-1b). */
+export interface CollapsedLine {
+  msg: string;
+  tone: LogEntry["tone"];
+  day?: number;
+  count: number;
+  delta?: number;
+}
+
+/**
+ * Fold runs of consecutive identical entries. `day` joins the key so a collapsed
+ * run can never straddle a day divider. Deltas sum; a run with no money lines
+ * keeps `delta` undefined so the panel never renders a spurious "+0". Render-only:
+ * the engine log stays append-only and uncollapsed (turn report, conservation
+ * tests, and the sim all read the raw entries).
+ */
+export function collapseLog(log: LogEntry[]): CollapsedLine[] {
+  const out: CollapsedLine[] = [];
+  for (const l of log) {
+    const last = out[out.length - 1];
+    if (last && last.msg === l.msg && last.tone === l.tone && last.day === l.day) {
+      last.count += 1;
+      if (l.delta !== undefined) last.delta = (last.delta ?? 0) + l.delta;
+    } else {
+      out.push({
+        msg: l.msg,
+        tone: l.tone,
+        day: l.day,
+        count: 1,
+        ...(l.delta === undefined ? {} : { delta: l.delta }),
+      });
+    }
+  }
+  return out;
+}
+
 function logPanel(s: GameState): string {
   const logEntries = s.log
     .slice(-8)
