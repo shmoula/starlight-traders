@@ -46,3 +46,55 @@ describe("epilogue (E2-4d)", () => {
     for (const t of hull) expect(fuel.has(t)).toBe(false);
   });
 });
+
+import { STATION_DOSSIERS, EVENT_VARIANTS } from "../../src/engine/fiction";
+import { NODE_IDS } from "../../src/engine/world";
+import { GameEventKind } from "../../src/engine/types";
+
+describe("STATION_DOSSIERS (E2-4a)", () => {
+  it("every station has a non-empty dossier ≤ 110 chars", () => {
+    for (const node of NODE_IDS) {
+      const d = STATION_DOSSIERS[node];
+      expect(d.length, node).toBeGreaterThan(0);
+      expect(d.length, `${node}: "${d}"`).toBeLessThanOrEqual(110);
+    }
+  });
+
+  it("each dossier teaches its station's mechanic (keyword presence — E2-4a)", () => {
+    // The consequence each station's numbers imply, as a checkable keyword:
+    // terra fee 1.6× → "fees"; kiruna fee 0.6× → "dock"; vulcan danger 0.15 →
+    // "approach"; verge danger 0.5 / tax 0 → "raiders"; meridian tax 0.18 → "18%".
+    const KEYWORD: Record<(typeof NODE_IDS)[number], string> = {
+      terra: "fees",
+      kiruna: "dock",
+      vulcan: "approach",
+      verge: "raiders",
+      meridian: "18%",
+    };
+    for (const node of NODE_IDS) {
+      expect(STATION_DOSSIERS[node].toLowerCase()).toContain(KEYWORD[node]);
+    }
+  });
+});
+
+describe("EVENT_VARIANTS (E2-4c)", () => {
+  const KINDS: GameEventKind[] = ["quiet", "pirates", "salvage", "derelict", "customs", "engine"];
+
+  it("every kind has ≥ 3 variants, each non-empty and ≤ 200 chars", () => {
+    for (const kind of KINDS) {
+      const variants = EVENT_VARIANTS[kind];
+      expect(variants.length, kind).toBeGreaterThanOrEqual(3);
+      for (const v of variants) {
+        const text = v("the Red Kestrel");
+        expect(text.length).toBeGreaterThan(0);
+        expect(text.length, `${kind}: "${text}"`).toBeLessThanOrEqual(200);
+      }
+    }
+  });
+
+  it("every pirate variant names the crew", () => {
+    for (const v of EVENT_VARIANTS.pirates) {
+      expect(v("the Red Kestrel").toLowerCase()).toContain("the red kestrel");
+    }
+  });
+});

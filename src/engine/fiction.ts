@@ -58,6 +58,71 @@ export function epilogue(seed: number, cause: LossCause): string {
   return pool[hashSeed(seed, EPILOGUE_SALT) % pool.length];
 }
 
-// STATION_DOSSIERS and EVENT_VARIANTS are added in the next task.
-export const STATION_DOSSIERS = {} as Record<NodeId, string>;
-export const EVENT_VARIANTS = {} as Record<GameEventKind, ((crew: string) => string)[]>;
+/**
+ * One line per station, each teaching the mechanic its numbers already encode
+ * (E2-4a). Rendered ahead of the mechanical intel line — voice first, numbers
+ * verbatim after. Each ≤ 110 chars. Keep the taught keyword (see fiction.test.ts)
+ * when editing: terra "fees", kiruna "dock", vulcan "approach", verge "raiders",
+ * meridian "18%".
+ */
+export const STATION_DOSSIERS: Record<NodeId, string> = {
+  terra:
+    "The old capital's docks charge like it still matters — every trader passes through, and the fees know it.",
+  kiruna:
+    "Ice miners sell water for next to nothing and ask less to dock — the Belt runs on volume, not margin.",
+  vulcan:
+    "The yards forge machine parts cheap and pay well for water — keep an eye on the approach lanes.",
+  verge:
+    "No flag, no tax, no help when the raiders come — The Verge pays top rates to whoever survives the trip.",
+  meridian:
+    "The core world tithes 18% and inspects your hold for the privilege — luxury sells dear, if it clears customs.",
+};
+
+/**
+ * Description variants per event kind (E2-4c), selected by rollEvent's second
+ * local draw. All take the crew name so pirate lines can be templates; the other
+ * kinds ignore the argument (one shape, no union churn at the call site).
+ */
+export const EVENT_VARIANTS: Record<GameEventKind, ((crew: string) => string)[]> = {
+  quiet: [
+    () => "The void is calm. You arrive without incident.",
+    () => "Nothing but static and starlight the whole way in. The kettle even stayed hot.",
+    () => "A quiet run. Out here, that counts as a small miracle.",
+  ],
+  pirates: [
+    (crew) =>
+      `Raiders flying ${crew}'s colors demand tribute. Pay them off, or run and risk hull damage.`,
+    (crew) =>
+      `${capFirst(crew)} drop out of the dark dead ahead. Their terms are simple: pay, or outrun the volley.`,
+    (crew) =>
+      `A toll bell rings over the comm — ${crew} collect on this lane. Pay up, or burn for the gap.`,
+  ],
+  salvage: [
+    () =>
+      "Debris drifts nearby — mostly cargo, but war-era wrecks sometimes hide live ordnance. Scoop it up?",
+    () =>
+      "A shattered freighter litters the lane with containers. Some seals look intact — and some look armed.",
+    () =>
+      "Wreckage pings on the scope: crates, plating, and the occasional thing that still blinks. Scoop it up?",
+  ],
+  derelict: [
+    () => "An abandoned freighter floats silent. Board it? Could be treasure — or a trap.",
+    () =>
+      "A dead ship drifts across your path, running lights long cold. The airlock is unlocked. Luck, or bait.",
+    () =>
+      "A derelict hangs in the black, cargo bay sealed. Salvors' rule: first aboard keeps it — if it isn't rigged.",
+  ],
+  customs: [
+    () => "Inspectors scan your hold. Undeclared luxury goods may be seized.",
+    () =>
+      "Meridian customs sweeps your manifest twice and your hold once. Luxury draws the long scan.",
+    () =>
+      "A customs cutter locks alignment. 'Routine inspection.' Nobody on this dock believes that word.",
+  ],
+  engine: [
+    () => "A coolant leak burns extra fuel before you patch it.",
+    () => "The starboard injector coughs, drinks deep, and settles — after it costs you.",
+    () =>
+      "Something rattles loose behind the reactor shroud. The fix holds; the fuel gauge remembers.",
+  ],
+};
