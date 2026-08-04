@@ -84,6 +84,7 @@ export function createGame(seed: number, bootDate = ""): GameState {
       {
         msg: `The Syndicate staked your ship — ${STARTING.debt.toLocaleString()}cr, compounding. Bank your fortune before the Day ${RUN_LENGTH} audit. Everyone flies today's sky.`,
         tone: "neutral" as const,
+        day: 1,
       },
     ],
   };
@@ -100,7 +101,7 @@ function withLog(
 ): GameState {
   return {
     ...state,
-    log: [...state.log, { msg, tone, ...(delta === undefined ? {} : { delta }) }],
+    log: [...state.log, { msg, tone, day: state.day, ...(delta === undefined ? {} : { delta }) }],
   };
 }
 

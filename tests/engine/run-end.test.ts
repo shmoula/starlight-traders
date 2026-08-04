@@ -72,4 +72,12 @@ describe("endRun", () => {
     const dead = endRun(createGame(42), "lost", "gone", "hull");
     expect(endRun(dead, "retired", "again")).toBe(dead);
   });
+
+  it("the end-of-run log line carries the final day (P3-1a)", () => {
+    const s = { ...createGame(42), day: 7 };
+    const ended = endRun(s, "retired", "done");
+    const last = ended.log[ended.log.length - 1];
+    expect(last.msg).toBe("done");
+    expect(last.day).toBe(7);
+  });
 });

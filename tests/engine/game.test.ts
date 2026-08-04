@@ -618,6 +618,7 @@ describe("structured log entries (P2-1)", () => {
       msg: `Bought 2 ${commodityName("water")} for ${price * 2}cr.`,
       tone: "neutral",
       delta: -(price * 2),
+      day: 1,
     });
   });
 
@@ -648,7 +649,12 @@ describe("structured log entries (P2-1)", () => {
 
   it("paying debt logs a good entry with the negative credit delta", () => {
     const after = payDebt(createGame(42), 200);
-    expect(last(after)).toEqual({ msg: "Paid down 200cr of debt.", tone: "good", delta: -200 });
+    expect(last(after)).toEqual({
+      msg: "Paid down 200cr of debt.",
+      tone: "good",
+      delta: -200,
+      day: 1,
+    });
   });
 });
 
@@ -801,6 +807,7 @@ describe("contract deposit escrow (E2-2a)", () => {
       msg: "Accepted delivery to Kiruna Belt — 50cr deposit held.",
       tone: "neutral",
       delta: -50,
+      day: 1,
     });
   });
 
@@ -848,6 +855,7 @@ describe("proportional settlement (E2-2d)", () => {
       msg: "Delivery complete: +550cr (deposit returned).",
       tone: "good",
       delta: 550,
+      day: 2,
     });
     expect(before.state.contracts.delivered).toBe(1);
   });
@@ -1201,5 +1209,17 @@ describe("checkLoss counts the hold (E2-2h)", () => {
   it("is stranded when the hold sells for less than the fare", () => {
     const s = { ...createGame(42), fuel: 0, credits: 0, cargo: { water: 1, parts: 0, luxury: 0 } };
     expect(checkLoss(s).status).toBe("lost");
+  });
+});
+
+describe("log day stamps (P3-1a)", () => {
+  it("every log entry is stamped with the day it was written", () => {
+    let s = createGame(42);
+    expect(s.log[0].day).toBe(1);
+    s = refuel(s, 2);
+    expect(s.log[s.log.length - 1].day).toBe(1);
+    const j = jump(s, "vulcan");
+    // The docking-fee line is written after the day advances.
+    expect(j.state.log[j.state.log.length - 1].day).toBe(2);
   });
 });

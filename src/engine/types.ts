@@ -79,6 +79,8 @@ export interface LogEntry {
   tone: LogTone;
   /** Signed credit movement, present only when the line is about credits. */
   delta?: number;
+  /** Game day the entry was written (P3-1a); absent on entries from pre-round snapshots. */
+  day?: number;
 }
 
 export interface GameState {
