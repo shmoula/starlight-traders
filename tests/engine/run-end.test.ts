@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createGame } from "../../src/engine/game";
+import type { LossCause } from "../../src/engine/types";
 import { RUN_LENGTH, SURVIVAL_BONUS_PER_DAY, endRun } from "../../src/engine/run-end";
 import { netWorth } from "../../src/engine/economy";
 
@@ -93,7 +94,7 @@ describe("endRun", () => {
       netWorthAtEnd: 0,
       survivalBonus: 0,
       score: 0,
-      lossCause: undefined as any,
+      lossCause: undefined as unknown as LossCause,
     };
     const ended = { ...s, status: "lost" as const, runEnd: invalidRunEnd };
     expect(ended.runEnd?.status).toBe("lost");
