@@ -49,6 +49,9 @@ export function endRun(
     ...state,
     status,
     runEnd,
-    log: [...state.log, { msg: cause, tone: status === "lost" ? "bad" : "neutral" }],
+    log: [
+      ...state.log,
+      { msg: cause, tone: status === "lost" ? "bad" : "neutral", day: state.day },
+    ],
   };
 }

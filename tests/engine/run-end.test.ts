@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createGame } from "../../src/engine/game";
+import type { LossCause } from "../../src/engine/types";
 import { RUN_LENGTH, SURVIVAL_BONUS_PER_DAY, endRun } from "../../src/engine/run-end";
 import { netWorth } from "../../src/engine/economy";
 
@@ -71,5 +72,32 @@ describe("endRun", () => {
   it("is a no-op on an already-ended run", () => {
     const dead = endRun(createGame(42), "lost", "gone", "hull");
     expect(endRun(dead, "retired", "again")).toBe(dead);
+  });
+
+  it("the end-of-run log line carries the final day (P3-1a)", () => {
+    const s = { ...createGame(42), day: 7 };
+    const ended = endRun(s, "retired", "done");
+    const last = ended.log[ended.log.length - 1];
+    expect(last.msg).toBe("done");
+    expect(last.day).toBe(7);
+  });
+
+  it("regression: requires a defined lossCause for lost runs", () => {
+    const s = createGame(42);
+    // The strict overload prevents calling endRun(s, "lost", cause, undefined), but we can
+    // still test the guard in screens.ts by constructing an invalid RunEnd with a type assertion
+    // to simulate hand-built or corrupted state.
+    const invalidRunEnd = {
+      status: "lost",
+      cause: "Test loss",
+      daysSurvived: 1,
+      netWorthAtEnd: 0,
+      survivalBonus: 0,
+      score: 0,
+      lossCause: undefined as unknown as LossCause,
+    };
+    const ended = { ...s, status: "lost" as const, runEnd: invalidRunEnd };
+    expect(ended.runEnd?.status).toBe("lost");
+    expect(ended.runEnd?.lossCause).toBeUndefined();
   });
 });

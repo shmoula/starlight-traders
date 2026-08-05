@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { stationScreen, eventScreen, runEndScreen, RunMeta } from "../../src/ui/screens";
+import {
+  stationScreen,
+  eventScreen,
+  runEndScreen,
+  RunMeta,
+  collapseLog,
+} from "../../src/ui/screens";
 import {
   createGame,
   missionsHere,
@@ -10,10 +16,11 @@ import {
   netProceeds,
 } from "../../src/engine/game";
 import { missionFeasibility } from "../../src/engine/missions";
-import { COMMODITIES, NODES, commodityName, getPrice } from "../../src/engine/world";
+import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice } from "../../src/engine/world";
 import { dockingFee } from "../../src/engine/economy";
 import { GameEvent, Mission } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
+import { STATION_DOSSIERS, epilogue } from "../../src/engine/fiction";
 
 const cr2 = (n: number) => `${n.toLocaleString()}cr`;
 
@@ -408,9 +415,9 @@ describe("structured log rendering (P2-1)", () => {
     const s = {
       ...createGame(42),
       log: [
-        { msg: "Sold 5 Water / Ice for 100cr (tax 5).", tone: "good" as const, delta: 95 },
-        { msg: "Docked at Meridian, fee 45cr.", tone: "neutral" as const, delta: -45 },
-        { msg: "Fled — took 16 hull damage.", tone: "bad" as const },
+        { msg: "Sold 5 Water / Ice for 100cr (tax 5).", tone: "good" as const, delta: 95, day: 1 },
+        { msg: "Docked at Meridian, fee 45cr.", tone: "neutral" as const, delta: -45, day: 1 },
+        { msg: "Fled — took 16 hull damage.", tone: "bad" as const, day: 1 },
       ],
     };
     const html = stationScreen(s);
@@ -423,7 +430,7 @@ describe("structured log rendering (P2-1)", () => {
   it("renders no delta span for entries without a delta", () => {
     const s = {
       ...createGame(42),
-      log: [{ msg: "Fled — took 16 hull damage.", tone: "bad" as const }],
+      log: [{ msg: "Fled — took 16 hull damage.", tone: "bad" as const, day: 1 }],
     };
     const html = stationScreen(s);
     expect(html).not.toContain("log-delta");
@@ -1068,5 +1075,127 @@ describe("escape-fare affordances (E2-2h)", () => {
     expect(stationScreen(s)).toContain(
       'data-act="buy" data-id="water" data-qty="1" aria-label="Buy 1 Water / Ice" disabled title="Credits held back for fuel"'
     );
+  });
+});
+
+describe("collapseLog (P3-1b)", () => {
+  const sold = {
+    msg: "Sold 1 Water / Ice for 18cr (tax 0).",
+    tone: "good" as const,
+    delta: 18,
+    day: 2,
+  };
+
+  it("folds consecutive identical lines and sums their deltas", () => {
+    const out = collapseLog([sold, sold, sold, { msg: "Docked", tone: "neutral", day: 2 }, sold]);
+    expect(out).toHaveLength(3);
+    expect(out[0]).toMatchObject({ msg: sold.msg, count: 3, delta: 54 });
+    expect(out[1]).toMatchObject({ msg: "Docked", count: 1 });
+    expect(out[2]).toMatchObject({ count: 1, delta: 18 });
+  });
+
+  it("keeps delta undefined for non-money runs (no spurious +0)", () => {
+    const a = { msg: "x", tone: "neutral" as const, day: 2 };
+    const out = collapseLog([a, a]);
+    expect(out).toHaveLength(1);
+    expect(out[0].count).toBe(2);
+    expect(out[0].delta).toBeUndefined();
+  });
+
+  it("a day change breaks a run — collapsed lines never straddle a divider", () => {
+    const a = { msg: "x", tone: "neutral" as const, day: 2 };
+    const out = collapseLog([a, a, { ...a, day: 3 }]);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ count: 2, day: 2 });
+    expect(out[1]).toMatchObject({ count: 1, day: 3 });
+  });
+
+  it("a tone change breaks a run", () => {
+    const a = { msg: "x", tone: "neutral" as const, day: 2 };
+    expect(collapseLog([a, { ...a, tone: "bad" as const }])).toHaveLength(2);
+  });
+});
+
+describe("logPanel rendering (P3-1)", () => {
+  it("renders newest-first with a divider per day; day-less legacy lines get none", () => {
+    const s = {
+      ...createGame(42),
+      day: 3,
+      log: [
+        { msg: "legacy line from before the update", tone: "neutral" as const },
+        { msg: "second-day line", tone: "neutral" as const, day: 2 },
+        { msg: "third-day line", tone: "neutral" as const, day: 3 },
+      ],
+    };
+    const html = stationScreen(s);
+    const d3 = html.indexOf('log-day-divider">Day 3<');
+    const d2 = html.indexOf('log-day-divider">Day 2<');
+    expect(d3).toBeGreaterThan(-1);
+    expect(d2).toBeGreaterThan(d3); // newest day's divider comes first
+    expect(html.indexOf("third-day line")).toBeLessThan(html.indexOf("second-day line"));
+    expect(html.indexOf("second-day line")).toBeLessThan(html.indexOf("legacy line"));
+    expect((html.match(/log-day-divider/g) ?? []).length).toBe(2); // none for the legacy line
+  });
+
+  it("dims past-day and legacy lines but not the current day's", () => {
+    const s = {
+      ...createGame(42),
+      day: 3,
+      log: [
+        { msg: "legacy line", tone: "neutral" as const },
+        { msg: "second-day line", tone: "neutral" as const, day: 2 },
+        { msg: "third-day line", tone: "neutral" as const, day: 3 },
+      ],
+    };
+    const html = stationScreen(s);
+    expect(html).toContain('class="log-line tr-neutral log-line--past"><span>legacy line');
+    expect(html).toContain('class="log-line tr-neutral log-line--past"><span>second-day line');
+    expect(html).toContain('class="log-line tr-neutral"><span>third-day line');
+  });
+
+  it("renders a collapsed run as one line with ×N and the summed delta", () => {
+    const refuelLine = {
+      msg: "Refueled 2 for 24cr.",
+      tone: "neutral" as const,
+      delta: -24,
+      day: 1,
+    };
+    const s = { ...createGame(42), log: [refuelLine, refuelLine, refuelLine] };
+    const html = stationScreen(s);
+    expect(html).toContain("Refueled 2 for 24cr. ×3");
+    expect(html).toContain(">−72cr<");
+    expect(html).not.toContain("×1");
+  });
+});
+
+describe("station dossier (E2-4a)", () => {
+  it("every station shows its dossier ahead of the unchanged mechanical intel", () => {
+    for (const node of NODE_IDS) {
+      const s = { ...createGame(42), location: node };
+      const html = stationScreen(s);
+      expect(html).toContain(`<span class="station-dossier">${STATION_DOSSIERS[node]}</span>`);
+      // The mechanical intel survives verbatim next to the voice line.
+      const taxPct = Math.round(NODES[node].taxRate * 100);
+      expect(html).toContain(taxPct > 0 ? `Sales taxed ${taxPct}%` : "Tax-free port");
+    }
+  });
+});
+
+describe("death epilogue (E2-4d)", () => {
+  it("a lost run shows the cause-matched epilogue under the cause line", () => {
+    const lostRun = endRun(
+      { ...createGame(42), fuel: 0 },
+      "lost",
+      "Stranded at Terra Hub.",
+      "fuel"
+    );
+    const html = runEndScreen(lostRun, lostRun.runEnd!);
+    expect(html).toContain(`<p class="run-end__epilogue">${epilogue(42, "fuel")}</p>`);
+    expect(html.indexOf("run-end__cause")).toBeLessThan(html.indexOf("run-end__epilogue"));
+  });
+
+  it("banked runs show no epilogue", () => {
+    const banked = endRun(createGame(42), "retired", "Retired at Terra Hub.");
+    expect(runEndScreen(banked, banked.runEnd!)).not.toContain("run-end__epilogue");
   });
 });

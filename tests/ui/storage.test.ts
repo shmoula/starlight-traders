@@ -270,6 +270,33 @@ describe("parseSnapshot", () => {
   });
 });
 
+describe("log day stamps in snapshots (P3-1a)", () => {
+  it("round-trips day-stamped log entries", () => {
+    const base = createGame(42, BOOT);
+    const snap = liveSnapshot({
+      state: { ...base, log: [...base.log, { msg: "x", tone: "neutral", day: 1 }] },
+    });
+    expect(parseSnapshot(JSON.stringify(snap), TODAY)).toEqual(snap);
+  });
+
+  it("accepts day-less legacy entries — a pre-round v3 snapshot resumes", () => {
+    const base = createGame(42, BOOT);
+    const legacy = { ...base, log: [{ msg: "old line", tone: "neutral" as const }] };
+    expect(parseSnapshot(JSON.stringify(liveSnapshot({ state: legacy })), TODAY)).not.toBeNull();
+  });
+
+  it("rejects a corrupt day on a log entry", () => {
+    const base = createGame(42, BOOT);
+    for (const day of [-1, 0, 1.5, "x"]) {
+      const bad = {
+        ...base,
+        log: [{ msg: "old", tone: "neutral", day }],
+      } as unknown as typeof base;
+      expect(parseSnapshot(JSON.stringify(liveSnapshot({ state: bad })), TODAY)).toBeNull();
+    }
+  });
+});
+
 describe("snapshot v1 → v2 log migration (P2-1)", () => {
   it("accepts a v1 snapshot, wrapping string log lines as neutral entries", () => {
     const base = liveSnapshot({});

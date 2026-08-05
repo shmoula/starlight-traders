@@ -6,6 +6,7 @@
 import { CommodityId, NodeId } from "./types";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice } from "./world";
 import { pirateChance } from "./events";
+import { crewName, capFirst } from "./fiction";
 
 interface PricePoint {
   node: NodeId;
@@ -42,6 +43,6 @@ export function bulletin(seed: number): string[] {
   return [
     `${commodityName(glut.commodity)} glut at ${NODES[glut.node].name} — buying at ${glut.price}cr`,
     `${NODES[premium.node].name} pays ${premium.price}cr for ${commodityName(premium.commodity)} — ${taxNote}`,
-    `Raider chatter thick on the approach to ${NODES[riskiest].name}`,
+    `${capFirst(crewName(seed))} chatter thick on the approach to ${NODES[riskiest].name}`,
   ];
 }

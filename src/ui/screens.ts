@@ -31,6 +31,7 @@ import {
 import { docksideUnitsUsed, missionFeasibility } from "../engine/missions";
 import { pirateChance } from "../engine/events";
 import { RUN_LENGTH } from "../engine/run-end";
+import { STATION_DOSSIERS, epilogue } from "../engine/fiction";
 import { choiceOdds, choiceStakes } from "../engine/preview";
 import { bulletin } from "../engine/bulletin";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
@@ -202,14 +203,66 @@ function logisticsPanel(s: GameState, fuelClass: string, retireArmed: boolean): 
   );
 }
 
+/** One rendered log line: a run of consecutive identical (msg, tone, day) entries (P3-1b). */
+export interface CollapsedLine {
+  msg: string;
+  tone: LogEntry["tone"];
+  day?: number;
+  count: number;
+  delta?: number;
+}
+
+/**
+ * Fold runs of consecutive identical entries. `day` joins the key so a collapsed
+ * run can never straddle a day divider. Deltas sum; a run with no money lines
+ * keeps `delta` undefined so the panel never renders a spurious "+0". Render-only:
+ * the engine log stays append-only and uncollapsed (turn report, conservation
+ * tests, and the sim all read the raw entries).
+ */
+export function collapseLog(log: LogEntry[]): CollapsedLine[] {
+  const out: CollapsedLine[] = [];
+  for (const l of log) {
+    const last = out[out.length - 1];
+    if (last && last.msg === l.msg && last.tone === l.tone && last.day === l.day) {
+      last.count += 1;
+      if (l.delta !== undefined) last.delta = (last.delta ?? 0) + l.delta;
+    } else {
+      out.push({
+        msg: l.msg,
+        tone: l.tone,
+        day: l.day,
+        count: 1,
+        ...(l.delta === undefined ? {} : { delta: l.delta }),
+      });
+    }
+  }
+  return out;
+}
+
+/** How many collapsed lines the panel shows; dividers render on top of these. */
+const LOG_WINDOW = 10;
+
 function logPanel(s: GameState): string {
-  const logEntries = s.log
-    .slice(-8)
-    .map((l) => `<div class="log-line tr-${l.tone}"><span>${l.msg}</span>${deltaHtml(l)}</div>`)
-    .join("");
+  // Newest-first (P3-1c): collapse the raw log, window it, then reverse — today's
+  // lines sit at the top under their divider, so no auto-scroll is needed.
+  const lines = collapseLog(s.log).slice(-LOG_WINDOW).reverse();
+  const parts: string[] = [];
+  let dividerDay: number | undefined;
+  for (const l of lines) {
+    if (l.day !== undefined && l.day !== dividerDay) {
+      parts.push(`<div class="log-day-divider">Day ${l.day}</div>`);
+      dividerDay = l.day;
+    }
+    // Day-less lines predate this round's snapshots — render them dimmed, no divider.
+    const past = l.day === undefined || l.day < s.day ? " log-line--past" : "";
+    const times = l.count > 1 ? ` ×${l.count}` : "";
+    parts.push(
+      `<div class="log-line tr-${l.tone}${past}"><span>${l.msg}${times}</span>${deltaHtml(l)}</div>`
+    );
+  }
   return panel(
     "Ship's Log",
-    `<div class="log-entries">${logEntries}</div>`,
+    `<div class="log-entries">${parts.join("")}</div>`,
     ` aria-label="Ship's log"`
   );
 }
@@ -410,7 +463,7 @@ function tradeHubPanel(s: GameState): string {
   if (st.produces.length === 0 && st.demands.length === 0) {
     intelParts.unshift("A trade crossroads — no local specialities");
   }
-  const intel = `<p class="station-intel">${intelParts.join(" · ")}</p>`;
+  const intel = `<p class="station-intel"><span class="station-dossier">${STATION_DOSSIERS[s.location]}</span> ${intelParts.join(" · ")}</p>`;
 
   return `<section class="st-panel st-panel--tab">
     <header class="st-panel__header"><h2 class="st-panel__title">Trade Hub — ${NODES[s.location].name}</h2></header>
@@ -630,6 +683,7 @@ export function runEndScreen(
           ${identity}
           <p>You survived ${r.daysSurvived} day${r.daysSurvived === 1 ? "" : "s"}.</p>
           <p class="run-end__cause">${r.cause}</p>
+          ${r.status === "lost" && r.lossCause ? `<p class="run-end__epilogue">${epilogue(s.seed, r.lossCause)}</p>` : ""}
           <div class="run-end__breakdown">
             <div class="st-kv"><span class="st-kv__label">Net worth${banked ? "" : " (cargo lost with the ship)"}</span><span class="st-kv__value st-num">${cr(r.netWorthAtEnd)}</span></div>
             <div class="st-kv"><span class="st-kv__label">Survival bonus</span><span class="st-kv__value st-num">${banked ? `+${r.survivalBonus}` : "forfeited"}</span></div>

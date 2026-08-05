@@ -256,13 +256,17 @@ function isValidLog(log: unknown): boolean {
   return Array.isArray(log) && log.every(isValidLogEntry);
 }
 
-/** A rehydrated log line must carry a string msg, a known tone, and — if present — a finite numeric delta. */
+/**
+ * A rehydrated log line must carry a string msg, a known tone, and — when present —
+ * a finite numeric delta and a safe integer day ≥ 1 (P3-1a; absent on pre-round snapshots).
+ */
 function isValidLogEntry(l: unknown): boolean {
   if (typeof l !== "object" || l === null) return false;
-  const entry = l as { msg?: unknown; tone?: unknown; delta?: unknown };
+  const entry = l as { msg?: unknown; tone?: unknown; delta?: unknown; day?: unknown };
   if (typeof entry.msg !== "string") return false;
   if (!LOG_TONES.has(entry.tone)) return false;
-  return entry.delta === undefined || Number.isFinite(entry.delta);
+  if (entry.delta !== undefined && !Number.isFinite(entry.delta)) return false;
+  return entry.day === undefined || (Number.isSafeInteger(entry.day) && (entry.day as number) >= 1);
 }
 
 /**
