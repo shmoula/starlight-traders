@@ -12,7 +12,6 @@ export const NODES: Record<NodeId, StationNode> = {
   terra: {
     id: "terra",
     name: "Terra Hub",
-    danger: 0,
     feeMultiplier: 1.6,
     taxRate: 0.05,
     produces: [],
@@ -21,7 +20,6 @@ export const NODES: Record<NodeId, StationNode> = {
   kiruna: {
     id: "kiruna",
     name: "Kiruna Belt",
-    danger: 0,
     feeMultiplier: 0.6,
     taxRate: 0.02,
     produces: ["water"],
@@ -30,7 +28,6 @@ export const NODES: Record<NodeId, StationNode> = {
   vulcan: {
     id: "vulcan",
     name: "Vulcan Yards",
-    danger: 0.15,
     feeMultiplier: 0.9,
     taxRate: 0.04,
     produces: ["parts"],
@@ -39,7 +36,6 @@ export const NODES: Record<NodeId, StationNode> = {
   verge: {
     id: "verge",
     name: "The Verge",
-    danger: 0.5,
     feeMultiplier: 0.7,
     taxRate: 0,
     produces: [],
@@ -48,7 +44,6 @@ export const NODES: Record<NodeId, StationNode> = {
   meridian: {
     id: "meridian",
     name: "Meridian",
-    danger: 0.2,
     feeMultiplier: 1.8,
     taxRate: 0.18,
     produces: [],
