@@ -275,6 +275,12 @@ describe("stationScreen navigator and cargo", () => {
     // all cargo starts empty → every tile is dimmed
     expect(html.match(/cargo-empty/g)?.length).toBe(3);
   });
+
+  it("renders the star map above the jump orbs (E2-3c)", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain('<div class="star-map" aria-hidden="true">');
+    expect(html.indexOf("star-map")).toBeLessThan(html.indexOf("st-orb-group"));
+  });
 });
 
 describe("stationScreen trade hub", () => {
