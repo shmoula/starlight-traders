@@ -276,7 +276,7 @@ function navigatorPanel(s: GameState): string {
     .map((n) => {
       const cost = fuelCost(s.location, n);
       const fee = dockingFee(n);
-      const raid = Math.round(pirateChance(n) * 100);
+      const raid = Math.round(pirateChance(s.location, n) * 100);
       const taxPct = Math.round(NODES[n].taxRate * 100);
       const customsNote = n === "meridian" ? " · customs patrol this approach" : "";
       const disabled = s.fuel < cost;

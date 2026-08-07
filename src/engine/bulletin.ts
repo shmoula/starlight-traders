@@ -4,8 +4,7 @@
 // day-1 price grid via the existing getPrice — no new RNG streams, so every player
 // sees the same lines on a date. Prices drift after day 1: these are leads, not oracles.
 import { CommodityId, NodeId } from "./types";
-import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice } from "./world";
-import { pirateChance } from "./events";
+import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice, riskiestLane } from "./world";
 import { crewName, capFirst } from "./fiction";
 
 interface PricePoint {
@@ -37,12 +36,12 @@ export function bulletin(seed: number): string[] {
   }
   const glut = producePts.reduce((a, b) => (b.ratio < a.ratio ? b : a));
   const premium = demandPts.reduce((a, b) => (b.ratio > a.ratio ? b : a));
-  const riskiest = NODE_IDS.reduce((a, b) => (pirateChance(b) > pirateChance(a) ? b : a));
+  const [riskA, riskB] = riskiestLane();
   const taxPct = Math.round(NODES[premium.node].taxRate * 100);
   const taxNote = taxPct > 0 ? `taxed ${taxPct}%` : "tax-free";
   return [
     `${commodityName(glut.commodity)} glut at ${NODES[glut.node].name} — buying at ${glut.price}cr`,
     `${NODES[premium.node].name} pays ${premium.price}cr for ${commodityName(premium.commodity)} — ${taxNote}`,
-    `${capFirst(crewName(seed))} chatter thick on the approach to ${NODES[riskiest].name}`,
+    `${capFirst(crewName(seed))} chatter thick on the ${NODES[riskA].name}–${NODES[riskB].name} lane`,
   ];
 }

@@ -40,13 +40,17 @@ describe("rollEvent", () => {
   });
 });
 
-describe("pirateChance (E1-4 honest danger)", () => {
-  it("is the exact probability band rollEvent uses: 0.1 + 0.45 × danger", () => {
-    expect(pirateChance("terra")).toBeCloseTo(0.1);
-    expect(pirateChance("kiruna")).toBeCloseTo(0.1);
-    expect(pirateChance("vulcan")).toBeCloseTo(0.1675);
-    expect(pirateChance("meridian")).toBeCloseTo(0.19);
-    expect(pirateChance("verge")).toBeCloseTo(0.325);
+describe("pirateChance (E1-4 honest danger, per-lane since E2-3)", () => {
+  it("is the exact per-lane probability rollEvent rolls with — straight from EDGE_DANGER", () => {
+    expect(pirateChance("terra", "kiruna")).toBeCloseTo(0.05);
+    expect(pirateChance("terra", "meridian")).toBeCloseTo(0.06);
+    expect(pirateChance("terra", "vulcan")).toBeCloseTo(0.07);
+    expect(pirateChance("vulcan", "meridian")).toBeCloseTo(0.2);
+    expect(pirateChance("kiruna", "meridian")).toBeCloseTo(0.22);
+    expect(pirateChance("terra", "verge")).toBeCloseTo(0.25);
+    expect(pirateChance("kiruna", "verge")).toBeCloseTo(0.3);
+    // Symmetric: the lane, not the direction, carries the danger.
+    expect(pirateChance("meridian", "terra")).toBe(pirateChance("terra", "meridian"));
   });
 });
 
@@ -75,7 +79,7 @@ describe("RNG order preservation (E2-4c)", () => {
             hashSeed(seed, day, NODE_IDS.indexOf(from), NODE_IDS.indexOf(to), 31)
           );
           const r = rng();
-          const pPirates = pirateChance(to);
+          const pPirates = pirateChance(from, to);
           const pSalvage = pPirates + 0.18;
           const pEngine = pSalvage + 0.1;
           const pDerelict = pEngine + 0.12;
