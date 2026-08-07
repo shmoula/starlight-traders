@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { bulletin } from "../../src/engine/bulletin";
 import { COMMODITIES, NODES, NODE_IDS, getPrice } from "../../src/engine/world";
 import { CommodityId, NodeId } from "../../src/engine/types";
-import { crewName, capFirst } from "../../src/engine/fiction";
+import { crewName, capFirst, CREW_ROSTER } from "../../src/engine/fiction";
 
 const SEEDS = Array.from({ length: 50 }, (_, i) => i + 1);
 
@@ -65,11 +65,24 @@ describe("bulletin (E1-1)", () => {
     }
   });
 
-  it("the riskiest line names today's crew on the approach to the highest-raid node", () => {
+  it("the riskiest line names today's crew on the most dangerous lane (E2-3d)", () => {
+    // Max EDGE_DANGER is the kiruna–verge / meridian–verge tie at 30%;
+    // riskiestLane breaks ties by sorted key order → kiruna–verge.
     for (const seed of SEEDS) {
       expect(bulletin(seed)[2]).toBe(
-        `${capFirst(crewName(seed))} chatter thick on the approach to The Verge`
+        `${capFirst(crewName(seed))} chatter thick on the Kiruna Belt–The Verge lane`
       );
+    }
+  });
+
+  it("the lane line stays within the 70-char budget for every pair and crew", () => {
+    const longestCrew = CREW_ROSTER.reduce((a, b) => (b.length > a.length ? b : a));
+    for (const a of NODE_IDS) {
+      for (const b of NODE_IDS) {
+        if (a >= b) continue;
+        const line = `${capFirst(longestCrew)} chatter thick on the ${NODES[a].name}–${NODES[b].name} lane`;
+        expect(line.length, line).toBeLessThanOrEqual(70);
+      }
     }
   });
 

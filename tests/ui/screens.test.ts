@@ -243,14 +243,21 @@ describe("stationScreen navigator and cargo", () => {
     // so the visible text still matches the accessible name — WCAG 2.5.3).
     expect(html).toContain('<span class="st-orb__label">Kiruna Belt</span>');
     expect(html).toContain(
-      '<span class="st-sr-only"> — jump here, 4 fuel · dock 15cr · 10% raid risk · sells taxed 2%</span>'
+      '<span class="st-sr-only"> — jump here, 4 fuel · dock 15cr · 5% raid risk · sells taxed 2%</span>'
     );
     expect(html).toContain(
-      '<span class="st-sr-only"> — jump here, 6 fuel · dock 18cr · 33% raid risk · sells taxed 0%</span>'
+      '<span class="st-sr-only"> — jump here, 6 fuel · dock 18cr · 25% raid risk · sells taxed 0%</span>'
     );
     // No jump control targets the current station (mission ids may contain node
     // names, so scope the assertion to the jump prefix).
     expect(html).not.toContain('data-act="jump" data-id="terra"');
+  });
+
+  it("raid % is per-lane: Meridian reads 6% from Terra but 20% from Vulcan (E2-3d)", () => {
+    const fromTerra = stationScreen(createGame(42)); // starts at terra
+    expect(fromTerra).toContain("5 fuel · dock 45cr · 6% raid risk");
+    const fromVulcan = stationScreen({ ...createGame(42), location: "vulcan" });
+    expect(fromVulcan).toContain("6 fuel · dock 45cr · 20% raid risk");
   });
 
   it("disables orbs the fuel cannot reach", () => {
@@ -267,6 +274,12 @@ describe("stationScreen navigator and cargo", () => {
     }
     // all cargo starts empty → every tile is dimmed
     expect(html.match(/cargo-empty/g)?.length).toBe(3);
+  });
+
+  it("renders the star map above the jump orbs (E2-3c)", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain('<div class="star-map" aria-hidden="true">');
+    expect(html.indexOf("star-map")).toBeLessThan(html.indexOf("st-orb-group"));
   });
 });
 
@@ -789,8 +802,8 @@ describe("exchange ticker (E1-1 + P2-2a)", () => {
 describe("forecast sinks (P1-2)", () => {
   it("jump orbs carry fuel, destination dock fee, and the true raid chance", () => {
     const html = stationScreen(createGame(42)); // docked at terra
-    expect(html).toContain(`${cr2(dockingFee("verge"))} · 33%`);
-    expect(html).toContain("10%"); // kiruna's floor, never "0%"
+    expect(html).toContain(`${cr2(dockingFee("verge"))} · 25%`);
+    expect(html).toContain("5%"); // kiruna's floor from terra, never "0%"
     // Raw danger×100 for verge is gone. Scoped to the orb-meta "· N%" format so a
     // legitimate "▲ 50%" in the EXCH lane can't false-positive this assertion.
     expect(html).not.toContain("· 50%");

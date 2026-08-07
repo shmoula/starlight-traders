@@ -13,7 +13,6 @@ export interface Commodity {
 export interface StationNode {
   id: NodeId;
   name: string;
-  danger: number; // 0..1, scales hostile event chance
   feeMultiplier: number; // multiplies base docking fee
   taxRate: number; // fraction taxed on sale proceeds
   produces: CommodityId[]; // commodities cheap here
