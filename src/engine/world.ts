@@ -88,6 +88,55 @@ export function cheapestJumpCost(from: NodeId): number {
   return Math.min(...NODE_IDS.filter((n) => n !== from).map((n) => fuelCost(from, n)));
 }
 
+/**
+ * Per-lane ambush odds (E2-3a). Keyed by edgeKey(a, b) — the sorted pair — so an
+ * asymmetric lane is unrepresentable. Values ARE the final probability rollEvent
+ * uses and the UI shows (E1-4 honesty): no floor-plus-slope formula anywhere.
+ *
+ * Authored story (spec decision 3): the Terra core triangle and the
+ * Terra–Meridian corridor are patrolled space (5–8%); direct approaches to
+ * Meridian are raided (20–22%); no approach to The Verge is safe (25–30%).
+ * Tests pin every lane to [0.05, 0.35] — no lane is ever "0%".
+ */
+export type EdgeKey = `${NodeId}-${NodeId}`;
+
+/** Canonical lookup key for an unordered station pair. */
+export function edgeKey(a: NodeId, b: NodeId): EdgeKey {
+  return (a < b ? `${a}-${b}` : `${b}-${a}`) as EdgeKey;
+}
+
+export const EDGE_DANGER: Partial<Record<EdgeKey, number>> = {
+  "kiruna-terra": 0.05,
+  "meridian-terra": 0.06,
+  "terra-vulcan": 0.07,
+  "kiruna-vulcan": 0.08,
+  "meridian-vulcan": 0.2,
+  "kiruna-meridian": 0.22,
+  "terra-verge": 0.25,
+  "verge-vulcan": 0.28,
+  "kiruna-verge": 0.3,
+  "meridian-verge": 0.3,
+};
+
+/** Ambush odds on the lane between two stations — throws like fuelCost on a missing pair. */
+export function laneDanger(a: NodeId, b: NodeId): number {
+  const d = EDGE_DANGER[edgeKey(a, b)];
+  if (d === undefined) throw new Error(`No lane ${a}<->${b}`);
+  return d;
+}
+
+/** The safest way into a station — the dossier presence rule keys on this (E2-3, spec decision 5). */
+export function safestApproach(id: NodeId): number {
+  return Math.min(...NODE_IDS.filter((n) => n !== id).map((n) => laneDanger(id, n)));
+}
+
+/** The single most dangerous lane (max EDGE_DANGER; ties broken by sorted key order). */
+export function riskiestLane(): [NodeId, NodeId] {
+  const keys = (Object.keys(EDGE_DANGER) as EdgeKey[]).sort();
+  const top = keys.reduce((a, b) => (EDGE_DANGER[b]! > EDGE_DANGER[a]! ? b : a));
+  return top.split("-") as [NodeId, NodeId];
+}
+
 const COMMODITY_BY_ID: Record<CommodityId, Commodity> = Object.fromEntries(
   COMMODITIES.map((c) => [c.id, c])
 ) as Record<CommodityId, Commodity>;

@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { COMMODITIES, fuelCost, getPrice, NODE_IDS } from "../../src/engine/world";
+import {
+  COMMODITIES,
+  fuelCost,
+  getPrice,
+  NODE_IDS,
+  EDGE_DANGER,
+  edgeKey,
+  laneDanger,
+  safestApproach,
+  riskiestLane,
+} from "../../src/engine/world";
 
 describe("world data", () => {
   it("has exactly 5 nodes and 3 commodities", () => {
@@ -45,5 +55,42 @@ describe("getPrice", () => {
     const p = getPrice(1, 1, "meridian", "luxury");
     expect(Number.isInteger(p)).toBe(true);
     expect(p).toBeGreaterThan(0);
+  });
+});
+
+describe("EDGE_DANGER (E2-3a)", () => {
+  it("has exactly one entry per unordered station pair (10 lanes for 5 nodes)", () => {
+    const expected = new Set<string>();
+    for (const a of NODE_IDS) {
+      for (const b of NODE_IDS) {
+        if (a < b) expected.add(edgeKey(a, b));
+      }
+    }
+    expect(new Set(Object.keys(EDGE_DANGER))).toEqual(expected);
+    expect(Object.keys(EDGE_DANGER)).toHaveLength(10);
+  });
+
+  it("every lane sits in the honesty band [0.05, 0.35] — no lane is ever 0%", () => {
+    for (const [key, danger] of Object.entries(EDGE_DANGER)) {
+      expect(danger, key).toBeGreaterThanOrEqual(0.05);
+      expect(danger, key).toBeLessThanOrEqual(0.35);
+    }
+  });
+
+  it("laneDanger is order-insensitive and throws on a self-lane (fuelCost's contract)", () => {
+    expect(laneDanger("terra", "verge")).toBe(laneDanger("verge", "terra"));
+    expect(laneDanger("terra", "verge")).toBeCloseTo(0.25);
+    expect(() => laneDanger("terra", "terra")).toThrow();
+  });
+
+  it("safestApproach: only The Verge has no safe way in (≥ 0.1)", () => {
+    expect(safestApproach("verge")).toBeGreaterThanOrEqual(0.1);
+    for (const n of NODE_IDS.filter((n) => n !== "verge")) {
+      expect(safestApproach(n), n).toBeLessThan(0.1);
+    }
+  });
+
+  it("riskiestLane picks the max-danger pair deterministically (tie → key order)", () => {
+    expect(riskiestLane()).toEqual(["kiruna", "verge"]);
   });
 });
