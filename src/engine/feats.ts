@@ -27,8 +27,9 @@ export const CLEAN_SWEEP_DELIVERIES = 3;
 export const DEBT_FREE_DAY = 8;
 export const GAUNTLET_AMBUSHES = 3;
 export const REGULAR_DAYS_FLOWN = 7;
-/** ⚙ set from the sweep's banked-score p90 in this round's tuning task. */
-export const HIGH_ROLLER_SCORE = 6000;
+/** ⚙ top decile of competent play: the 300-run sweep's banked-score p90 was 18,670
+ *  (n=270 banked, measured 2026-08-09), rounded to the nearest 500. */
+export const HIGH_ROLLER_SCORE = 18500;
 
 export interface FeatDef {
   id: FeatId;
