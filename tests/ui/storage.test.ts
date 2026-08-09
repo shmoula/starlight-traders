@@ -164,7 +164,7 @@ const TODAY = utcDateKey(BOOT); // "2026-07-29"
 
 function liveSnapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
   return {
-    version: 3,
+    version: 4,
     dateKey: TODAY,
     label: "The Daily",
     state: createGame(42, BOOT),
@@ -224,7 +224,7 @@ describe("parseSnapshot", () => {
   });
 
   it.each([
-    ["a wrong version", { version: 4 }],
+    ["a wrong version", { version: 5 }],
     ["a bad label", { label: "Casual" }],
     ["a non-numeric logMarkBeforeJump", { logMarkBeforeJump: "3" }],
     ["a null state", { state: null }],
@@ -310,7 +310,7 @@ describe("snapshot v1 → v2 log migration (P2-1)", () => {
     };
     const parsed = parseSnapshot(JSON.stringify(v1), v1.dateKey);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(3); // migration chains: v1 → v2 → v3
+    expect(parsed!.version).toBe(4); // migration chains: v1 → v2 → v3 → v4
     expect(parsed!.state.log).toEqual([
       { msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" },
       { msg: "Bought 2 Water / Ice for 30cr.", tone: "neutral" },
@@ -365,7 +365,7 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     const v2 = { ...base, version: 2, state: v2state };
     const parsed = parseSnapshot(JSON.stringify(v2), TODAY);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(3);
+    expect(parsed!.version).toBe(4);
     expect(parsed!.state.activeMissions[0].deposit).toBe(0);
     expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
     expect(parsed!.state.contracts).toEqual({ delivered: 0, expired: 0, forfeitedCr: 0 });
@@ -403,7 +403,7 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     const v1 = { ...base, version: 1, state: v1state };
     const parsed = parseSnapshot(JSON.stringify(v1), TODAY);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(3);
+    expect(parsed!.version).toBe(4);
     expect(parsed!.state.log).toEqual([{ msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" }]);
     expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
   });
@@ -481,6 +481,47 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     expect(text).toContain(sound); // the fixture really does carry the field we poison
     expect(parseSnapshot(text, TODAY)).not.toBeNull(); // sound before poisoning
     expect(parseSnapshot(text.replace(sound, poison), TODAY)).toBeNull();
+  });
+});
+
+describe("snapshot v4 (E2-5 records)", () => {
+  // Reuse the suite's existing valid-snapshot builder; the point is the version chain.
+  function v3Raw(): string {
+    const snap = liveSnapshot();
+    const state = { ...snap.state } as Record<string, unknown>;
+    delete state.records;
+    return JSON.stringify({ ...snap, version: 3, state });
+  }
+
+  it("migrates a v3 snapshot by defaulting records", () => {
+    const parsed = parseSnapshot(v3Raw(), TODAY);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.state.records).toEqual({
+      vergeAtLowHull: false,
+      visited: [],
+      damageTaken: 0,
+      fullHold: false,
+      pirateAmbushes: 0,
+    });
+  });
+
+  it("rejects a v4 snapshot whose records are corrupt", () => {
+    const snap = liveSnapshot();
+    const broken = {
+      ...snap,
+      state: { ...snap.state, records: { ...snap.state.records, visited: "terra" } },
+    };
+    expect(parseSnapshot(JSON.stringify(broken), TODAY)).toBeNull();
+  });
+
+  it("round-trips a v4 snapshot with live records", () => {
+    const snap = liveSnapshot();
+    snap.state = {
+      ...snap.state,
+      records: { ...snap.state.records, damageTaken: 12, pirateAmbushes: 2 },
+    };
+    const parsed = parseSnapshot(JSON.stringify(snap), TODAY);
+    expect(parsed!.state.records.damageTaken).toBe(12);
   });
 });
 

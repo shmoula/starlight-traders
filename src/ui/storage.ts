@@ -13,6 +13,8 @@ import {
   NodeId,
   RunEnd,
   RunEndStatus,
+  RunRecords,
+  emptyRecords,
 } from "../engine/types";
 import { NODE_IDS } from "../engine/world";
 import { utcDateKey } from "./share";
@@ -138,7 +140,7 @@ export function persist(save: StarlightSave): void {
 // and unit-tested; the wrappers degrade silently.
 
 export interface RunSnapshot {
-  version: 3;
+  version: 4;
   dateKey: string; // UTC "YYYY-MM-DD" of the run (from state.bootDate)
   label: "The Daily" | "Practice";
   state: GameState;
@@ -214,6 +216,7 @@ function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (!isValidBoughtHere(st.boughtHere)) return false;
   if (!isValidContracts(st.contracts)) return false;
   if (!hasValidMissionFields(st.activeMissions)) return false;
+  if (!isValidRecords(st.records)) return false;
   return (
     st.status === "playing" &&
     typeof st.day === "number" &&
@@ -249,6 +252,15 @@ function migrateV2Contracts(state: unknown): void {
   if (typeof state === "object" && state !== null) {
     if (st.boughtHere === undefined) st.boughtHere = { water: 0, parts: 0, luxury: 0 };
     if (st.contracts === undefined) st.contracts = { delivered: 0, expired: 0, forfeitedCr: 0 };
+  }
+}
+
+/** v3 → v4 (E2-5): pre-round runs carry no records — default them. A migrated run
+ *  silently can't earn moment feats that day; run-end and ledger feats still can. */
+function migrateV3Records(state: unknown): void {
+  const st = state as { records?: unknown };
+  if (typeof state === "object" && state !== null && st.records === undefined) {
+    st.records = emptyRecords();
   }
 }
 
@@ -322,13 +334,30 @@ function hasValidMissionFields(missions: unknown): boolean {
   );
 }
 
+/** Records feed `arrive`'s visited lookup and the feat predicates — validate like the
+ *  contract ledger: finite non-negative counters, real booleans, known node ids. */
+const RECORD_COUNTER_KEYS = ["damageTaken", "pirateAmbushes"];
+function isValidRecords(r: unknown): boolean {
+  if (!allNonNegativeNumbers(r, RECORD_COUNTER_KEYS)) return false;
+  const rec = r as Partial<RunRecords>;
+  if (typeof rec.vergeAtLowHull !== "boolean" || typeof rec.fullHold !== "boolean") return false;
+  if (
+    rec.debtClearedDay !== undefined &&
+    !(Number.isSafeInteger(rec.debtClearedDay) && rec.debtClearedDay >= 1)
+  ) {
+    return false;
+  }
+  return Array.isArray(rec.visited) && rec.visited.every((n) => NODE_IDS.includes(n as NodeId));
+}
+
 type ParsedSnapshot = (Partial<Omit<RunSnapshot, "version">> & { version?: number }) | null;
 
 /**
  * Normalise an older snapshot envelope to the current version in place. The steps are
- * chained and ordered, so a v1 doc passes through both: its bare-string log is wrapped
- * (migrateV1Log) on the way to v2, then it gains contract fields (migrateV2Contracts) on
- * the way to v3. Anything else is left untouched for the field-by-field validation in
+ * chained and ordered, so a v1 doc passes through all: its bare-string log is wrapped
+ * (migrateV1Log) on the way to v2, it gains contract fields (migrateV2Contracts) on the
+ * way to v3, then it gains records (migrateV3Records) on the way to v4. Anything else is
+ * left untouched for the field-by-field validation in
  * parseSnapshot to judge — which is why this must run *before* that validation, or a
  * legitimately migrated doc would be rejected for lacking the fields it just gained.
  */
@@ -340,6 +369,10 @@ function migrateSnapshotToCurrentVersion(p: ParsedSnapshot): void {
   if (p && p.version === 2 && typeof p.state === "object" && p.state !== null) {
     migrateV2Contracts(p.state);
     p.version = 3;
+  }
+  if (p && p.version === 3 && typeof p.state === "object" && p.state !== null) {
+    migrateV3Records(p.state);
+    p.version = 4;
   }
 }
 
@@ -355,7 +388,7 @@ export function parseSnapshot(raw: string | null, todayKey: string): RunSnapshot
     migrateSnapshotToCurrentVersion(p);
     if (
       !p ||
-      p.version !== 3 ||
+      p.version !== 4 ||
       p.dateKey !== todayKey ||
       (p.label !== "The Daily" && p.label !== "Practice") ||
       typeof p.logMarkBeforeJump !== "number" ||
