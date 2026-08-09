@@ -425,6 +425,8 @@ function settleMissions(state: GameState): {
       const hauledUsed = m.qty - boughtUsed;
       const spot = getPrice(s.seed, s.day, m.destination, m.commodity);
       const payout = Math.round((m.reward * hauledUsed) / m.qty) + spot * boughtUsed;
+      // Full credit movement = earned payout + the returned bond. Stats/highlights use
+      // `payout` (E2-2j); only credits and the log line use `inflow`.
       const inflow = payout + m.deposit;
       s = {
         ...s,
@@ -438,7 +440,7 @@ function settleMissions(state: GameState): {
       };
       s = trackPayday(
         s,
-        inflow,
+        payout, // E2-2j: your own bond coming back is not a payday — track what you earned
         `${commodityName(m.commodity)} contract → ${NODES[m.destination].name}`
       );
       const dockside = boughtUsed > 0 ? ` — ${boughtUsed} bought dockside paid spot` : "";
@@ -448,7 +450,7 @@ function settleMissions(state: GameState): {
         "good",
         inflow
       );
-      s = markDay(s, inflow >= BIG_TRADE_CR ? "bigTrade" : "delivery");
+      s = markDay(s, payout >= BIG_TRADE_CR ? "bigTrade" : "delivery"); // E2-2j: rank the day on what you earned, not the returned bond
       delivered.push(m);
     } else if (s.day > m.deadlineDay) {
       // E2-2b: the bond is the penalty — the credits moved at accept, so no delta here.

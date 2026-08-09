@@ -20,7 +20,13 @@ import {
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
 import { crewName } from "../../src/engine/fiction";
-import { canEscape, dockingFee, escapeCost, netWorth } from "../../src/engine/economy";
+import {
+  canEscape,
+  dockingFee,
+  escapeCost,
+  netWorth,
+  BIG_TRADE_CR,
+} from "../../src/engine/economy";
 import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
@@ -902,11 +908,11 @@ describe("proportional settlement (E2-2d)", () => {
     expect(s.contracts.delivered).toBe(2);
   });
 
-  it("the delivery payday records the actual inflow, not the face reward", () => {
+  it("the delivery payday records the earned payout, not the returned deposit", () => {
     let s = acceptMission(createGame(42), mission());
     s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 10 } };
     s = arrive(jump(s, "kiruna").state).state;
-    expect(s.biggestPayday!.amount).toBe(550); // reward 500 + deposit 50
+    expect(s.biggestPayday!.amount).toBe(500); // E2-2j: payout 500, the 50cr bond back is not a payday
   });
 
   it("two missions settling in ONE call share the hauled pool", () => {
@@ -1295,5 +1301,42 @@ describe("run records (E2-5 moment facts)", () => {
     const full = buy(s, "water", s.cargoCapacity);
     expect(full.records.fullHold).toBe(true);
     expect(buy(s, "water", 1).records.fullHold).toBe(false);
+  });
+});
+
+describe("E2-2j: payday stats exclude the returned deposit", () => {
+  const mission = (reward: number, deposit: number): Mission => ({
+    id: "m-e22j",
+    commodity: "water",
+    qty: 2,
+    destination: "terra",
+    reward,
+    deposit,
+    deadlineDay: 10,
+  });
+  const carrying = (m: Mission): GameState => ({
+    ...createGame(42),
+    activeMissions: [m],
+    cargo: { ...createGame(42).cargo, water: m.qty },
+  });
+
+  it("biggestPayday reads the payout, not payout + deposit", () => {
+    const m = mission(500, 50);
+    const done = deliver(carrying(m));
+    expect(done.biggestPayday?.amount).toBe(500);
+  });
+
+  it("an inflow over BIG_TRADE_CR on the refund alone marks delivery, not bigTrade", () => {
+    const m = mission(BIG_TRADE_CR - 20, 60); // payout 880 < 900, inflow 940 ≥ 900
+    const done = deliver(carrying(m));
+    expect(done.dayHighlights[done.day]).toBe("delivery");
+  });
+
+  it("the log line still reports the full credit movement", () => {
+    const m = mission(500, 50);
+    const done = deliver(carrying(m));
+    const line = done.log[done.log.length - 1];
+    expect(line.msg).toContain("+550cr");
+    expect(line.delta).toBe(550);
   });
 });
