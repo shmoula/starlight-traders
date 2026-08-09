@@ -593,6 +593,13 @@ body {
   opacity: 0.85;
 }
 
+/* E2-2g: settlement-order badge on contested active contracts */
+.contract-prio {
+  color: var(--st-cyan-bright);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
 .contract-days--amber {
   color: var(--st-accent-alert);
 }

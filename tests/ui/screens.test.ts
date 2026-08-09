@@ -1212,3 +1212,35 @@ describe("death epilogue (E2-4d)", () => {
     expect(runEndScreen(banked, banked.runEnd!)).not.toContain("run-end__epilogue");
   });
 });
+
+describe("active-contract settlement order (E2-2g)", () => {
+  const m = (id: string, commodity: "water" | "parts", reward = 400): Mission => ({
+    id,
+    commodity,
+    qty: 2,
+    destination: "kiruna",
+    reward,
+    deposit: 40,
+    deadlineDay: 10,
+  });
+
+  it("badges appear in accept order when two contracts want the same commodity", () => {
+    const s = { ...createGame(42), activeMissions: [m("a", "water"), m("b", "water")] };
+    const html = stationScreen(s);
+    expect(html).toContain("① settles first");
+    expect(html).toContain("②");
+    expect(html.indexOf("①")).toBeLessThan(html.indexOf("②"));
+  });
+
+  it("no badge renders when active contracts want different commodities", () => {
+    const s = { ...createGame(42), activeMissions: [m("a", "water"), m("b", "parts")] };
+    const html = stationScreen(s);
+    expect(html).not.toContain("settles first");
+    expect(html).not.toContain("contract-prio");
+  });
+
+  it("no badge renders for a single active contract", () => {
+    const s = { ...createGame(42), activeMissions: [m("a", "water")] };
+    expect(stationScreen(s)).not.toContain("contract-prio");
+  });
+});

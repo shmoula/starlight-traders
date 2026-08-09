@@ -394,6 +394,23 @@ function tradeHubPanel(s: GameState): string {
     })
     .join("");
 
+  // E2-2g: hauled units settle into contracts in accept order (settleMissions iterates
+  // activeMissions). That order only matters when two active contracts want the same
+  // commodity — badge exactly that case, so the invisible rule reads as the decision
+  // it already is: accept the whale first.
+  const wanters = new Map<CommodityId, number>();
+  for (const m of s.activeMissions) wanters.set(m.commodity, (wanters.get(m.commodity) ?? 0) + 1);
+  const prioSeen = new Map<CommodityId, number>();
+  const PRIO_GLYPHS = ["①", "②", "③", "④", "⑤"];
+  // Called once per mission in render order (= accept order), so nth counts up correctly.
+  const settlementBadge = (m: Mission): string => {
+    if ((wanters.get(m.commodity) ?? 0) < 2) return "";
+    const nth = (prioSeen.get(m.commodity) ?? 0) + 1;
+    prioSeen.set(m.commodity, nth);
+    const glyph = PRIO_GLYPHS[nth - 1] ?? `#${nth}`;
+    return ` <span class="contract-prio st-num" title="Hauled ${commodityName(m.commodity)} settles into contracts in the order they were accepted">${glyph}${nth === 1 ? " settles first" : ""}</span>`;
+  };
+
   const active = s.activeMissions
     .map((m) => {
       const have = s.cargo[m.commodity];
@@ -443,7 +460,8 @@ function tradeHubPanel(s: GameState): string {
         : ready
           ? `<span class="good">✓ carrying ${have}/${m.qty}${provenance} — ready, ${readyBtn}</span>`
           : `<span class="bad">✗ carrying ${have}/${m.qty} — ${shortfallBtn}</span>`;
-      return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}${daysChip}<br>${hint}</li>`;
+      const prio = settlementBadge(m);
+      return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}${daysChip}${prio}<br>${hint}</li>`;
     })
     .join("");
 
