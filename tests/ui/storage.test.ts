@@ -3,6 +3,7 @@ import {
   emptySave,
   labelForDay,
   recordRunEnd,
+  recordFeats,
   loadSave,
   persist,
   parseSnapshot,
@@ -156,6 +157,69 @@ describe("loadSave / persist", () => {
     });
     expect(loadSave()).toBeNull();
     expect(() => persist(emptySave())).not.toThrow();
+  });
+});
+
+describe("save v2 (E2-5 feats)", () => {
+  it("emptySave is v2 with an empty feat map", () => {
+    expect(emptySave()).toEqual({
+      version: 2,
+      days: {},
+      allTimePB: 0,
+      daysFlownCount: 0,
+      feats: {},
+    });
+  });
+
+  it("recordFeats stamps new feats with the date and reports them", () => {
+    const base = recordRunEnd(emptySave(), KEY, banked(100)).save;
+    const r = recordFeats(base, KEY, ["audited"]);
+    expect(r.newFeats).toEqual(expect.arrayContaining(["audited", "first-flight"]));
+    expect(r.save.feats["audited"]).toBe(KEY);
+  });
+
+  it("re-earning is a no-op — first earn keeps its date", () => {
+    const base = recordRunEnd(emptySave(), KEY, banked(100)).save;
+    const first = recordFeats(base, KEY, ["audited"]).save;
+    const again = recordFeats(first, "2026-07-23", ["audited"]);
+    expect(again.newFeats).toEqual([]);
+    expect(again.save.feats["audited"]).toBe(KEY);
+    expect(again.save).toBe(first); // nothing new ⇒ same object, no churn
+  });
+
+  it("first-flight fires on the first recorded run, regular on the 7th flown day", () => {
+    let save = emptySave();
+    for (let d = 1; d <= 7; d++) {
+      save = recordRunEnd(save, `2026-07-0${d}`, banked(50)).save;
+    }
+    const r = recordFeats(save, "2026-07-07", []);
+    expect(r.newFeats).toEqual(expect.arrayContaining(["first-flight", "regular"]));
+  });
+
+  it("loadSave migrates a v1 doc, preserving the ledger and adding feats", () => {
+    vi.stubGlobal("localStorage", memStore());
+    localStorage.setItem(
+      "starlight.save.v1",
+      JSON.stringify({ version: 1, days: {}, allTimePB: 750, daysFlownCount: 3 })
+    );
+    const migrated = loadSave();
+    expect(migrated?.allTimePB).toBe(750);
+    expect(migrated?.feats).toEqual({});
+  });
+
+  it("loadSave drops unknown feat ids and non-string dates", () => {
+    vi.stubGlobal("localStorage", memStore());
+    localStorage.setItem(
+      "starlight.save.v1",
+      JSON.stringify({
+        version: 2,
+        days: {},
+        allTimePB: 0,
+        daysFlownCount: 0,
+        feats: { audited: KEY, "made-up-feat": KEY, "clean-sweep": 42 },
+      })
+    );
+    expect(loadSave()?.feats).toEqual({ audited: KEY });
   });
 });
 

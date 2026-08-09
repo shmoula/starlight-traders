@@ -17,6 +17,7 @@ import {
   emptyRecords,
 } from "../engine/types";
 import { NODE_IDS } from "../engine/world";
+import { FEATS, FeatId, REGULAR_DAYS_FLOWN } from "../engine/feats";
 import { utcDateKey } from "./share";
 
 export interface DayRecord {
@@ -28,14 +29,16 @@ export interface DayRecord {
 }
 
 export interface StarlightSave {
-  version: 1;
+  version: 2;
   days: Record<string, DayRecord>; // key = UTC "YYYY-MM-DD"
   allTimePB: number;
   daysFlownCount: number;
+  /** Feat id → UTC dateKey first earned (E2-5). First earn wins; never removed. */
+  feats: Record<string, string>;
 }
 
 export function emptySave(): StarlightSave {
-  return { version: 1, days: {}, allTimePB: 0, daysFlownCount: 0 };
+  return { version: 2, days: {}, allTimePB: 0, daysFlownCount: 0, feats: {} };
 }
 
 /** The run about to start is The Daily until a run has *completed* today. */
@@ -94,6 +97,29 @@ export function recordRunEnd(save: StarlightSave, dateKey: string, runEnd: RunEn
   };
 }
 
+const FEAT_ID_SET = new Set<string>(FEATS.map((f) => f.id));
+
+/**
+ * Fold this run's feats into the save. Ledger feats are judged here — they are
+ * cross-run facts the engine never sees — so call this AFTER recordRunEnd, on the
+ * save that already contains this run. `newFeats` (ids new to this save) drives
+ * every unlock surface. Pure; returns the same save object when nothing is new.
+ */
+export function recordFeats(
+  save: StarlightSave,
+  dateKey: string,
+  runFeats: FeatId[]
+): { save: StarlightSave; newFeats: FeatId[] } {
+  const earned = [...runFeats];
+  if (Object.keys(save.days).length >= 1) earned.push("first-flight");
+  if (save.daysFlownCount >= REGULAR_DAYS_FLOWN) earned.push("regular");
+  const newFeats = earned.filter((id) => save.feats[id] === undefined);
+  if (newFeats.length === 0) return { save, newFeats };
+  const feats = { ...save.feats };
+  for (const id of newFeats) feats[id] = dateKey;
+  return { save: { ...save, feats }, newFeats };
+}
+
 const STORAGE_KEY = "starlight.save.v1";
 
 /**
@@ -105,18 +131,33 @@ export function loadSave(): StarlightSave | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StarlightSave> | null;
+    const parsed = JSON.parse(raw) as
+      (Omit<Partial<StarlightSave>, "version"> & { version?: number }) | null;
+    // v1 → v2 (E2-5): the ledger predates feats — start the map empty.
+    if (parsed && parsed.version === 1) {
+      (parsed as { feats?: unknown }).feats = {};
+      parsed.version = 2;
+    }
     if (
       !parsed ||
-      parsed.version !== 1 ||
+      parsed.version !== 2 ||
       typeof parsed.days !== "object" ||
       parsed.days === null ||
       typeof parsed.allTimePB !== "number" ||
-      typeof parsed.daysFlownCount !== "number"
+      typeof parsed.daysFlownCount !== "number" ||
+      typeof parsed.feats !== "object" ||
+      parsed.feats === null ||
+      Array.isArray(parsed.feats)
     ) {
       return null;
     }
-    return parsed as StarlightSave;
+    // Keep only registry ids with string dates — a hand-edited or future-version entry
+    // is dropped, not fatal (same silent-degradation stance as the rest of the doc).
+    const feats: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed.feats)) {
+      if (FEAT_ID_SET.has(k) && typeof v === "string") feats[k] = v;
+    }
+    return { ...(parsed as StarlightSave), feats };
   } catch {
     return null;
   }
