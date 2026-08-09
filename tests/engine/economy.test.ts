@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { dockingFee, taxOnSale, loanInterest, cargoUsed, netWorth } from "../../src/engine/economy";
-import { GameState } from "../../src/engine/types";
+import { GameState, emptyRecords } from "../../src/engine/types";
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -20,6 +20,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     contracts: { delivered: 0, expired: 0, forfeitedCr: 0 },
     peakNetWorth: 0,
     dayHighlights: {},
+    records: { ...emptyRecords(), visited: ["terra"] },
     status: "playing",
     log: [],
     bootDate: "",

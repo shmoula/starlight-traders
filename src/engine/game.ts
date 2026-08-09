@@ -7,6 +7,8 @@ import {
   LogTone,
   Mission,
   NodeId,
+  RunRecords,
+  emptyRecords,
 } from "./types";
 import { NODES, commodityName, fuelCost, getPrice } from "./world";
 import {
@@ -54,6 +56,9 @@ export const STARTING = {
 
 const INTEREST_EVERY = 3; // days between interest accruals
 
+/** Hull threshold for the Verge Runner feat (E2-5) — a docking below this is "limping in". */
+export const VERGE_LOW_HULL = 20;
+
 /**
  * Create a fresh run for `seed`. `bootDate` (an ISO instant) stamps the run with the
  * UTC day the seed was derived from, so the header/share date travels with the seed in
@@ -79,6 +84,7 @@ export function createGame(seed: number, bootDate = ""): GameState {
     contracts: { delivered: 0, expired: 0, forfeitedCr: 0 },
     peakNetWorth: 0,
     dayHighlights: {},
+    records: { ...emptyRecords(), visited: ["terra"] },
     status: "playing",
     log: [
       {
@@ -133,6 +139,24 @@ function markDay(s: GameState, kind: DayHighlightKind): GameState {
   const cur = s.dayHighlights[s.day];
   if (cur && HIGHLIGHT_RANK[cur] >= HIGHLIGHT_RANK[kind]) return s;
   return { ...s, dayHighlights: { ...s.dayHighlights, [s.day]: kind } };
+}
+
+/** Merge feat-relevant moment facts (E2-5). Append-only; game rules never read these. */
+function withRecords(s: GameState, patch: Partial<RunRecords>): GameState {
+  return { ...s, records: { ...s.records, ...patch } };
+}
+
+/** Subtract hull and tally the loss — every damage site routes here so "Not a Scratch"
+ *  can trust damageTaken. Deliberately unclamped, matching the sites it replaces:
+ *  checkHullDeath floors and ends the run. */
+function withHullDamage(s: GameState, dmg: number): GameState {
+  return withRecords({ ...s, hull: s.hull - dmg }, { damageTaken: s.records.damageTaken + dmg });
+}
+
+/** Flag a hold that just reached capacity (E2-5 Full House). Upgrade-only. */
+function trackFullHold(s: GameState): GameState {
+  if (s.records.fullHold || cargoUsed(s.cargo) < s.cargoCapacity) return s;
+  return withRecords(s, { fullHold: true });
 }
 
 /**
@@ -192,7 +216,14 @@ export function buy(state: GameState, id: CommodityId, qty: number): GameState {
   };
   return keepEscapable(
     state,
-    trackPeak(withLog(next, `Bought ${qty} ${commodityName(id)} for ${cost}cr.`, "neutral", -cost))
+    trackPeak(
+      withLog(
+        trackFullHold(next),
+        `Bought ${qty} ${commodityName(id)} for ${cost}cr.`,
+        "neutral",
+        -cost
+      )
+    )
   );
 }
 
@@ -309,17 +340,17 @@ export function payDebt(state: GameState, amount: number): GameState {
   // being told no. `keepEscapable` below stays as the backstop for an inbound strand.
   const pay = Math.min(amount, state.debt, spendableCredits(state));
   if (pay <= 0) return state;
-  return keepEscapable(
-    state,
-    trackPeak(
-      withLog(
-        { ...state, debt: state.debt - pay, credits: state.credits - pay },
-        `Paid down ${pay}cr of debt.`,
-        "good",
-        -pay
-      )
-    )
+  let next = withLog(
+    { ...state, debt: state.debt - pay, credits: state.credits - pay },
+    `Paid down ${pay}cr of debt.`,
+    "good",
+    -pay
   );
+  // E2-5: the day the books first hit zero is a feat fact — recorded once, then frozen.
+  if (next.debt === 0 && next.records.debtClearedDay === undefined) {
+    next = withRecords(next, { debtClearedDay: next.day });
+  }
+  return keepEscapable(state, trackPeak(next));
 }
 
 /** Voluntarily end the run at dock, banking the score (E0-1). No-op once the run is over. */
@@ -513,6 +544,13 @@ export function arrive(state: GameState): {
   if (state.status !== "playing") return { state, delivered: [], expired: [] };
   const settled = settleMissions(state);
   let s = trackPeak(settled.state);
+  // E2-5 moment facts: this arrival is a real docking, whatever the day check decides next.
+  if (!s.records.visited.includes(s.location)) {
+    s = withRecords(s, { visited: [...s.records.visited, s.location] });
+  }
+  if (s.location === "verge" && s.hull < VERGE_LOW_HULL && !s.records.vergeAtLowHull) {
+    s = withRecords(s, { vergeAtLowHull: true });
+  }
   s =
     s.day >= RUN_LENGTH
       ? endRun(
@@ -525,7 +563,9 @@ export function arrive(state: GameState): {
 }
 
 function resolvePirates(s: GameState, choiceId: string): GameState {
-  const marked = markDay(s, "pirates");
+  const marked = withRecords(markDay(s, "pirates"), {
+    pirateAmbushes: s.records.pirateAmbushes + 1,
+  });
   const crew = crewName(marked.seed);
   if (choiceId === "pay") {
     const toll = pirateToll(marked);
@@ -537,11 +577,7 @@ function resolvePirates(s: GameState, choiceId: string): GameState {
     );
   }
   const dmg = fleeDamage(marked.day);
-  return withLog(
-    { ...marked, hull: marked.hull - dmg },
-    `Outran ${crew} — took ${dmg} hull damage.`,
-    "bad"
-  );
+  return withLog(withHullDamage(marked, dmg), `Outran ${crew} — took ${dmg} hull damage.`, "bad");
 }
 
 function resolveSalvage(s: GameState, choiceId: string): GameState {
@@ -550,7 +586,7 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
   // strict every-3rd-day periodicity a raw `(day*7+seed) % 3` produces (B-2 class).
   if (hashSeed(s.seed, s.day) % SALVAGE_HAZARD_DIVISOR === 0) {
     return withLog(
-      { ...s, hull: s.hull - SALVAGE_TRAP_DAMAGE },
+      withHullDamage(s, SALVAGE_TRAP_DAMAGE),
       `Salvage hid a live warhead: -${SALVAGE_TRAP_DAMAGE} hull.`,
       "bad"
     );
@@ -558,7 +594,7 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
   const got = salvageAmount(s);
   return got > 0
     ? withLog(
-        { ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } },
+        trackFullHold({ ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } }),
         `Salvaged ${got} ${commodityName("parts")}.`,
         "good"
       )
@@ -572,7 +608,7 @@ function resolveEngine(s: GameState): GameState {
   if (burn > 0) clauses.push(`burned ${burn} fuel`);
   if (strain > 0) clauses.push(`overheated the hull for ${strain}`);
   const msg = `Engine trouble ${clauses.join(" and ")}.`;
-  return withLog({ ...s, fuel: s.fuel - burn, hull: s.hull - strain }, msg, "bad");
+  return withLog(withHullDamage({ ...s, fuel: s.fuel - burn }, strain), msg, "bad");
 }
 
 function resolveDerelict(s: GameState, choiceId: string): GameState {
@@ -589,7 +625,7 @@ function resolveDerelict(s: GameState, choiceId: string): GameState {
     );
   }
   return withLog(
-    { ...s, hull: s.hull - DERELICT_TRAP_DAMAGE },
+    withHullDamage(s, DERELICT_TRAP_DAMAGE),
     `Derelict was a trap: -${DERELICT_TRAP_DAMAGE} hull.`,
     "bad"
   );
