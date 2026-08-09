@@ -283,7 +283,8 @@ function applyAction(act: string | undefined, id: string | undefined, qty: numbe
 }
 
 app.addEventListener("click", async (e) => {
-  const btn = (e.target as HTMLElement).closest("button");
+  // Buttons, plus any element carrying data-act — the star map's SVG nodes (E2-3c).
+  const btn = (e.target as Element).closest<HTMLElement | SVGElement>("button, [data-act]");
   if (!btn) return;
   if (btn.getAttribute("aria-disabled") === "true") return;
   const act = btn.dataset.act;

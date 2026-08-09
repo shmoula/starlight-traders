@@ -16,7 +16,7 @@ Every day has a new seed, and the seed is derived from the date — so everyone 
 ## Key Features
 
 - Turn-based jump loop with a deterministic daily seed, so runs are shareable and comparable.
-- Five stations, each with its own docking fees, tax rate, danger rating, and price profile.
+- Five stations, each with its own docking fees, tax rate, and price profile, linked by lanes that each carry their own ambush risk.
 - Three commodities spanning distinct risk tiers: Water/Ice (stable, thin margins), Machine Parts (mid), and Luxury Goods (volatile, high-value — the biggest paydays and the biggest swings).
 - Six in-transit events — pirate ambush, salvage field, derelict hulk, customs inspection, engine trouble, and quiet jump — most offering a real choice.
 - Three income sources with different risk profiles: delivery contracts, market arbitrage, and salvage.

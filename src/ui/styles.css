@@ -361,6 +361,82 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
 }
+/* ── Star map (E2-3) ──────────────────────────────────────────────────────
+ * Pointer-only enhancement inside the Navigator panel; aria-hidden, so the
+ * dimmed far lanes are exempt from the AA contrast floor (decoration). */
+.star-map {
+  display: block;
+  margin-bottom: var(--st-space-3);
+}
+.star-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.map-edge {
+  stroke-width: 1.5;
+}
+.map-edge--far {
+  stroke: rgba(120, 170, 196, 0.16);
+  stroke-dasharray: 3 5;
+}
+.map-edge--safe {
+  stroke: var(--st-cyan);
+  opacity: 0.55;
+}
+.map-edge--warn {
+  stroke: var(--st-gold);
+  opacity: 0.7;
+}
+.map-edge--hot {
+  stroke: var(--st-orange);
+  opacity: 0.75;
+}
+.map-label {
+  font-size: 12px;
+  fill: var(--st-text-hi);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--st-bg-panel-solid);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.map-name {
+  font-size: 11px;
+  fill: var(--st-text-dim);
+  text-anchor: middle;
+}
+.map-node[data-act] {
+  cursor: pointer;
+}
+.map-node--unreachable {
+  opacity: 0.45;
+}
+.map-node--unreachable[data-act] {
+  cursor: default;
+}
+.map-here-ring {
+  fill: none;
+  stroke: var(--st-cyan);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+.map-weenie-halo {
+  fill: none;
+  stroke: var(--st-gold);
+  stroke-width: 1.5;
+  opacity: 0.6;
+  animation: map-weenie-pulse 3.2s ease-in-out infinite;
+}
+@keyframes map-weenie-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
 .st-tile__name {
   display: block;
 }
@@ -486,6 +562,9 @@ body {
   }
   .ticker__body--scroll {
     white-space: normal;
+  }
+  .map-weenie-halo {
+    animation: none;
   }
 }
 .station-intel {

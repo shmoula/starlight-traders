@@ -35,6 +35,7 @@ import { STATION_DOSSIERS, epilogue } from "../engine/fiction";
 import { choiceOdds, choiceStakes } from "../engine/preview";
 import { bulletin } from "../engine/bulletin";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
+import { starMap } from "./map";
 import { runStrip, stripSummary } from "./share";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
@@ -276,7 +277,7 @@ function navigatorPanel(s: GameState): string {
     .map((n) => {
       const cost = fuelCost(s.location, n);
       const fee = dockingFee(n);
-      const raid = Math.round(pirateChance(n) * 100);
+      const raid = Math.round(pirateChance(s.location, n) * 100);
       const taxPct = Math.round(NODES[n].taxRate * 100);
       const customsNote = n === "meridian" ? " · customs patrol this approach" : "";
       const disabled = s.fuel < cost;
@@ -291,7 +292,7 @@ function navigatorPanel(s: GameState): string {
       </button>`;
     })
     .join("");
-  return panel("Navigator", `${banner}<div class="st-orb-group">${orbs}</div>`);
+  return panel("Navigator", `${banner}${starMap(s)}<div class="st-orb-group">${orbs}</div>`);
 }
 
 function cargoPanel(s: GameState): string {

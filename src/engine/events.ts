@@ -1,20 +1,21 @@
 // src/engine/events.ts
 import { GameEvent, GameEventKind, NodeId } from "./types";
-import { NODES, NODE_IDS } from "./world";
+import { NODE_IDS, laneDanger } from "./world";
 import { mulberry32, hashSeed } from "./rng";
 import { EVENT_VARIANTS, crewName } from "./fiction";
 
 /**
- * True chance of a pirate ambush on arrival at `to` — the exact band rollEvent uses.
- * Exported so the UI shows the number the engine rolls with (E1-4): the flat 10%
- * floor means no route is ever "0%".
+ * True chance of a pirate ambush on the from→to lane — the exact band rollEvent
+ * uses. Exported so the UI shows the number the engine rolls with (E1-4). Since
+ * E2-3 this is a straight EDGE_DANGER lookup: the authored 5% floor means no
+ * lane is ever "0%", and the same lane reads the same both directions.
  */
-export function pirateChance(to: NodeId): number {
-  return 0.1 + NODES[to].danger * 0.45;
+export function pirateChance(from: NodeId, to: NodeId): number {
+  return laneDanger(from, to);
 }
 
 /**
- * Roll the in-transit event for a jump. Hostility scales with destination danger.
+ * Roll the in-transit event for a jump. Hostility scales with the lane's danger (E2-3).
  * Customs only fires when arriving at meridian.
  */
 export function rollEvent(seed: number, day: number, from: NodeId, to: NodeId): GameEvent {
@@ -32,7 +33,7 @@ export function rollEvent(seed: number, day: number, from: NodeId, to: NodeId): 
   };
 
   // Probability bands grow the hostile slice with danger.
-  const pPirates = pirateChance(to);
+  const pPirates = pirateChance(from, to);
   const pSalvage = pPirates + 0.18;
   const pEngine = pSalvage + 0.1;
   const pDerelict = pEngine + 0.12;

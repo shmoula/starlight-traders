@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BACKDROP_SVG, COMMODITY_ACCENT, ORB_ART, iconBox } from "../../src/ui/art";
+import { BACKDROP_SVG, COMMODITY_ACCENT, ORB_ART, ORB_COLORS, iconBox } from "../../src/ui/art";
 import { COMMODITIES, NODE_IDS } from "../../src/engine/world";
 
 describe("backdrop art", () => {
@@ -33,6 +33,17 @@ describe("orb art", () => {
   it("defines a radial-gradient for every station", () => {
     for (const n of NODE_IDS) {
       expect(ORB_ART[n]).toContain("radial-gradient");
+    }
+  });
+});
+
+describe("orb palette (E2-3)", () => {
+  it("ORB_ART derives from ORB_COLORS, so the map and orbs share one palette", () => {
+    for (const n of NODE_IDS) {
+      const [light, mid, dark] = ORB_COLORS[n];
+      expect(ORB_ART[n]).toBe(
+        `radial-gradient(circle at 35% 30%, ${light}, ${mid} 55%, ${dark} 82%)`
+      );
     }
   });
 });

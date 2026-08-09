@@ -48,7 +48,7 @@ describe("epilogue (E2-4d)", () => {
 });
 
 import { STATION_DOSSIERS, EVENT_VARIANTS } from "../../src/engine/fiction";
-import { NODE_IDS } from "../../src/engine/world";
+import { NODE_IDS, safestApproach } from "../../src/engine/world";
 import { GameEventKind } from "../../src/engine/types";
 
 describe("STATION_DOSSIERS (E2-4a)", () => {
@@ -62,8 +62,9 @@ describe("STATION_DOSSIERS (E2-4a)", () => {
 
   it("each dossier teaches its station's mechanic (keyword presence — E2-4a)", () => {
     // The consequence each station's numbers imply, as a checkable keyword:
-    // terra fee 1.6× → "fees"; kiruna fee 0.6× → "dock"; vulcan danger 0.15 →
-    // "approach"; verge danger 0.5 / tax 0 → "raiders"; meridian tax 0.18 → "18%".
+    // terra fee 1.6× → "fees"; kiruna fee 0.6× → "dock"; vulcan's Verge lane
+    // runs 28% → "approach"; verge has no safe approach → "raiders";
+    // meridian tax 0.18 → "18%".
     const KEYWORD: Record<(typeof NODE_IDS)[number], string> = {
       terra: "fees",
       kiruna: "dock",
@@ -73,6 +74,14 @@ describe("STATION_DOSSIERS (E2-4a)", () => {
     };
     for (const node of NODE_IDS) {
       expect(STATION_DOSSIERS[node].toLowerCase()).toContain(KEYWORD[node]);
+    }
+  });
+
+  it("a station with no safe approach voices the danger (E2-3 presence rule)", () => {
+    for (const node of NODE_IDS) {
+      if (safestApproach(node) >= 0.1) {
+        expect(STATION_DOSSIERS[node].toLowerCase()).toMatch(/raider|pirat|danger/);
+      }
     }
   });
 });

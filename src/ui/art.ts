@@ -42,14 +42,23 @@ export function hullIcon(): string {
   return inlineIcon(HULL_ICON);
 }
 
-/** Planet art per station (decorative layer — exempt from the functional accent rule). */
-export const ORB_ART: Record<NodeId, string> = {
-  terra: "radial-gradient(circle at 35% 30%, #7ec8e3, #1d4e6e 55%, #0c2431 82%)",
-  kiruna: "radial-gradient(circle at 35% 30%, #9aa8b4, #3a4750 55%, #161d23 82%)",
-  vulcan: "radial-gradient(circle at 35% 30%, #e0956a, #6e3a24 55%, #26140c 82%)",
-  verge: "radial-gradient(circle at 35% 30%, #a98fd8, #4a3378 55%, #1c1230 82%)",
-  meridian: "radial-gradient(circle at 35% 30%, #e8c17a, #7a5a24 55%, #2b1f0d 82%)",
+/** Planet color stops (light, mid, dark) — one source for the orb CSS gradients
+ *  and the star map's SVG gradients (E2-3), so the two can't drift. */
+export const ORB_COLORS: Record<NodeId, [string, string, string]> = {
+  terra: ["#7ec8e3", "#1d4e6e", "#0c2431"],
+  kiruna: ["#9aa8b4", "#3a4750", "#161d23"],
+  vulcan: ["#e0956a", "#6e3a24", "#26140c"],
+  verge: ["#a98fd8", "#4a3378", "#1c1230"],
+  meridian: ["#e8c17a", "#7a5a24", "#2b1f0d"],
 };
+
+/** Planet art per station (decorative layer — exempt from the functional accent rule). */
+export const ORB_ART: Record<NodeId, string> = Object.fromEntries(
+  Object.entries(ORB_COLORS).map(([id, [light, mid, dark]]) => [
+    id,
+    `radial-gradient(circle at 35% 30%, ${light}, ${mid} 55%, ${dark} 82%)`,
+  ])
+) as Record<NodeId, string>;
 
 // Deterministic backdrop: orbit ellipses, two planets, one moon, fixed star dots.
 // Stars are zero-length path segments with round caps — compact and hand-editable.
