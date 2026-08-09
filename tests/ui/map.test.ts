@@ -23,6 +23,17 @@ describe("starMap (E2-3c)", () => {
     expect(h).toContain("map-node--here");
   });
 
+  it("from every location: exactly 4 jump targets and never the current station (E2-3c)", () => {
+    for (const loc of NODE_IDS) {
+      const h = starMap({ ...createGame(42), location: loc });
+      expect(h.match(/data-act="jump"/g), loc).toHaveLength(4);
+      expect(h, `${loc} should not be its own jump target`).not.toContain(`data-id="${loc}"`);
+      for (const other of NODE_IDS.filter((n) => n !== loc)) {
+        expect(h, `${loc} → ${other}`).toContain(`data-act="jump" data-id="${other}"`);
+      }
+    }
+  });
+
   it("labels exactly the four incident lanes with fuel and raid %", () => {
     const h = atTerra();
     expect(h.match(/class="map-label/g)).toHaveLength(4);

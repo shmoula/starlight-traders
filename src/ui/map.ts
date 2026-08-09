@@ -31,11 +31,15 @@ function laneTone(p: number): "safe" | "warn" | "hot" {
 }
 
 /** Label anchor: 45% along the lane from the current node, nudged up — close
- *  enough to "here" to dodge the K5 center pile-up. */
+ *  enough to "here" to dodge the K5 center pile-up. Clamped to the viewBox so a
+ *  future MAP_LAYOUT edit can't push a label off-canvas (the -8 nudge could
+ *  otherwise go negative for a station near the top edge). No-op for the current
+ *  layout, where every label already sits well inside the bounds. */
 function labelPos(here: { x: number; y: number }, other: { x: number; y: number }) {
+  const clamp = (v: number, hi: number) => Math.max(0, Math.min(hi, v));
   return {
-    x: Math.round(here.x + (other.x - here.x) * 0.45),
-    y: Math.round(here.y + (other.y - here.y) * 0.45) - 8,
+    x: clamp(Math.round(here.x + (other.x - here.x) * 0.45), MAP_VIEW.w),
+    y: clamp(Math.round(here.y + (other.y - here.y) * 0.45) - 8, MAP_VIEW.h),
   };
 }
 
@@ -52,6 +56,10 @@ function gradientDefs(): string {
   }).join("");
   return `<defs>${stops}</defs>`;
 }
+
+/** Static per-station orb gradients — invariant across game state, so built once
+ *  at module load rather than rebuilt on every starMap() call. */
+const GRADIENT_DEFS = gradientDefs();
 
 function nodeMarkup(s: GameState, n: NodeId): string {
   const { x, y } = MAP_LAYOUT[n];
@@ -106,6 +114,6 @@ export function starMap(s: GameState): string {
   return (
     `<div class="star-map" aria-hidden="true">` +
     `<svg viewBox="0 0 ${MAP_VIEW.w} ${MAP_VIEW.h}" xmlns="http://www.w3.org/2000/svg">` +
-    `${gradientDefs()}${lanes.join("")}${labels.join("")}${nodes}</svg></div>`
+    `${GRADIENT_DEFS}${lanes.join("")}${labels.join("")}${nodes}</svg></div>`
   );
 }
