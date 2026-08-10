@@ -93,9 +93,12 @@ describe("earnedFeats", () => {
       "gauntlet"
     );
   });
-  it("high-roller keys on the banked score", () => {
+  it("high-roller keys on the banked score; a high-scoring loss doesn't count", () => {
     expect(earnedFeats(ended({ credits: HIGH_ROLLER_SCORE + 5000 }))).toContain("high-roller");
     expect(earnedFeats(ended({ credits: 0 }))).not.toContain("high-roller");
+    expect(earnedFeats(ended({ credits: HIGH_ROLLER_SCORE + 5000 }, "lost"))).not.toContain(
+      "high-roller"
+    );
   });
   it("hints reference the live thresholds", () => {
     expect(featDef("verge-runner").hint).toContain(String(VERGE_LOW_HULL));

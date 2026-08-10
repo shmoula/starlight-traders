@@ -223,6 +223,27 @@ describe("save v2 (E2-5 feats)", () => {
     );
     expect(loadSave()?.feats).toEqual({ audited: KEY });
   });
+
+  it("loadSave drops malformed day records and non-date keys, keeping valid ones", () => {
+    vi.stubGlobal("localStorage", memStore());
+    const good = recordRunEnd(emptySave(), KEY, banked(250)).save.days[KEY];
+    localStorage.setItem(
+      "starlight.save.v1",
+      JSON.stringify({
+        version: 2,
+        days: {
+          [KEY]: good,
+          "2026-07-23": { attempts: 1, bestScore: "oops", bestOutcome: "audited" }, // non-numeric
+          "2026-07-24": { attempts: 1, bestScore: 10, bestOutcome: "??" }, // unknown outcome
+          "not-a-date": good,
+        },
+        allTimePB: 250,
+        daysFlownCount: 1,
+        feats: {},
+      })
+    );
+    expect(loadSave()?.days).toEqual({ [KEY]: good });
+  });
 });
 
 const BOOT = new Date(Date.UTC(2026, 6, 29, 10, 0)).toISOString();

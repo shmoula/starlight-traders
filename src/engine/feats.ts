@@ -104,7 +104,7 @@ export const FEATS: readonly FeatDef[] = [
     id: "high-roller",
     name: "High Roller",
     hint: `Bank a ${HIGH_ROLLER_SCORE.toLocaleString("en-US")}+ score.`,
-    earned: (_s, r) => r.score >= HIGH_ROLLER_SCORE,
+    earned: (_s, r) => banked(r) && r.score >= HIGH_ROLLER_SCORE,
   },
   {
     id: "regular",

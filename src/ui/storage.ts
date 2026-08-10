@@ -199,6 +199,39 @@ function sanitizeFeats(rawFeats: Record<string, string>): Record<string, string>
   return feats;
 }
 
+const RUN_END_STATUSES = new Set<unknown>(["lost", "audited", "retired"]);
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A persisted day record must carry finite numeric scores/attempts and known outcomes —
+ * a corrupt one (e.g. non-numeric `bestScore`) would otherwise reach `logbookPanel`'s
+ * `.toLocaleString()` and blank the Day-1 station.
+ */
+function isValidDayRecord(v: unknown): v is DayRecord {
+  if (typeof v !== "object" || v === null) return false;
+  const r = v as Partial<DayRecord>;
+  return (
+    Number.isFinite(r.attempts) &&
+    Number.isFinite(r.bestScore) &&
+    Number.isFinite(r.firstTryScore) &&
+    RUN_END_STATUSES.has(r.bestOutcome) &&
+    RUN_END_STATUSES.has(r.firstTryOutcome)
+  );
+}
+
+/**
+ * Drop any date key that isn't a real "YYYY-MM-DD" or whose record is malformed —
+ * same silent-degradation stance as sanitizeFeats, keeping corrupt entries away from
+ * calendarCells/logbookPanel rather than letting one bad write blank the app.
+ */
+function sanitizeDays(rawDays: Record<string, unknown>): Record<string, DayRecord> {
+  const days: Record<string, DayRecord> = {};
+  for (const [k, v] of Object.entries(rawDays)) {
+    if (DATE_KEY.test(k) && isValidDayRecord(v)) days[k] = v;
+  }
+  return days;
+}
+
 /**
  * Read the save, or null on absence / parse error / unknown version / private-mode throw.
  * The shape is validated field by field, not just by version: a truncated write or a
@@ -211,7 +244,7 @@ export function loadSave(): StarlightSave | null {
     const parsed = JSON.parse(raw) as ParsedSave;
     migrateV1Feats(parsed);
     if (!isValidSaveShape(parsed)) return null;
-    return { ...parsed, feats: sanitizeFeats(parsed.feats) };
+    return { ...parsed, days: sanitizeDays(parsed.days), feats: sanitizeFeats(parsed.feats) };
   } catch {
     return null;
   }
