@@ -1,5 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { dockingFee, taxOnSale, loanInterest, cargoUsed, netWorth } from "../../src/engine/economy";
+import {
+  dockingFee,
+  taxOnSale,
+  loanInterest,
+  cargoUsed,
+  netWorth,
+  saleProceeds,
+  MARKET_DEPTH,
+  DEPTH_SLOPE,
+  DEPTH_FLOOR,
+} from "../../src/engine/economy";
+import { getPrice } from "../../src/engine/world";
 import { GameState, emptyRecords } from "../../src/engine/types";
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
@@ -58,5 +69,57 @@ describe("economy", () => {
     const s = baseState({ credits: 1000, debt: 500, cargo: { water: 10, parts: 0, luxury: 0 } });
     const nw = netWorth(s);
     expect(nw).toBeGreaterThan(500); // 1000 - 500 + value of 10 water
+  });
+});
+
+describe("market depth curve (E2-1)", () => {
+  const at = (soldHere: number, cargo = 60) =>
+    baseState({
+      location: "kiruna",
+      cargo: { water: cargo, parts: 0, luxury: 0 },
+      soldHere: { water: soldHere, parts: 0, luxury: 0 },
+    });
+  const b = baseState();
+  const list = () => getPrice(b.seed, b.day, "kiruna", "water"); // baseState's own seed/day
+
+  it("the first MARKET_DEPTH units all sell at list", () => {
+    const r = saleProceeds(at(0), "water", MARKET_DEPTH);
+    expect(r.gross).toBe(MARKET_DEPTH * list());
+    expect(r.atList).toBe(MARKET_DEPTH);
+    expect(r.degradedUnits).toBe(0);
+  });
+
+  it("units past depth degrade by DEPTH_SLOPE per unit", () => {
+    const r = saleProceeds(at(MARKET_DEPTH), "water", 2);
+    const l = list();
+    expect(r.gross).toBe(
+      Math.max(1, Math.round(l * (1 - DEPTH_SLOPE))) +
+        Math.max(1, Math.round(l * (1 - 2 * DEPTH_SLOPE)))
+    );
+    expect(r.atList).toBe(0);
+    expect(r.degradedUnits).toBe(2);
+  });
+
+  it("degradation floors at DEPTH_FLOOR × list", () => {
+    const r = saleProceeds(at(MARKET_DEPTH + 1000), "water", 1);
+    expect(r.gross).toBe(Math.max(1, Math.round(list() * DEPTH_FLOOR)));
+  });
+
+  it("every unit is worth at least 1cr however deep the market", () => {
+    const r = saleProceeds(at(10_000), "water", 30);
+    expect(r.gross).toBeGreaterThanOrEqual(30);
+  });
+
+  it("a split sale grosses the same as one big sale (positional curve)", () => {
+    const whole = saleProceeds(at(0), "water", 30).gross;
+    const first = saleProceeds(at(0), "water", 15).gross;
+    const second = saleProceeds(at(15), "water", 15).gross;
+    expect(first + second).toBe(whole);
+  });
+
+  it("the atList/degraded split is positional, not price-based", () => {
+    const r = saleProceeds(at(MARKET_DEPTH - 3), "water", 10);
+    expect(r.atList).toBe(3);
+    expect(r.degradedUnits).toBe(7);
   });
 });
