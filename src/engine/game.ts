@@ -245,11 +245,11 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
   };
   next = trackPayday(next, gross - tax, `${commodityName(id)} at ${NODES[state.location].name}`);
   if (gross - tax >= BIG_TRADE_CR) next = markDay(next, "bigTrade");
-  const saturated = degradedUnits > 0 ? ` — market saturated after ${MARKET_DEPTH}` : "";
+  const saturationNote = degradedUnits > 0 ? ` — market saturated after ${MARKET_DEPTH} units` : "";
   return trackPeak(
     withLog(
       next,
-      `Sold ${qty} ${commodityName(id)} for ${gross}cr (tax ${tax})${saturated}.`,
+      `Sold ${qty} ${commodityName(id)} for ${gross}cr (tax ${tax})${saturationNote}.`,
       "good",
       gross - tax
     )
