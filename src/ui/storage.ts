@@ -18,7 +18,7 @@ import {
 } from "../engine/types";
 import { NODE_IDS } from "../engine/world";
 import { FEATS, FeatId, REGULAR_DAYS_FLOWN } from "../engine/feats";
-import { utcDateKey } from "./share";
+import { formatDateLabel, utcDateKey } from "./share";
 
 export interface DayRecord {
   attempts: number; // completed runs this UTC day
@@ -118,6 +118,43 @@ export function recordFeats(
   const feats = { ...save.feats };
   for (const id of newFeats) feats[id] = dateKey;
   return { save: { ...save, feats }, newFeats };
+}
+
+// --- E2-5c: Logbook calendar ---------------------------------------------------------
+
+export interface CalendarCell {
+  dateKey: string; // UTC "YYYY-MM-DD"
+  label: string; // "Aug 3" — same formatter as the header/share date
+  attempts: number; // 0 = not flown
+  best: number;
+  outcome?: RunEndStatus;
+  isToday: boolean;
+}
+
+export const CALENDAR_DAYS = 28;
+
+/**
+ * The last 28 UTC days ending on `todayKey`, joined with the save ledger — a strip,
+ * not a month grid (no weekday alignment). Pure: "today" comes in as the same UTC
+ * dateKey the ledger is keyed on, so there is no second clock to disagree with.
+ */
+export function calendarCells(save: StarlightSave, todayKey: string): CalendarCell[] {
+  const end = new Date(`${todayKey}T00:00:00Z`).getTime();
+  const cells: CalendarCell[] = [];
+  for (let i = CALENDAR_DAYS - 1; i >= 0; i--) {
+    const d = new Date(end - i * 86_400_000);
+    const dateKey = d.toISOString().slice(0, 10);
+    const rec = save.days[dateKey];
+    cells.push({
+      dateKey,
+      label: formatDateLabel(d),
+      attempts: rec?.attempts ?? 0,
+      best: rec?.bestScore ?? 0,
+      outcome: rec?.bestOutcome,
+      isToday: dateKey === todayKey,
+    });
+  }
+  return cells;
 }
 
 const STORAGE_KEY = "starlight.save.v1";

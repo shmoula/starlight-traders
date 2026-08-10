@@ -10,6 +10,8 @@ import {
   loadSnapshot,
   persistSnapshot,
   clearSnapshot,
+  calendarCells,
+  CALENDAR_DAYS,
   RunSnapshot,
 } from "../../src/ui/storage";
 import { RunEnd, GameEvent } from "../../src/engine/types";
@@ -586,6 +588,35 @@ describe("snapshot v4 (E2-5 records)", () => {
     };
     const parsed = parseSnapshot(JSON.stringify(snap), TODAY);
     expect(parsed!.state.records.damageTaken).toBe(12);
+  });
+});
+
+describe("calendarCells (E2-5c)", () => {
+  it("returns 28 cells ending today, oldest first", () => {
+    const cells = calendarCells(emptySave(), "2026-08-09");
+    expect(cells).toHaveLength(CALENDAR_DAYS);
+    expect(cells[0].dateKey).toBe("2026-07-13");
+    expect(cells[27].dateKey).toBe("2026-08-09");
+    expect(cells[27].isToday).toBe(true);
+    expect(cells.filter((c) => c.isToday)).toHaveLength(1);
+  });
+
+  it("joins the save ledger onto the right days", () => {
+    const save = recordRunEnd(emptySave(), "2026-08-03", banked(2140)).save;
+    const cells = calendarCells(save, "2026-08-09");
+    const flown = cells.find((c) => c.dateKey === "2026-08-03")!;
+    expect(flown.attempts).toBe(1);
+    expect(flown.best).toBe(2140);
+    expect(flown.outcome).toBe("audited");
+    expect(flown.label).toBe("Aug 3");
+    expect(cells.find((c) => c.dateKey === "2026-08-04")!.attempts).toBe(0);
+  });
+
+  it("crosses a month boundary without skipping or doubling a day", () => {
+    const keys = calendarCells(emptySave(), "2026-08-02").map((c) => c.dateKey);
+    expect(new Set(keys).size).toBe(CALENDAR_DAYS);
+    expect(keys).toContain("2026-07-31");
+    expect(keys).toContain("2026-08-01");
   });
 });
 
