@@ -26,6 +26,9 @@ import {
   escapeCost,
   netWorth,
   BIG_TRADE_CR,
+  saleProceeds,
+  taxOnSale,
+  MARKET_DEPTH,
 } from "../../src/engine/economy";
 import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
@@ -160,6 +163,38 @@ describe("market depth + cost basis state (E2-1/P2-2)", () => {
     const s = createGame(42);
     expect(s.soldHere).toEqual({ water: 0, parts: 0, luxury: 0 });
     expect(s.costBasis).toEqual({ water: 0, parts: 0, luxury: 0 });
+  });
+});
+
+describe("sell consumes market depth (E2-1)", () => {
+  const withWater = (qty: number) => {
+    const s = createGame(42);
+    return { ...s, cargo: { ...s.cargo, water: qty } };
+  };
+
+  it("a sale increments soldHere and pays saleProceeds' gross", () => {
+    const s = withWater(30);
+    const expected = saleProceeds(s, "water", 30);
+    const after = sell(s, "water", 30);
+    expect(after.soldHere.water).toBe(30);
+    expect(after.credits).toBe(s.credits + expected.gross - taxOnSale("terra", expected.gross));
+  });
+
+  it("a depth-crossing sale names the saturation in the log", () => {
+    const after = sell(withWater(30), "water", 30);
+    expect(after.log[after.log.length - 1].msg).toContain(`market saturated after ${MARKET_DEPTH}`);
+  });
+
+  it("a within-depth sale logs exactly as before", () => {
+    const after = sell(withWater(5), "water", 5);
+    expect(after.log[after.log.length - 1].msg).not.toContain("saturated");
+    expect(after.log[after.log.length - 1].msg).toMatch(/^Sold 5 .* for \d+cr \(tax \d+\)\.$/);
+  });
+
+  it("jump resets soldHere alongside boughtHere", () => {
+    const sold = sell(withWater(5), "water", 5);
+    const { state } = jump(refuel(sold, 10), "vulcan");
+    expect(state.soldHere).toEqual({ water: 0, parts: 0, luxury: 0 });
   });
 });
 

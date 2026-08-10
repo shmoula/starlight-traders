@@ -49,9 +49,9 @@ export function taxOnSale(node: NodeId, proceeds: number): number {
 // degraded price is exactly displayable (E1-4 honesty). The spread itself is untouched:
 // depth constrains today's flow, not the price function.
 
-export const MARKET_DEPTH = 15; // ⚙ units/commodity/day at list price
-export const DEPTH_SLOPE = 0.03; // ⚙ price impact per unit past depth
-export const DEPTH_FLOOR = 0.4; // ⚙ degraded price never falls below this × list
+export const MARKET_DEPTH = 20; // ⚙ units/commodity/day at list price
+export const DEPTH_SLOPE = 0.08; // ⚙ price impact per unit past depth
+export const DEPTH_FLOOR = 0.6; // ⚙ degraded price never falls below this × list
 
 /** Sale price of one unit given `t` units already sold here today. */
 function depthUnitPrice(list: number, t: number): number {

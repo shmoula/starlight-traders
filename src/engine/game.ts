@@ -13,11 +13,13 @@ import {
 import { NODES, commodityName, fuelCost, getPrice } from "./world";
 import {
   BIG_TRADE_CR,
+  MARKET_DEPTH,
   REFUEL_PRICE,
   REPAIR_PRICE,
   canEscape,
   dockingFee,
   netSaleProceeds,
+  saleProceeds,
   taxOnSale,
   loanInterest,
   LOAN_STEP_IMPATIENT,
@@ -231,23 +233,25 @@ export function buy(state: GameState, id: CommodityId, qty: number): GameState {
 
 export function sell(state: GameState, id: CommodityId, qty: number): GameState {
   if (qty <= 0 || state.cargo[id] < qty) return state;
-  const price = getPrice(state.seed, state.day, state.location, id);
-  const proceeds = price * qty;
-  const tax = taxOnSale(state.location, proceeds);
+  // E2-1: gross walks the depth curve; the log names the saturation when it bites.
+  const { gross, degradedUnits } = saleProceeds(state, id, qty);
+  const tax = taxOnSale(state.location, gross);
   let next: GameState = {
     ...state,
-    credits: state.credits + proceeds - tax,
+    credits: state.credits + gross - tax,
     cargo: { ...state.cargo, [id]: state.cargo[id] - qty },
     boughtHere: { ...state.boughtHere, [id]: Math.max(0, state.boughtHere[id] - qty) },
+    soldHere: { ...state.soldHere, [id]: state.soldHere[id] + qty },
   };
-  next = trackPayday(next, proceeds - tax, `${commodityName(id)} at ${NODES[state.location].name}`);
-  if (proceeds - tax >= BIG_TRADE_CR) next = markDay(next, "bigTrade");
+  next = trackPayday(next, gross - tax, `${commodityName(id)} at ${NODES[state.location].name}`);
+  if (gross - tax >= BIG_TRADE_CR) next = markDay(next, "bigTrade");
+  const saturated = degradedUnits > 0 ? ` — market saturated after ${MARKET_DEPTH}` : "";
   return trackPeak(
     withLog(
       next,
-      `Sold ${qty} ${commodityName(id)} for ${proceeds}cr (tax ${tax}).`,
+      `Sold ${qty} ${commodityName(id)} for ${gross}cr (tax ${tax})${saturated}.`,
       "good",
-      proceeds - tax
+      gross - tax
     )
   );
 }
@@ -513,6 +517,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
     location: to,
     day: state.day + 1,
     boughtHere: { water: 0, parts: 0, luxury: 0 },
+    soldHere: { water: 0, parts: 0, luxury: 0 },
   };
 
   // Interest accrues on a fixed cadence.
