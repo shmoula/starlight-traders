@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { Archetype, runArchetype, sweepSummary } from "../../src/sim/simulate";
+import { Archetype, runArchetype, sweepSummary, viableLoops } from "../../src/sim/simulate";
 
 const SEEDS = Array.from({ length: 100 }, (_, i) => i + 1);
 const ALL: Archetype[] = ["cautious", "balanced", "greedy"];
@@ -61,5 +61,15 @@ describe("market depth decay gates (E2-1) — vs tests/sim/fixtures/pre-depth-ba
 
   it("the map is not collapsed: balanced keeps most of its baseline earnings", () => {
     expect(post.balanced.netWorthSum).toBeGreaterThanOrEqual(0.55 * base.balanced.netWorthSum);
+  });
+});
+
+describe("route viability (E2-1 acceptance)", () => {
+  it("every day offers at least 2 profitable first-hold loops at list price", () => {
+    for (const seed of SEEDS) {
+      for (let day = 1; day <= 11; day++) {
+        expect(viableLoops(seed, day), `seed ${seed} day ${day}`).toBeGreaterThanOrEqual(2);
+      }
+    }
   });
 });

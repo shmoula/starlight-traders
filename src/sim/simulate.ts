@@ -11,7 +11,8 @@ import {
   resolveChoice,
   sell,
 } from "../engine/game";
-import { NODE_IDS, fuelCost, getPrice } from "../engine/world";
+import { COMMODITIES, NODE_IDS, fuelCost, getPrice } from "../engine/world";
+import { MARKET_DEPTH, REFUEL_PRICE, dockingFee } from "../engine/economy";
 
 export type Archetype = "cautious" | "balanced" | "greedy";
 
@@ -139,6 +140,26 @@ function chooseEventOption(kind: Archetype, ids: string[]): string {
   if (ids.includes("board")) return kind === "greedy" ? "board" : "leave";
   if (ids.includes("comply")) return "comply";
   return ids[0];
+}
+
+/**
+ * Distinct single-jump loops on `day` where a first-hold load (≤ MARKET_DEPTH units, so
+ * every unit sells at list) turns a profit net of fuel and the destination dock fee.
+ * The E2-1 gate: depth must decay monoculture without collapsing the map into one lane.
+ */
+export function viableLoops(seed: number, day: number): number {
+  let count = 0;
+  for (const a of NODE_IDS) {
+    for (const b of NODE_IDS) {
+      if (a === b) continue;
+      const profitable = COMMODITIES.some((c) => {
+        const margin = getPrice(seed, day + 1, b, c.id) - getPrice(seed, day, a, c.id);
+        return MARKET_DEPTH * margin - fuelCost(a, b) * REFUEL_PRICE - dockingFee(b) > 0;
+      });
+      if (profitable) count++;
+    }
+  }
+  return count;
 }
 
 export interface ArchetypeSummary {
