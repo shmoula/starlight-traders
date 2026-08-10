@@ -38,7 +38,7 @@ import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 import { starMap } from "./map";
 import { runStrip, stripSummary } from "./share";
 import type { CalendarCell } from "./storage";
-import { FeatDef } from "../engine/feats";
+import { FeatDef, FeatId, featDef } from "../engine/feats";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
 
@@ -50,7 +50,14 @@ export interface RunMeta {
   runLabel: "The Daily" | "Practice";
   dateLabel: string;
   bootStats?: { attemptsToday: number; bestToday: number | null; allTimePB: number };
-  debrief?: { pbDelta: number; isNewPB: boolean; prevBest: number; isFirstEver: boolean };
+  debrief?: {
+    pbDelta: number;
+    isNewPB: boolean;
+    prevBest: number;
+    isFirstEver: boolean;
+    /** Feats first earned by this run (E2-5d) — drives the unlock lines. */
+    newFeats?: FeatId[];
+  };
   /** Day-1 Logbook data (E2-5c) — save-derived in main.ts so screens stay pure. */
   logbook?: {
     cells: CalendarCell[];
@@ -709,6 +716,20 @@ function pbDeltaLine(d: NonNullable<RunMeta["debrief"]>, score: number, banked: 
   return `<p class="run-end__pb">${sign} vs your best (${d.prevBest.toLocaleString()})</p>`;
 }
 
+/** Run-end unlock lines: up to three "★ Feat unlocked: {name}" lines, then a "+N more"
+ *  overflow (E2-5d). Renders nothing when no feat was first earned this run. */
+function featUnlockLines(meta?: RunMeta): string {
+  const newFeats = meta?.debrief?.newFeats ?? [];
+  if (newFeats.length === 0) return "";
+  const lines = newFeats
+    .slice(0, 3)
+    .map((id) => `<p class="run-end__feat">★ Feat unlocked: ${featDef(id).name}</p>`)
+    .join("");
+  const overflow =
+    newFeats.length > 3 ? `<p class="run-end__feat">+${newFeats.length - 3} more</p>` : "";
+  return `<div class="run-end__feats">${lines}${overflow}</div>`;
+}
+
 export function runEndScreen(
   s: GameState,
   r: RunEnd,
@@ -720,6 +741,7 @@ export function runEndScreen(
     ? `<p class="run-end__id">🚀 Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}</p>`
     : "";
   const pb = meta?.debrief ? pbDeltaLine(meta.debrief, r.score, banked) : "";
+  const featLines = featUnlockLines(meta);
   const haul = s.biggestPayday
     ? `<div class="st-kv"><span class="st-kv__label">Best haul</span><span class="st-kv__value st-num">+${cr(s.biggestPayday.amount)} · ${s.biggestPayday.label}</span></div>`
     : "";
@@ -760,6 +782,7 @@ export function runEndScreen(
             ${contractsRow}
           </div>
           ${pb}
+          ${featLines}
           <p class="score st-num">Score: ${r.score.toLocaleString()}</p>
           <p class="run-end__strip">
             <span class="st-sr-only"

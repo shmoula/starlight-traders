@@ -22,6 +22,7 @@ import {
   loadSave,
   persist,
   recordRunEnd,
+  recordFeats,
   labelForDay,
   emptySave,
   loadSnapshot,
@@ -29,7 +30,7 @@ import {
   clearSnapshot,
   calendarCells,
 } from "./ui/storage";
-import { FEATS } from "./engine/feats";
+import { FEATS, earnedFeats, featDef } from "./engine/feats";
 import { NODES } from "./engine/world";
 import { RUN_LENGTH } from "./engine/run-end";
 import { endHeadline, type RunMeta } from "./ui/screens";
@@ -129,14 +130,19 @@ if (!tryResume()) startNewRun();
 
 function recordIfEnded() {
   if (!state.runEnd || recorded) return;
-  const res = recordRunEnd(save, utcDateKey(state.bootDate), state.runEnd);
-  save = res.save;
+  const dateKey = utcDateKey(state.bootDate);
+  const res = recordRunEnd(save, dateKey, state.runEnd);
+  // recordFeats judges the ledger feats (first-flight/regular) against the save that
+  // already includes THIS run, so it must run on res.save, not the pre-run save.
+  const feats = recordFeats(res.save, dateKey, earnedFeats(state));
+  save = feats.save;
   persist(save);
   lastDebrief = {
     pbDelta: res.pbDelta,
     isNewPB: res.isNewPB,
     prevBest: res.prevBest,
     isFirstEver: res.isFirstEver,
+    newFeats: feats.newFeats,
   };
   recorded = true;
 }
@@ -327,6 +333,7 @@ app.addEventListener("click", async (e) => {
         label: runLabel,
         strip: runStrip(state.dayHighlights, state.runEnd.daysSurvived, state.runEnd.status),
         endLabel: endHeadline(state.runEnd),
+        featNames: (lastDebrief?.newFeats ?? []).map((id) => featDef(id).name),
       });
     }
   } else {

@@ -21,7 +21,7 @@ import { dockingFee } from "../../src/engine/economy";
 import { GameEvent, Mission, RunEnd } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { STATION_DOSSIERS, epilogue } from "../../src/engine/fiction";
-import { FEATS } from "../../src/engine/feats";
+import { FEATS, FeatId } from "../../src/engine/feats";
 import { calendarCells, emptySave, recordRunEnd } from "../../src/ui/storage";
 
 const cr2 = (n: number) => `${n.toLocaleString()}cr`;
@@ -1294,5 +1294,44 @@ describe("Logbook panel (E2-5c)", () => {
     expect((html.match(/class="feat-chip/g) ?? []).length).toBe(FEATS.length);
     expect(html).toContain("Fill the hold to capacity.");
     expect(html).toContain(`>0/${FEATS.length}<`);
+  });
+});
+
+describe("run-end feat unlocks (E2-5d)", () => {
+  const debrief = { pbDelta: 0, isNewPB: false, prevBest: 0, isFirstEver: true };
+  const meta = (newFeats: FeatId[]): RunMeta => ({
+    runNumber: 40,
+    runLabel: "The Daily",
+    dateLabel: "Aug 9",
+    debrief: { ...debrief, newFeats },
+  });
+  const endedState = retire(createGame(42));
+
+  it("lists up to three new feats by name", () => {
+    const html = runEndScreen(
+      endedState,
+      endedState.runEnd!,
+      false,
+      meta(["audited", "clean-books"])
+    );
+    expect(html).toContain("★ Feat unlocked: Face the Audit");
+    expect(html).toContain("★ Feat unlocked: Clean Books");
+    expect(html).not.toContain("+1 more");
+  });
+
+  it("caps at three lines with a +N more overflow", () => {
+    const html = runEndScreen(
+      endedState,
+      endedState.runEnd!,
+      false,
+      meta(["audited", "clean-books", "full-house", "grand-tour", "untouched"])
+    );
+    expect((html.match(/★ Feat unlocked:/g) ?? []).length).toBe(3);
+    expect(html).toContain("+2 more");
+  });
+
+  it("renders nothing when no feat is new", () => {
+    const html = runEndScreen(endedState, endedState.runEnd!, false, meta([]));
+    expect(html).not.toContain("Feat unlocked");
   });
 });

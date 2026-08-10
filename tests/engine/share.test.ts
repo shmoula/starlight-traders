@@ -90,6 +90,31 @@ describe("shareText", () => {
   });
 });
 
+describe("share feat line (E2-5d)", () => {
+  const BASE = {
+    dateLabel: "Jul 20",
+    score: 84210,
+    daysSurvived: 12,
+    runNumber: 20,
+    label: "The Daily" as const,
+    strip: "🟦",
+    endLabel: "Audited",
+  };
+
+  it("appends one line naming the first new feat", () => {
+    const text = shareText({ ...BASE, featNames: ["Clean Sweep"] });
+    expect(text).toContain("\n★ Clean Sweep\n");
+  });
+  it("counts the rest instead of listing them", () => {
+    const text = shareText({ ...BASE, featNames: ["Clean Sweep", "Full House", "Audited"] });
+    expect(text).toContain("★ Clean Sweep +2 more");
+  });
+  it("a card without new feats is byte-identical to before", () => {
+    expect(shareText(BASE)).toBe(shareText({ ...BASE, featNames: [] }));
+    expect(shareText(BASE)).not.toContain("★");
+  });
+});
+
 describe("formatDateLabel", () => {
   it("names the UTC calendar day — the same day dailySeed hashes", () => {
     // 23:30 UTC is still Jul 20 in UTC even when local time has rolled over.

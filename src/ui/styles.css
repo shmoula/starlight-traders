@@ -646,3 +646,7 @@ body {
 .feat-hint {
   color: var(--st-text-dim);
 }
+.run-end__feat {
+  color: var(--st-gold-bright);
+  margin: 2px 0;
+}
