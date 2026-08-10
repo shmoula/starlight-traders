@@ -509,31 +509,35 @@ function isValidRecords(r: unknown): boolean {
 type ParsedSnapshot = (Partial<Omit<RunSnapshot, "version">> & { version?: number }) | null;
 
 /**
- * Normalise an older snapshot envelope to the current version in place. The steps are
- * chained and ordered, so a v1 doc passes through all: its bare-string log is wrapped
- * (migrateV1Log) on the way to v2, it gains contract fields (migrateV2Contracts) on the
- * way to v3, then it gains records (migrateV3Records) on the way to v4, then it gains
- * depth/basis fields (migrateV4Depth) on the way to v5. Anything else is left untouched
- * for the field-by-field validation in parseSnapshot to judge — which is why this must
- * run *before* that validation, or a legitimately migrated doc would be rejected for
- * lacking the fields it just gained.
+ * One entry per version step: `from` is the version the step upgrades away from, and
+ * `migrate` mutates `state` in place to add whatever that step introduces. Ordered and
+ * applied in sequence below, so a v1 doc passes through all of them: its bare-string log
+ * is wrapped (migrateV1Log) on the way to v2, it gains contract fields
+ * (migrateV2Contracts) on the way to v3, then it gains records (migrateV3Records) on the
+ * way to v4, then it gains depth/basis fields (migrateV4Depth) on the way to v5. A new
+ * migration step is a one-line addition here.
+ */
+const SNAPSHOT_MIGRATIONS: ReadonlyArray<[from: number, migrate: (state: unknown) => void]> = [
+  [1, migrateV1Log],
+  [2, migrateV2Contracts],
+  [3, migrateV3Records],
+  [4, migrateV4Depth],
+];
+
+/**
+ * Normalise an older snapshot envelope to the current version in place, walking
+ * `SNAPSHOT_MIGRATIONS` in order. Anything else is left untouched for the field-by-field
+ * validation in parseSnapshot to judge — which is why this must run *before* that
+ * validation, or a legitimately migrated doc would be rejected for lacking the fields it
+ * just gained.
  */
 function migrateSnapshotToCurrentVersion(p: ParsedSnapshot): void {
-  if (p && p.version === 1 && typeof p.state === "object" && p.state !== null) {
-    migrateV1Log(p.state);
-    p.version = 2;
-  }
-  if (p && p.version === 2 && typeof p.state === "object" && p.state !== null) {
-    migrateV2Contracts(p.state);
-    p.version = 3;
-  }
-  if (p && p.version === 3 && typeof p.state === "object" && p.state !== null) {
-    migrateV3Records(p.state);
-    p.version = 4;
-  }
-  if (p && p.version === 4 && typeof p.state === "object" && p.state !== null) {
-    migrateV4Depth(p.state);
-    p.version = 5;
+  if (!p) return;
+  for (const [from, migrate] of SNAPSHOT_MIGRATIONS) {
+    if (p.version === from && typeof p.state === "object" && p.state !== null) {
+      migrate(p.state);
+      p.version = from + 1;
+    }
   }
 }
 
