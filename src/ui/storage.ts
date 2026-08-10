@@ -159,6 +159,46 @@ export function calendarCells(save: StarlightSave, todayKey: string): CalendarCe
 
 const STORAGE_KEY = "starlight.save.v1";
 
+type ParsedSave = (Omit<Partial<StarlightSave>, "version"> & { version?: number }) | null;
+
+/** v1 → v2 (E2-5): the ledger predates feats — start the map empty. Mutates in place. */
+function migrateV1Feats(parsed: ParsedSave): void {
+  if (parsed && parsed.version === 1) {
+    (parsed as { feats?: unknown }).feats = {};
+    parsed.version = 2;
+  }
+}
+
+/**
+ * Field-by-field shape check on the save doc, not just a version match: a truncated write
+ * or a hand-edited entry would otherwise reach `save.days[key]` at boot and blank the app.
+ */
+function isValidSaveShape(parsed: ParsedSave): parsed is StarlightSave {
+  return (
+    !!parsed &&
+    parsed.version === 2 &&
+    typeof parsed.days === "object" &&
+    parsed.days !== null &&
+    typeof parsed.allTimePB === "number" &&
+    typeof parsed.daysFlownCount === "number" &&
+    typeof parsed.feats === "object" &&
+    parsed.feats !== null &&
+    !Array.isArray(parsed.feats)
+  );
+}
+
+/**
+ * Keep only registry ids with string dates — a hand-edited or future-version entry
+ * is dropped, not fatal (same silent-degradation stance as the rest of the doc).
+ */
+function sanitizeFeats(rawFeats: Record<string, string>): Record<string, string> {
+  const feats: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rawFeats)) {
+    if (FEAT_ID_SET.has(k) && typeof v === "string") feats[k] = v;
+  }
+  return feats;
+}
+
 /**
  * Read the save, or null on absence / parse error / unknown version / private-mode throw.
  * The shape is validated field by field, not just by version: a truncated write or a
@@ -168,33 +208,10 @@ export function loadSave(): StarlightSave | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as
-      (Omit<Partial<StarlightSave>, "version"> & { version?: number }) | null;
-    // v1 → v2 (E2-5): the ledger predates feats — start the map empty.
-    if (parsed && parsed.version === 1) {
-      (parsed as { feats?: unknown }).feats = {};
-      parsed.version = 2;
-    }
-    if (
-      !parsed ||
-      parsed.version !== 2 ||
-      typeof parsed.days !== "object" ||
-      parsed.days === null ||
-      typeof parsed.allTimePB !== "number" ||
-      typeof parsed.daysFlownCount !== "number" ||
-      typeof parsed.feats !== "object" ||
-      parsed.feats === null ||
-      Array.isArray(parsed.feats)
-    ) {
-      return null;
-    }
-    // Keep only registry ids with string dates — a hand-edited or future-version entry
-    // is dropped, not fatal (same silent-degradation stance as the rest of the doc).
-    const feats: Record<string, string> = {};
-    for (const [k, v] of Object.entries(parsed.feats)) {
-      if (FEAT_ID_SET.has(k) && typeof v === "string") feats[k] = v;
-    }
-    return { ...(parsed as StarlightSave), feats };
+    const parsed = JSON.parse(raw) as ParsedSave;
+    migrateV1Feats(parsed);
+    if (!isValidSaveShape(parsed)) return null;
+    return { ...parsed, feats: sanitizeFeats(parsed.feats) };
   } catch {
     return null;
   }
@@ -284,6 +301,16 @@ function stampsDay(bootISO: string, dateKey: string): boolean {
  * `dateKey` is derived from `bootDate` when the snapshot is written, so assert that
  * invariant when it is read — a mismatch would bank the result under another day's key.
  */
+/** The scalar core: live status, numeric day/seed, and a real node id to arrive on. */
+function hasValidStateCore(st: Partial<GameState>): boolean {
+  return (
+    st.status === "playing" &&
+    typeof st.day === "number" &&
+    typeof st.seed === "number" &&
+    NODE_IDS.includes(st.location as NodeId)
+  );
+}
+
 function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (typeof s !== "object" || s === null) return false;
   const st = s as Partial<GameState>;
@@ -295,12 +322,7 @@ function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (!isValidContracts(st.contracts)) return false;
   if (!hasValidMissionFields(st.activeMissions)) return false;
   if (!isValidRecords(st.records)) return false;
-  return (
-    st.status === "playing" &&
-    typeof st.day === "number" &&
-    typeof st.seed === "number" &&
-    NODE_IDS.includes(st.location as NodeId)
-  );
+  return hasValidStateCore(st);
 }
 
 /** A v1 log line is a bare string; wrap it as a neutral entry so an in-progress run survives the upgrade. */
