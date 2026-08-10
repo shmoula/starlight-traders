@@ -144,8 +144,10 @@ function chooseEventOption(kind: Archetype, ids: string[]): string {
 
 /**
  * Distinct single-jump loops on `day` where a first-hold load (≤ MARKET_DEPTH units, so
- * every unit sells at list) turns a profit net of fuel and the destination dock fee.
- * The E2-1 gate: depth must decay monoculture without collapsing the map into one lane.
+ * every unit sells at list) turns a profit net of fuel and the destination dock fee,
+ * measured at list price before the destination's sale tax (a coarse route-choice floor,
+ * not a true-proceeds oracle). The E2-1 gate: depth must decay monoculture without
+ * collapsing the map into one lane.
  */
 export function viableLoops(seed: number, day: number): number {
   let count = 0;
