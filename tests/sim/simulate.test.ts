@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { Archetype, runArchetype } from "../../src/sim/simulate";
+import { readFileSync } from "node:fs";
+import { Archetype, runArchetype, sweepSummary } from "../../src/sim/simulate";
 
 const SEEDS = Array.from({ length: 100 }, (_, i) => i + 1);
 const ALL: Archetype[] = ["cautious", "balanced", "greedy"];
@@ -36,5 +37,15 @@ describe("bounded-run balance sweep (E0-1 acceptance)", () => {
       cautious += runArchetype("cautious", seed).peakNetWorth;
     }
     expect(greedy).toBeGreaterThan(cautious);
+  });
+});
+
+const BASELINE = JSON.parse(
+  readFileSync(new URL("./fixtures/pre-depth-baseline.json", import.meta.url), "utf8")
+);
+
+describe("pre-depth baseline (E2-1) — replaced by decay gates when depth lands", () => {
+  it("sweep matches the recorded baseline exactly", () => {
+    expect(sweepSummary(SEEDS)).toEqual(BASELINE);
   });
 });

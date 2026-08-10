@@ -1,0 +1,29 @@
+[
+  {
+    "kind": "cautious",
+    "audited": 98,
+    "lost": 2,
+    "retired": 0,
+    "peakSum": 0,
+    "scoreSum": 58800,
+    "netWorthSum": -190880
+  },
+  {
+    "kind": "balanced",
+    "audited": 100,
+    "lost": 0,
+    "retired": 0,
+    "peakSum": 964047,
+    "scoreSum": 1021128,
+    "netWorthSum": 961128
+  },
+  {
+    "kind": "greedy",
+    "audited": 72,
+    "lost": 28,
+    "retired": 0,
+    "peakSum": 1350101,
+    "scoreSum": 1096619,
+    "netWorthSum": 987678
+  }
+]

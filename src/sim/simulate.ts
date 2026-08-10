@@ -19,6 +19,9 @@ export interface SimResult {
   daysSurvived: number;
   peakNetWorth: number;
   score: number;
+  /** runEnd.netWorthAtEnd (0 if somehow absent) — the decay gates' metric: cautious's
+   *  score is pure survival bonus and its peak sits at 0, so only this shows trading. */
+  netWorthAtEnd: number;
   status: GameState["status"];
   /** Days whose highlight is 💰 — observability for E1-2's BIG_TRADE_CR tuning. */
   bigTradeDays: number;
@@ -57,6 +60,7 @@ function toResult(s: GameState): SimResult {
     daysSurvived: s.runEnd?.daysSurvived ?? Math.min(s.day, 12),
     peakNetWorth: s.peakNetWorth,
     score: s.runEnd?.score ?? 0,
+    netWorthAtEnd: s.runEnd?.netWorthAtEnd ?? 0,
     status: s.status,
     bigTradeDays: Object.values(s.dayHighlights).filter((k) => k === "bigTrade").length,
   };
@@ -135,4 +139,39 @@ function chooseEventOption(kind: Archetype, ids: string[]): string {
   if (ids.includes("board")) return kind === "greedy" ? "board" : "leave";
   if (ids.includes("comply")) return "comply";
   return ids[0];
+}
+
+export interface ArchetypeSummary {
+  kind: Archetype;
+  audited: number;
+  lost: number;
+  retired: number;
+  peakSum: number;
+  scoreSum: number;
+  netWorthSum: number;
+}
+
+/** Aggregate sweep outcomes per archetype — the balance gates' one shared shape. */
+export function sweepSummary(seeds: readonly number[]): ArchetypeSummary[] {
+  return (["cautious", "balanced", "greedy"] as Archetype[]).map((kind) => {
+    const sum: ArchetypeSummary = {
+      kind,
+      audited: 0,
+      lost: 0,
+      retired: 0,
+      peakSum: 0,
+      scoreSum: 0,
+      netWorthSum: 0,
+    };
+    for (const seed of seeds) {
+      const r = runArchetype(kind, seed);
+      sum.peakSum += r.peakNetWorth;
+      sum.scoreSum += r.score;
+      sum.netWorthSum += r.netWorthAtEnd;
+      if (r.status === "audited") sum.audited++;
+      else if (r.status === "lost") sum.lost++;
+      else sum.retired++;
+    }
+    return sum;
+  });
 }
