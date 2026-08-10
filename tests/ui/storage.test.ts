@@ -235,6 +235,7 @@ describe("save v2 (E2-5 feats)", () => {
           [KEY]: good,
           "2026-07-23": { attempts: 1, bestScore: "oops", bestOutcome: "audited" }, // non-numeric
           "2026-07-24": { attempts: 1, bestScore: 10, bestOutcome: "??" }, // unknown outcome
+          "2026-02-31": good, // impossible calendar date
           "not-a-date": good,
         },
         allTimePB: 250,

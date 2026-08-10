@@ -203,6 +203,17 @@ const RUN_END_STATUSES = new Set<unknown>(["lost", "audited", "retired"]);
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
+ * A real UTC calendar date, not just the `YYYY-MM-DD` shape: the round-trip rejects
+ * impossible keys like `2026-02-31` (which `Date` rolls forward to March) so they never
+ * enter the ledger. Mirrors the round-trip stance in stampsDay.
+ */
+function isRealDateKey(k: string): boolean {
+  if (!DATE_KEY.test(k)) return false;
+  const d = new Date(`${k}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === k;
+}
+
+/**
  * A persisted day record must carry finite numeric scores/attempts and known outcomes —
  * a corrupt one (e.g. non-numeric `bestScore`) would otherwise reach `logbookPanel`'s
  * `.toLocaleString()` and blank the Day-1 station.
@@ -227,7 +238,7 @@ function isValidDayRecord(v: unknown): v is DayRecord {
 function sanitizeDays(rawDays: Record<string, unknown>): Record<string, DayRecord> {
   const days: Record<string, DayRecord> = {};
   for (const [k, v] of Object.entries(rawDays)) {
-    if (DATE_KEY.test(k) && isValidDayRecord(v)) days[k] = v;
+    if (isRealDateKey(k) && isValidDayRecord(v)) days[k] = v;
   }
   return days;
 }
