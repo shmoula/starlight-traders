@@ -140,36 +140,38 @@ export function commodityName(id: CommodityId): string {
   return COMMODITY_BY_ID[id].name;
 }
 
+/** Product of the station's produce/demand price modifiers for `commodity` (no noise).
+ *  The single source of truth shared by getPrice and baselinePrice, so a change to how a
+ *  station's speciality bends its prices can't silently desync rewards from spot prices. */
+function stationPriceModifier(node: NodeId, commodity: CommodityId): number {
+  const station = NODES[node];
+  let modifier = 1;
+  if (station.produces.includes(commodity)) modifier *= PRODUCE_PRICE_MULTIPLIER;
+  if (station.demands.includes(commodity)) modifier *= DEMAND_PRICE_MULTIPLIER;
+  return modifier;
+}
+
 /**
  * Deterministic local price for a commodity at a node on a given day.
  * Produced -> discounted; demanded -> premium; plus seeded daily noise.
  */
 export function getPrice(seed: number, day: number, node: NodeId, commodity: CommodityId): number {
   const c = COMMODITY_BY_ID[commodity];
-  const station = NODES[node];
   const rng = mulberry32(
     hashSeed(seed, day, node.length, commodity.length, node.charCodeAt(0), commodity.charCodeAt(0))
   );
   const noise = (rng() * 2 - 1) * c.volatility; // -vol..+vol
-  let modifier = 1 + noise;
-  if (station.produces.includes(commodity)) modifier *= PRODUCE_PRICE_MULTIPLIER;
-  if (station.demands.includes(commodity)) modifier *= DEMAND_PRICE_MULTIPLIER;
-  const price = Math.round(c.basePrice * modifier);
-  return Math.max(1, price);
+  return Math.max(1, Math.round(c.basePrice * (1 + noise) * stationPriceModifier(node, commodity)));
 }
 
 /**
  * The day-independent price of `commodity` at `node`: basePrice under the station's
  * produce/demand modifiers with the noise term removed (E2-2f). Mission rewards anchor
  * here, so a volatile offer-day spot can never lock a stale premium into a contract.
- * This is exactly `getPrice` with noise = 0 (modifier starts at 1, same modifiers,
- * same rounding/floor), so it is the noise-free twin of the price function.
+ * Shares `stationPriceModifier` with getPrice (this is getPrice with noise = 0), so the
+ * reward anchor and the spot price can't silently diverge on a modifier change.
  */
 export function baselinePrice(node: NodeId, commodity: CommodityId): number {
   const c = COMMODITY_BY_ID[commodity];
-  const station = NODES[node];
-  let modifier = 1;
-  if (station.produces.includes(commodity)) modifier *= PRODUCE_PRICE_MULTIPLIER;
-  if (station.demands.includes(commodity)) modifier *= DEMAND_PRICE_MULTIPLIER;
-  return Math.max(1, Math.round(c.basePrice * modifier));
+  return Math.max(1, Math.round(c.basePrice * stationPriceModifier(node, commodity)));
 }
