@@ -13,9 +13,12 @@ import {
   NodeId,
   RunEnd,
   RunEndStatus,
+  RunRecords,
+  emptyRecords,
 } from "../engine/types";
 import { NODE_IDS } from "../engine/world";
-import { utcDateKey } from "./share";
+import { FEATS, FeatId, REGULAR_DAYS_FLOWN } from "../engine/feats";
+import { formatDateLabel, utcDateKey } from "./share";
 
 export interface DayRecord {
   attempts: number; // completed runs this UTC day
@@ -26,14 +29,16 @@ export interface DayRecord {
 }
 
 export interface StarlightSave {
-  version: 1;
+  version: 2;
   days: Record<string, DayRecord>; // key = UTC "YYYY-MM-DD"
   allTimePB: number;
   daysFlownCount: number;
+  /** Feat id → UTC dateKey first earned (E2-5). First earn wins; never removed. */
+  feats: Record<string, string>;
 }
 
 export function emptySave(): StarlightSave {
-  return { version: 1, days: {}, allTimePB: 0, daysFlownCount: 0 };
+  return { version: 2, days: {}, allTimePB: 0, daysFlownCount: 0, feats: {} };
 }
 
 /** The run about to start is The Daily until a run has *completed* today. */
@@ -92,7 +97,151 @@ export function recordRunEnd(save: StarlightSave, dateKey: string, runEnd: RunEn
   };
 }
 
+const FEAT_ID_SET = new Set<string>(FEATS.map((f) => f.id));
+
+/**
+ * Fold this run's feats into the save. Ledger feats are judged here — they are
+ * cross-run facts the engine never sees — so call this AFTER recordRunEnd, on the
+ * save that already contains this run. `newFeats` (ids new to this save) drives
+ * every unlock surface. Pure; returns the same save object when nothing is new.
+ */
+export function recordFeats(
+  save: StarlightSave,
+  dateKey: string,
+  runFeats: FeatId[]
+): { save: StarlightSave; newFeats: FeatId[] } {
+  const earned = [...runFeats];
+  if (Object.keys(save.days).length >= 1) earned.push("first-flight");
+  if (save.daysFlownCount >= REGULAR_DAYS_FLOWN) earned.push("regular");
+  const newFeats = earned.filter((id) => save.feats[id] === undefined);
+  if (newFeats.length === 0) return { save, newFeats };
+  const feats = { ...save.feats };
+  for (const id of newFeats) feats[id] = dateKey;
+  return { save: { ...save, feats }, newFeats };
+}
+
+// --- E2-5c: Logbook calendar ---------------------------------------------------------
+
+export interface CalendarCell {
+  dateKey: string; // UTC "YYYY-MM-DD"
+  label: string; // "Aug 3" — same formatter as the header/share date
+  attempts: number; // 0 = not flown
+  best: number;
+  outcome?: RunEndStatus;
+  isToday: boolean;
+}
+
+export const CALENDAR_DAYS = 28;
+
+/**
+ * The last 28 UTC days ending on `todayKey`, joined with the save ledger — a strip,
+ * not a month grid (no weekday alignment). Pure: "today" comes in as the same UTC
+ * dateKey the ledger is keyed on, so there is no second clock to disagree with.
+ */
+export function calendarCells(save: StarlightSave, todayKey: string): CalendarCell[] {
+  const end = new Date(`${todayKey}T00:00:00Z`).getTime();
+  const cells: CalendarCell[] = [];
+  for (let i = CALENDAR_DAYS - 1; i >= 0; i--) {
+    const d = new Date(end - i * 86_400_000);
+    const dateKey = d.toISOString().slice(0, 10);
+    const rec = save.days[dateKey];
+    cells.push({
+      dateKey,
+      label: formatDateLabel(d),
+      attempts: rec?.attempts ?? 0,
+      best: rec?.bestScore ?? 0,
+      outcome: rec?.bestOutcome,
+      isToday: dateKey === todayKey,
+    });
+  }
+  return cells;
+}
+
 const STORAGE_KEY = "starlight.save.v1";
+
+type ParsedSave = (Omit<Partial<StarlightSave>, "version"> & { version?: number }) | null;
+
+/** v1 → v2 (E2-5): the ledger predates feats — start the map empty. Mutates in place. */
+function migrateV1Feats(parsed: ParsedSave): void {
+  if (parsed && parsed.version === 1) {
+    (parsed as { feats?: unknown }).feats = {};
+    parsed.version = 2;
+  }
+}
+
+/**
+ * Field-by-field shape check on the save doc, not just a version match: a truncated write
+ * or a hand-edited entry would otherwise reach `save.days[key]` at boot and blank the app.
+ */
+function isValidSaveShape(parsed: ParsedSave): parsed is StarlightSave {
+  return (
+    !!parsed &&
+    parsed.version === 2 &&
+    typeof parsed.days === "object" &&
+    parsed.days !== null &&
+    typeof parsed.allTimePB === "number" &&
+    typeof parsed.daysFlownCount === "number" &&
+    typeof parsed.feats === "object" &&
+    parsed.feats !== null &&
+    !Array.isArray(parsed.feats)
+  );
+}
+
+/**
+ * Keep only registry ids with string dates — a hand-edited or future-version entry
+ * is dropped, not fatal (same silent-degradation stance as the rest of the doc).
+ */
+function sanitizeFeats(rawFeats: Record<string, string>): Record<string, string> {
+  const feats: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rawFeats)) {
+    if (FEAT_ID_SET.has(k) && typeof v === "string") feats[k] = v;
+  }
+  return feats;
+}
+
+const RUN_END_STATUSES = new Set<unknown>(["lost", "audited", "retired"]);
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A real UTC calendar date, not just the `YYYY-MM-DD` shape: the round-trip rejects
+ * impossible keys like `2026-02-31` (which `Date` rolls forward to March) so they never
+ * enter the ledger. Mirrors the round-trip stance in stampsDay.
+ */
+function isRealDateKey(k: string): boolean {
+  if (!DATE_KEY.test(k)) return false;
+  const d = new Date(`${k}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === k;
+}
+
+/**
+ * A persisted day record must carry finite numeric scores/attempts and known outcomes —
+ * a corrupt one (e.g. non-numeric `bestScore`) would otherwise reach `logbookPanel`'s
+ * `.toLocaleString()` and blank the Day-1 station.
+ */
+function isValidDayRecord(v: unknown): v is DayRecord {
+  if (typeof v !== "object" || v === null) return false;
+  const r = v as Partial<DayRecord>;
+  return (
+    Number.isFinite(r.attempts) &&
+    Number.isFinite(r.bestScore) &&
+    Number.isFinite(r.firstTryScore) &&
+    RUN_END_STATUSES.has(r.bestOutcome) &&
+    RUN_END_STATUSES.has(r.firstTryOutcome)
+  );
+}
+
+/**
+ * Drop any date key that isn't a real "YYYY-MM-DD" or whose record is malformed —
+ * same silent-degradation stance as sanitizeFeats, keeping corrupt entries away from
+ * calendarCells/logbookPanel rather than letting one bad write blank the app.
+ */
+function sanitizeDays(rawDays: Record<string, unknown>): Record<string, DayRecord> {
+  const days: Record<string, DayRecord> = {};
+  for (const [k, v] of Object.entries(rawDays)) {
+    if (isRealDateKey(k) && isValidDayRecord(v)) days[k] = v;
+  }
+  return days;
+}
 
 /**
  * Read the save, or null on absence / parse error / unknown version / private-mode throw.
@@ -103,18 +252,10 @@ export function loadSave(): StarlightSave | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StarlightSave> | null;
-    if (
-      !parsed ||
-      parsed.version !== 1 ||
-      typeof parsed.days !== "object" ||
-      parsed.days === null ||
-      typeof parsed.allTimePB !== "number" ||
-      typeof parsed.daysFlownCount !== "number"
-    ) {
-      return null;
-    }
-    return parsed as StarlightSave;
+    const parsed = JSON.parse(raw) as ParsedSave;
+    migrateV1Feats(parsed);
+    if (!isValidSaveShape(parsed)) return null;
+    return { ...parsed, days: sanitizeDays(parsed.days), feats: sanitizeFeats(parsed.feats) };
   } catch {
     return null;
   }
@@ -138,7 +279,7 @@ export function persist(save: StarlightSave): void {
 // and unit-tested; the wrappers degrade silently.
 
 export interface RunSnapshot {
-  version: 3;
+  version: 4;
   dateKey: string; // UTC "YYYY-MM-DD" of the run (from state.bootDate)
   label: "The Daily" | "Practice";
   state: GameState;
@@ -204,6 +345,16 @@ function stampsDay(bootISO: string, dateKey: string): boolean {
  * `dateKey` is derived from `bootDate` when the snapshot is written, so assert that
  * invariant when it is read — a mismatch would bank the result under another day's key.
  */
+/** The scalar core: live status, numeric day/seed, and a real node id to arrive on. */
+function hasValidStateCore(st: Partial<GameState>): boolean {
+  return (
+    st.status === "playing" &&
+    typeof st.day === "number" &&
+    typeof st.seed === "number" &&
+    NODE_IDS.includes(st.location as NodeId)
+  );
+}
+
 function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (typeof s !== "object" || s === null) return false;
   const st = s as Partial<GameState>;
@@ -214,12 +365,8 @@ function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (!isValidBoughtHere(st.boughtHere)) return false;
   if (!isValidContracts(st.contracts)) return false;
   if (!hasValidMissionFields(st.activeMissions)) return false;
-  return (
-    st.status === "playing" &&
-    typeof st.day === "number" &&
-    typeof st.seed === "number" &&
-    NODE_IDS.includes(st.location as NodeId)
-  );
+  if (!isValidRecords(st.records)) return false;
+  return hasValidStateCore(st);
 }
 
 /** A v1 log line is a bare string; wrap it as a neutral entry so an in-progress run survives the upgrade. */
@@ -249,6 +396,15 @@ function migrateV2Contracts(state: unknown): void {
   if (typeof state === "object" && state !== null) {
     if (st.boughtHere === undefined) st.boughtHere = { water: 0, parts: 0, luxury: 0 };
     if (st.contracts === undefined) st.contracts = { delivered: 0, expired: 0, forfeitedCr: 0 };
+  }
+}
+
+/** v3 → v4 (E2-5): pre-round runs carry no records — default them. A migrated run
+ *  silently can't earn moment feats that day; run-end and ledger feats still can. */
+function migrateV3Records(state: unknown): void {
+  const st = state as { records?: unknown };
+  if (typeof state === "object" && state !== null && st.records === undefined) {
+    st.records = emptyRecords();
   }
 }
 
@@ -322,13 +478,30 @@ function hasValidMissionFields(missions: unknown): boolean {
   );
 }
 
+/** Records feed `arrive`'s visited lookup and the feat predicates — validate like the
+ *  contract ledger: finite non-negative counters, real booleans, known node ids. */
+const RECORD_COUNTER_KEYS = ["damageTaken", "pirateAmbushes"];
+function isValidRecords(r: unknown): boolean {
+  if (!allNonNegativeNumbers(r, RECORD_COUNTER_KEYS)) return false;
+  const rec = r as Partial<RunRecords>;
+  if (typeof rec.vergeAtLowHull !== "boolean" || typeof rec.fullHold !== "boolean") return false;
+  if (
+    rec.debtClearedDay !== undefined &&
+    !(Number.isSafeInteger(rec.debtClearedDay) && rec.debtClearedDay >= 1)
+  ) {
+    return false;
+  }
+  return Array.isArray(rec.visited) && rec.visited.every((n) => NODE_IDS.includes(n as NodeId));
+}
+
 type ParsedSnapshot = (Partial<Omit<RunSnapshot, "version">> & { version?: number }) | null;
 
 /**
  * Normalise an older snapshot envelope to the current version in place. The steps are
- * chained and ordered, so a v1 doc passes through both: its bare-string log is wrapped
- * (migrateV1Log) on the way to v2, then it gains contract fields (migrateV2Contracts) on
- * the way to v3. Anything else is left untouched for the field-by-field validation in
+ * chained and ordered, so a v1 doc passes through all: its bare-string log is wrapped
+ * (migrateV1Log) on the way to v2, it gains contract fields (migrateV2Contracts) on the
+ * way to v3, then it gains records (migrateV3Records) on the way to v4. Anything else is
+ * left untouched for the field-by-field validation in
  * parseSnapshot to judge — which is why this must run *before* that validation, or a
  * legitimately migrated doc would be rejected for lacking the fields it just gained.
  */
@@ -340,6 +513,10 @@ function migrateSnapshotToCurrentVersion(p: ParsedSnapshot): void {
   if (p && p.version === 2 && typeof p.state === "object" && p.state !== null) {
     migrateV2Contracts(p.state);
     p.version = 3;
+  }
+  if (p && p.version === 3 && typeof p.state === "object" && p.state !== null) {
+    migrateV3Records(p.state);
+    p.version = 4;
   }
 }
 
@@ -355,7 +532,7 @@ export function parseSnapshot(raw: string | null, todayKey: string): RunSnapshot
     migrateSnapshotToCurrentVersion(p);
     if (
       !p ||
-      p.version !== 3 ||
+      p.version !== 4 ||
       p.dateKey !== todayKey ||
       (p.label !== "The Daily" && p.label !== "Practice") ||
       typeof p.logMarkBeforeJump !== "number" ||

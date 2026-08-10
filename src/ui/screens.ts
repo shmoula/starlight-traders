@@ -37,6 +37,8 @@ import { bulletin } from "../engine/bulletin";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 import { starMap } from "./map";
 import { runStrip, stripSummary } from "./share";
+import type { CalendarCell } from "./storage";
+import { FeatDef, FeatId, featDef } from "../engine/feats";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
 
@@ -48,7 +50,19 @@ export interface RunMeta {
   runLabel: "The Daily" | "Practice";
   dateLabel: string;
   bootStats?: { attemptsToday: number; bestToday: number | null; allTimePB: number };
-  debrief?: { pbDelta: number; isNewPB: boolean; prevBest: number; isFirstEver: boolean };
+  debrief?: {
+    pbDelta: number;
+    isNewPB: boolean;
+    prevBest: number;
+    isFirstEver: boolean;
+    /** Feats first earned by this run (E2-5d) — drives the unlock lines. */
+    newFeats?: FeatId[];
+  };
+  /** Day-1 Logbook data (E2-5c) — save-derived in main.ts so screens stay pure. */
+  logbook?: {
+    cells: CalendarCell[];
+    feats: { def: FeatDef; earned: boolean }[];
+  };
 }
 
 /**
@@ -268,6 +282,47 @@ function logPanel(s: GameState): string {
   );
 }
 
+/** The day-1 Logbook (E2-5c): 4-week calendar strip + feat roster. The grid is
+ *  aria-hidden decoration — the sr-only summary carries its facts (map precedent). */
+function logbookPanel(lb: NonNullable<RunMeta["logbook"]>): string {
+  const flownCells = lb.cells.filter((c) => c.attempts > 0);
+  const best = flownCells.reduce((m, c) => (c.best > m.best ? c : m), flownCells[0]);
+  const summary = flownCells.length
+    ? `Flown ${flownCells.length} of the last ${lb.cells.length} days · best ${best.best.toLocaleString()} on ${best.label}.`
+    : `No runs in the last ${lb.cells.length} days — today's board is open.`;
+  const cells = lb.cells
+    .map((c) => {
+      const tone =
+        c.attempts === 0
+          ? "cal-cell--off"
+          : c.outcome === "lost"
+            ? "cal-cell--lost"
+            : "cal-cell--banked";
+      const today = c.isToday ? " cal-cell--today" : "";
+      const title =
+        c.attempts === 0
+          ? `${c.label} — not flown`
+          : `${c.label} — best ${c.best.toLocaleString()} · ${c.attempts} attempt${c.attempts === 1 ? "" : "s"}`;
+      return `<span class="cal-cell ${tone}${today}" title="${title}"></span>`;
+    })
+    .join("");
+  const earned = lb.feats.filter((f) => f.earned).length;
+  const chips = lb.feats
+    .map((f) =>
+      f.earned
+        ? `<li class="feat-chip feat-chip--earned">★ ${f.def.name}</li>`
+        : `<li class="feat-chip">☆ ${f.def.name} — <span class="feat-hint">${f.def.hint}</span></li>`
+    )
+    .join("");
+  return panel(
+    "Logbook",
+    `<p class="st-sr-only">${summary}</p>
+    <div class="logbook-cal" aria-hidden="true">${cells}</div>
+    <div class="st-kv"><span class="st-kv__label">Feats</span><span class="st-kv__value st-num">${earned}/${lb.feats.length}</span></div>
+    <ul class="feat-roster">${chips}</ul>`
+  );
+}
+
 function navigatorPanel(s: GameState): string {
   const banner =
     s.fuel < cheapestJumpCost(s.location)
@@ -394,6 +449,23 @@ function tradeHubPanel(s: GameState): string {
     })
     .join("");
 
+  // E2-2g: hauled units settle into contracts in accept order (settleMissions iterates
+  // activeMissions). That order only matters when two active contracts want the same
+  // commodity — badge exactly that case, so the invisible rule reads as the decision
+  // it already is: accept the whale first.
+  const wanters = new Map<CommodityId, number>();
+  for (const m of s.activeMissions) wanters.set(m.commodity, (wanters.get(m.commodity) ?? 0) + 1);
+  const prioSeen = new Map<CommodityId, number>();
+  const PRIO_GLYPHS = ["①", "②", "③", "④", "⑤"];
+  // Called once per mission in render order (= accept order), so nth counts up correctly.
+  const settlementBadge = (m: Mission): string => {
+    if ((wanters.get(m.commodity) ?? 0) < 2) return "";
+    const nth = (prioSeen.get(m.commodity) ?? 0) + 1;
+    prioSeen.set(m.commodity, nth);
+    const glyph = PRIO_GLYPHS[nth - 1] ?? `#${nth}`;
+    return ` <span class="contract-prio st-num" title="Hauled ${commodityName(m.commodity)} settles into contracts in the order they were accepted">${glyph}${nth === 1 ? " settles first" : ""}</span>`;
+  };
+
   const active = s.activeMissions
     .map((m) => {
       const have = s.cargo[m.commodity];
@@ -443,7 +515,8 @@ function tradeHubPanel(s: GameState): string {
         : ready
           ? `<span class="good">✓ carrying ${have}/${m.qty}${provenance} — ready, ${readyBtn}</span>`
           : `<span class="bad">✗ carrying ${have}/${m.qty} — ${shortfallBtn}</span>`;
-      return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}${daysChip}<br>${hint}</li>`;
+      const prio = settlementBadge(m);
+      return `<li>${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}${daysChip}${prio}<br>${hint}</li>`;
     })
     .join("");
 
@@ -574,6 +647,7 @@ export function stationScreen(
       <div class="st-shell__rail st-shell__rail--right rail-right">
         ${logisticsPanel(s, fuelClass, retireArmed)}
         ${logPanel(s)}
+        ${s.day === 1 && meta?.logbook ? logbookPanel(meta.logbook) : ""}
       </div>
     </div>
   `;
@@ -642,6 +716,20 @@ function pbDeltaLine(d: NonNullable<RunMeta["debrief"]>, score: number, banked: 
   return `<p class="run-end__pb">${sign} vs your best (${d.prevBest.toLocaleString()})</p>`;
 }
 
+/** Run-end unlock lines: up to three "★ Feat unlocked: {name}" lines, then a "+N more"
+ *  overflow (E2-5d). Renders nothing when no feat was first earned this run. */
+function featUnlockLines(meta?: RunMeta): string {
+  const newFeats = meta?.debrief?.newFeats ?? [];
+  if (newFeats.length === 0) return "";
+  const lines = newFeats
+    .slice(0, 3)
+    .map((id) => `<p class="run-end__feat">★ Feat unlocked: ${featDef(id).name}</p>`)
+    .join("");
+  const overflow =
+    newFeats.length > 3 ? `<p class="run-end__feat">+${newFeats.length - 3} more</p>` : "";
+  return `<div class="run-end__feats">${lines}${overflow}</div>`;
+}
+
 export function runEndScreen(
   s: GameState,
   r: RunEnd,
@@ -653,6 +741,7 @@ export function runEndScreen(
     ? `<p class="run-end__id">🚀 Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}</p>`
     : "";
   const pb = meta?.debrief ? pbDeltaLine(meta.debrief, r.score, banked) : "";
+  const featLines = featUnlockLines(meta);
   const haul = s.biggestPayday
     ? `<div class="st-kv"><span class="st-kv__label">Best haul</span><span class="st-kv__value st-num">+${cr(s.biggestPayday.amount)} · ${s.biggestPayday.label}</span></div>`
     : "";
@@ -693,6 +782,7 @@ export function runEndScreen(
             ${contractsRow}
           </div>
           ${pb}
+          ${featLines}
           <p class="score st-num">Score: ${r.score.toLocaleString()}</p>
           <p class="run-end__strip">
             <span class="st-sr-only"

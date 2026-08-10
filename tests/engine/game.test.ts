@@ -20,11 +20,17 @@ import {
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
 import { crewName } from "../../src/engine/fiction";
-import { canEscape, dockingFee, escapeCost, netWorth } from "../../src/engine/economy";
+import {
+  canEscape,
+  dockingFee,
+  escapeCost,
+  netWorth,
+  BIG_TRADE_CR,
+} from "../../src/engine/economy";
 import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
-import { SALVAGE_HAZARD_DIVISOR } from "../../src/engine/preview";
+import { SALVAGE_HAZARD_DIVISOR, fleeDamage } from "../../src/engine/preview";
 
 describe("createGame goal line", () => {
   it("opens the log by stating the stake, the deadline, and the shared sky", () => {
@@ -902,11 +908,11 @@ describe("proportional settlement (E2-2d)", () => {
     expect(s.contracts.delivered).toBe(2);
   });
 
-  it("the delivery payday records the actual inflow, not the face reward", () => {
+  it("the delivery payday records the earned payout, not the returned deposit", () => {
     let s = acceptMission(createGame(42), mission());
     s = { ...s, fuel: 20, cargo: { ...s.cargo, water: 10 } };
     s = arrive(jump(s, "kiruna").state).state;
-    expect(s.biggestPayday!.amount).toBe(550); // reward 500 + deposit 50
+    expect(s.biggestPayday!.amount).toBe(500); // E2-2j: payout 500, the 50cr bond back is not a payday
   });
 
   it("two missions settling in ONE call share the hauled pool", () => {
@@ -1221,5 +1227,116 @@ describe("log day stamps (P3-1a)", () => {
     const j = jump(s, "vulcan");
     // The docking-fee line is written after the day advances.
     expect(j.state.log[j.state.log.length - 1].day).toBe(2);
+  });
+});
+
+describe("run records (E2-5 moment facts)", () => {
+  const PIRATE_EVENT: GameEvent = {
+    kind: "pirates",
+    title: "",
+    description: "",
+    choices: [
+      { id: "pay", label: "" },
+      { id: "flee", label: "" },
+    ],
+  };
+
+  it("a fresh run starts with empty records and terra visited", () => {
+    const s = createGame(42);
+    expect(s.records).toEqual({
+      vergeAtLowHull: false,
+      visited: ["terra"],
+      damageTaken: 0,
+      fullHold: false,
+      pirateAmbushes: 0,
+    });
+  });
+
+  it("payDebt records the day the books first hit zero — once", () => {
+    const s = { ...createGame(42), credits: 5000, debt: 100, day: 4 };
+    const cleared = payDebt(s, 200);
+    expect(cleared.debt).toBe(0);
+    expect(cleared.records.debtClearedDay).toBe(4);
+    // paying again (a no-op) must not move the recorded day
+    expect(payDebt({ ...cleared, day: 6 }, 200).records.debtClearedDay).toBe(4);
+  });
+
+  it("a partial payment does not record a cleared day", () => {
+    const s = { ...createGame(42), credits: 5000, debt: 900 };
+    expect(payDebt(s, 200).records.debtClearedDay).toBeUndefined();
+  });
+
+  it("arrive() adds each station to visited exactly once", () => {
+    const s = { ...createGame(42), location: "kiruna" as const };
+    const once = arrive(s).state;
+    expect(once.records.visited).toEqual(["terra", "kiruna"]);
+    expect(arrive(once).state.records.visited).toEqual(["terra", "kiruna"]);
+  });
+
+  it("arrive() at the Verge below the threshold flags vergeAtLowHull", () => {
+    const s = { ...createGame(42), location: "verge" as const, hull: 15 };
+    expect(arrive(s).state.records.vergeAtLowHull).toBe(true);
+  });
+
+  it("arrive() at the Verge with healthy hull does not flag it", () => {
+    const s = { ...createGame(42), location: "verge" as const };
+    expect(arrive(s).state.records.vergeAtLowHull).toBe(false);
+  });
+
+  it("fleeing pirates tallies damage and the ambush", () => {
+    const s = createGame(42);
+    const fled = resolveChoice(s, PIRATE_EVENT, "flee");
+    expect(fled.records.damageTaken).toBe(fleeDamage(s.day));
+    expect(fled.records.pirateAmbushes).toBe(1);
+  });
+
+  it("paying pirates tallies the ambush but no damage", () => {
+    const paid = resolveChoice(createGame(42), PIRATE_EVENT, "pay");
+    expect(paid.records.pirateAmbushes).toBe(1);
+    expect(paid.records.damageTaken).toBe(0);
+  });
+
+  it("filling the hold flags fullHold", () => {
+    const s = { ...createGame(42), credits: 100_000 };
+    const full = buy(s, "water", s.cargoCapacity);
+    expect(full.records.fullHold).toBe(true);
+    expect(buy(s, "water", 1).records.fullHold).toBe(false);
+  });
+});
+
+describe("E2-2j: payday stats exclude the returned deposit", () => {
+  const mission = (reward: number, deposit: number): Mission => ({
+    id: "m-e22j",
+    commodity: "water",
+    qty: 2,
+    destination: "terra",
+    reward,
+    deposit,
+    deadlineDay: 10,
+  });
+  const carrying = (m: Mission): GameState => ({
+    ...createGame(42),
+    activeMissions: [m],
+    cargo: { ...createGame(42).cargo, water: m.qty },
+  });
+
+  it("biggestPayday reads the payout, not payout + deposit", () => {
+    const m = mission(500, 50);
+    const done = deliver(carrying(m));
+    expect(done.biggestPayday?.amount).toBe(500);
+  });
+
+  it("an inflow over BIG_TRADE_CR on the refund alone marks delivery, not bigTrade", () => {
+    const m = mission(BIG_TRADE_CR - 20, 60); // payout 880 < 900, inflow 940 ≥ 900
+    const done = deliver(carrying(m));
+    expect(done.dayHighlights[done.day]).toBe("delivery");
+  });
+
+  it("the log line still reports the full credit movement", () => {
+    const m = mission(500, 50);
+    const done = deliver(carrying(m));
+    const line = done.log[done.log.length - 1];
+    expect(line.msg).toContain("+550cr");
+    expect(line.delta).toBe(550);
   });
 });

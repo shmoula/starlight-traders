@@ -49,7 +49,7 @@ Sequence decided 2026-08-01: **round 1 = E2-2 + P2-3**, then texture (E2-4 → E
 E2-5), then **E2-1 dead last** — the star map changes route viability, so E2-1's
 sim gate only measures the real game after E2-3 lands.
 
-**Round 1 closed 2026-08-02; round 2 closed 2026-08-04; round 3 (E2-3 star map) closed 2026-08-07.** Next up: E2-5 (achievements-lite + calendar), then E2-1 last (sim-gated, bundling P2-2's cost-basis half and E2-2f).
+**Round 1 closed 2026-08-02; round 2 closed 2026-08-04; round 3 (E2-3 star map) closed 2026-08-07; round 4 (E2-5 + E2-2g + E2-2j) closed 2026-08-10.** Next up: E2-1 last (sim-gated, bundling P2-2's cost-basis half and E2-2f).
 
 | Item     | What                                                                            | Notes                                                                                                                                                                    |
 | :------- | :------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -57,7 +57,7 @@ sim gate only measures the real game after E2-3 lands.
 | **P2-3** | Contract feasibility card (cost/fuel/profit/days-left)                          | ✅ **Shipped 2026-08-02** (bundled with E2-2).                                                                                                                           |
 | **E2-4** | Fiction pack (station dossiers, named crew, death epilogues)                    | ✅ **Shipped 2026-08-04.** Template strings; reuses E0-4's Syndicate voice.                                                                                              |
 | **E2-3** | Star map + per-edge danger                                                      | ✅ **Shipped 2026-08-07.** Danger moved to a 10-entry per-lane table; clickable SVG star map in the Navigator; orb metas and bulletin read per-lane.                     |
-| **E2-5** | Achievements-lite + calendar                                                    | Needs E0-3.                                                                                                                                                              |
+| **E2-5** | Achievements-lite + calendar                                                    | ✅ **Shipped 2026-08-10.** 12 local feats + 4-week Logbook calendar on day 1; feats earn on any run; save doc v2.                                                        |
 | **E2-1** | Market depth (per-day trade volume, price degrades on repeat)                   | **LAST + sim-gated** — heaviest balance change; re-run the 100-seed sweep and tighten tests.                                                                             |
 | **P2-2** | Market intel + cost basis (▲/▼ vs base, station intel, P&L)                     | Intel half (▲▼ vs base + station intel) shipped 2026-07-31 with the M2 close-out; cost-basis/P&L half remains. Coordinate with E1-1 + E2-1 to avoid duplicate surfacing. |
 
@@ -101,4 +101,7 @@ debrief, 2026-07-29), E0-5 (same-day resume, 2026-07-30), E1-2 (share card v2,
 its intel half (▲▼ vs base + station intel) ship 2026-07-31 with the M2 close-out; its
 cost-basis/P&L half remains. P3-1 (log collapse/newest-first/day dividers) shipped
 2026-08-04 with M3 round 2. E2-3 (star map + per-edge danger) shipped 2026-08-07 with
-M3 round 3. See the two backlog files for details.
+M3 round 3. E2-5 (12 local feats + 4-week Logbook calendar, save doc v2), plus E2-2g
+(settlement-order badges on contested contracts) and E2-2j (best-haul/💰 highlight
+exclude the returned deposit), shipped 2026-08-10 with M3 round 4. See the two backlog
+files for details.

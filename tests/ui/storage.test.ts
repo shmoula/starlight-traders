@@ -3,12 +3,15 @@ import {
   emptySave,
   labelForDay,
   recordRunEnd,
+  recordFeats,
   loadSave,
   persist,
   parseSnapshot,
   loadSnapshot,
   persistSnapshot,
   clearSnapshot,
+  calendarCells,
+  CALENDAR_DAYS,
   RunSnapshot,
 } from "../../src/ui/storage";
 import { RunEnd, GameEvent } from "../../src/engine/types";
@@ -159,12 +162,97 @@ describe("loadSave / persist", () => {
   });
 });
 
+describe("save v2 (E2-5 feats)", () => {
+  it("emptySave is v2 with an empty feat map", () => {
+    expect(emptySave()).toEqual({
+      version: 2,
+      days: {},
+      allTimePB: 0,
+      daysFlownCount: 0,
+      feats: {},
+    });
+  });
+
+  it("recordFeats stamps new feats with the date and reports them", () => {
+    const base = recordRunEnd(emptySave(), KEY, banked(100)).save;
+    const r = recordFeats(base, KEY, ["audited"]);
+    expect(r.newFeats).toEqual(expect.arrayContaining(["audited", "first-flight"]));
+    expect(r.save.feats["audited"]).toBe(KEY);
+  });
+
+  it("re-earning is a no-op — first earn keeps its date", () => {
+    const base = recordRunEnd(emptySave(), KEY, banked(100)).save;
+    const first = recordFeats(base, KEY, ["audited"]).save;
+    const again = recordFeats(first, "2026-07-23", ["audited"]);
+    expect(again.newFeats).toEqual([]);
+    expect(again.save.feats["audited"]).toBe(KEY);
+    expect(again.save).toBe(first); // nothing new ⇒ same object, no churn
+  });
+
+  it("first-flight fires on the first recorded run, regular on the 7th flown day", () => {
+    let save = emptySave();
+    for (let d = 1; d <= 7; d++) {
+      save = recordRunEnd(save, `2026-07-0${d}`, banked(50)).save;
+    }
+    const r = recordFeats(save, "2026-07-07", []);
+    expect(r.newFeats).toEqual(expect.arrayContaining(["first-flight", "regular"]));
+  });
+
+  it("loadSave migrates a v1 doc, preserving the ledger and adding feats", () => {
+    vi.stubGlobal("localStorage", memStore());
+    localStorage.setItem(
+      "starlight.save.v1",
+      JSON.stringify({ version: 1, days: {}, allTimePB: 750, daysFlownCount: 3 })
+    );
+    const migrated = loadSave();
+    expect(migrated?.allTimePB).toBe(750);
+    expect(migrated?.feats).toEqual({});
+  });
+
+  it("loadSave drops unknown feat ids and non-string dates", () => {
+    vi.stubGlobal("localStorage", memStore());
+    localStorage.setItem(
+      "starlight.save.v1",
+      JSON.stringify({
+        version: 2,
+        days: {},
+        allTimePB: 0,
+        daysFlownCount: 0,
+        feats: { audited: KEY, "made-up-feat": KEY, "clean-sweep": 42 },
+      })
+    );
+    expect(loadSave()?.feats).toEqual({ audited: KEY });
+  });
+
+  it("loadSave drops malformed day records and non-date keys, keeping valid ones", () => {
+    vi.stubGlobal("localStorage", memStore());
+    const good = recordRunEnd(emptySave(), KEY, banked(250)).save.days[KEY];
+    localStorage.setItem(
+      "starlight.save.v1",
+      JSON.stringify({
+        version: 2,
+        days: {
+          [KEY]: good,
+          "2026-07-23": { attempts: 1, bestScore: "oops", bestOutcome: "audited" }, // non-numeric
+          "2026-07-24": { attempts: 1, bestScore: 10, bestOutcome: "??" }, // unknown outcome
+          "2026-02-31": good, // impossible calendar date
+          "not-a-date": good,
+        },
+        allTimePB: 250,
+        daysFlownCount: 1,
+        feats: {},
+      })
+    );
+    expect(loadSave()?.days).toEqual({ [KEY]: good });
+  });
+});
+
 const BOOT = new Date(Date.UTC(2026, 6, 29, 10, 0)).toISOString();
 const TODAY = utcDateKey(BOOT); // "2026-07-29"
 
 function liveSnapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
   return {
-    version: 3,
+    version: 4,
     dateKey: TODAY,
     label: "The Daily",
     state: createGame(42, BOOT),
@@ -224,7 +312,7 @@ describe("parseSnapshot", () => {
   });
 
   it.each([
-    ["a wrong version", { version: 4 }],
+    ["a wrong version", { version: 5 }],
     ["a bad label", { label: "Casual" }],
     ["a non-numeric logMarkBeforeJump", { logMarkBeforeJump: "3" }],
     ["a null state", { state: null }],
@@ -310,7 +398,7 @@ describe("snapshot v1 → v2 log migration (P2-1)", () => {
     };
     const parsed = parseSnapshot(JSON.stringify(v1), v1.dateKey);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(3); // migration chains: v1 → v2 → v3
+    expect(parsed!.version).toBe(4); // migration chains: v1 → v2 → v3 → v4
     expect(parsed!.state.log).toEqual([
       { msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" },
       { msg: "Bought 2 Water / Ice for 30cr.", tone: "neutral" },
@@ -365,7 +453,7 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     const v2 = { ...base, version: 2, state: v2state };
     const parsed = parseSnapshot(JSON.stringify(v2), TODAY);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(3);
+    expect(parsed!.version).toBe(4);
     expect(parsed!.state.activeMissions[0].deposit).toBe(0);
     expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
     expect(parsed!.state.contracts).toEqual({ delivered: 0, expired: 0, forfeitedCr: 0 });
@@ -403,7 +491,7 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     const v1 = { ...base, version: 1, state: v1state };
     const parsed = parseSnapshot(JSON.stringify(v1), TODAY);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(3);
+    expect(parsed!.version).toBe(4);
     expect(parsed!.state.log).toEqual([{ msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" }]);
     expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
   });
@@ -481,6 +569,76 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     expect(text).toContain(sound); // the fixture really does carry the field we poison
     expect(parseSnapshot(text, TODAY)).not.toBeNull(); // sound before poisoning
     expect(parseSnapshot(text.replace(sound, poison), TODAY)).toBeNull();
+  });
+});
+
+describe("snapshot v4 (E2-5 records)", () => {
+  // Reuse the suite's existing valid-snapshot builder; the point is the version chain.
+  function v3Raw(): string {
+    const snap = liveSnapshot();
+    const state = { ...snap.state } as Record<string, unknown>;
+    delete state.records;
+    return JSON.stringify({ ...snap, version: 3, state });
+  }
+
+  it("migrates a v3 snapshot by defaulting records", () => {
+    const parsed = parseSnapshot(v3Raw(), TODAY);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.state.records).toEqual({
+      vergeAtLowHull: false,
+      visited: [],
+      damageTaken: 0,
+      fullHold: false,
+      pirateAmbushes: 0,
+    });
+  });
+
+  it("rejects a v4 snapshot whose records are corrupt", () => {
+    const snap = liveSnapshot();
+    const broken = {
+      ...snap,
+      state: { ...snap.state, records: { ...snap.state.records, visited: "terra" } },
+    };
+    expect(parseSnapshot(JSON.stringify(broken), TODAY)).toBeNull();
+  });
+
+  it("round-trips a v4 snapshot with live records", () => {
+    const snap = liveSnapshot();
+    snap.state = {
+      ...snap.state,
+      records: { ...snap.state.records, damageTaken: 12, pirateAmbushes: 2 },
+    };
+    const parsed = parseSnapshot(JSON.stringify(snap), TODAY);
+    expect(parsed!.state.records.damageTaken).toBe(12);
+  });
+});
+
+describe("calendarCells (E2-5c)", () => {
+  it("returns 28 cells ending today, oldest first", () => {
+    const cells = calendarCells(emptySave(), "2026-08-09");
+    expect(cells).toHaveLength(CALENDAR_DAYS);
+    expect(cells[0].dateKey).toBe("2026-07-13");
+    expect(cells[27].dateKey).toBe("2026-08-09");
+    expect(cells[27].isToday).toBe(true);
+    expect(cells.filter((c) => c.isToday)).toHaveLength(1);
+  });
+
+  it("joins the save ledger onto the right days", () => {
+    const save = recordRunEnd(emptySave(), "2026-08-03", banked(2140)).save;
+    const cells = calendarCells(save, "2026-08-09");
+    const flown = cells.find((c) => c.dateKey === "2026-08-03")!;
+    expect(flown.attempts).toBe(1);
+    expect(flown.best).toBe(2140);
+    expect(flown.outcome).toBe("audited");
+    expect(flown.label).toBe("Aug 3");
+    expect(cells.find((c) => c.dateKey === "2026-08-04")!.attempts).toBe(0);
+  });
+
+  it("crosses a month boundary without skipping or doubling a day", () => {
+    const keys = calendarCells(emptySave(), "2026-08-02").map((c) => c.dateKey);
+    expect(new Set(keys).size).toBe(CALENDAR_DAYS);
+    expect(keys).toContain("2026-07-31");
+    expect(keys).toContain("2026-08-01");
   });
 });
 

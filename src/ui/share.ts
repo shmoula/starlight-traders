@@ -105,15 +105,21 @@ export interface ShareData {
    * "Stranded". Deliberately not RunEnd.cause, which is a full player-facing sentence.
    */
   endLabel: string;
+  /** Names of feats first earned by this run (E2-5d); the card stays byte-identical without them. */
+  featNames?: string[];
 }
 
 export function shareText(d: ShareData): string {
   // The locale is pinned rather than the player's: the card is a cross-audience artifact,
   // so its thousands separator must not shift depending on who generated it.
+  const feat = d.featNames?.length
+    ? [`★ ${d.featNames[0]}${d.featNames.length > 1 ? ` +${d.featNames.length - 1} more` : ""}`]
+    : [];
   return [
     `🚀 Starlight #${d.runNumber} · ${d.dateLabel} · ${d.label}`,
     `Score ${d.score.toLocaleString("en-US")} · survived ${d.daysSurvived} days — ${d.endLabel}`,
     d.strip,
+    ...feat,
     `Beat my run: ${GAME_URL}`,
   ].join("\n");
 }

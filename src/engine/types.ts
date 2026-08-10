@@ -82,6 +82,31 @@ export interface LogEntry {
   day?: number;
 }
 
+/**
+ * Moment facts the finished state can't reconstruct — feeds the E2-5 feat predicates
+ * and nothing else (no game rule ever reads records). Append-only during a run;
+ * persisted in the run snapshot (v4), so moment feats survive a same-day refresh.
+ */
+export interface RunRecords {
+  /** Game day debt first reached 0, if it ever did. */
+  debtClearedDay?: number;
+  /** Docked at the Verge with hull below VERGE_LOW_HULL. */
+  vergeAtLowHull: boolean;
+  /** Stations docked at this run, in first-visit order; starts with the boot station. */
+  visited: NodeId[];
+  /** Total hull points lost this run (repairs don't subtract). */
+  damageTaken: number;
+  /** The hold reached capacity at least once. */
+  fullHold: boolean;
+  /** Pirate ambushes resolved this run — paid or fled. */
+  pirateAmbushes: number;
+}
+
+/** Blank records — createGame seeds `visited` with the boot station on top of this. */
+export function emptyRecords(): RunRecords {
+  return { vergeAtLowHull: false, visited: [], damageTaken: 0, fullHold: false, pirateAmbushes: 0 };
+}
+
 export interface GameState {
   seed: number;
   day: number;
@@ -109,6 +134,8 @@ export interface GameState {
   biggestPayday?: { amount: number; label: string };
   /** Per-day notable moment for the share strip (E1-2); key = game day. Upgrade-only via markDay. */
   dayHighlights: Partial<Record<number, DayHighlightKind>>;
+  /** Feat-relevant moment facts (E2-5); append-only, never read by game rules. */
+  records: RunRecords;
   status: "playing" | RunEndStatus;
   runEnd?: RunEnd; // present exactly when status !== "playing"
   log: LogEntry[]; // recent player-facing messages, newest last

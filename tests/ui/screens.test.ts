@@ -18,9 +18,11 @@ import {
 import { missionFeasibility } from "../../src/engine/missions";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice } from "../../src/engine/world";
 import { dockingFee } from "../../src/engine/economy";
-import { GameEvent, Mission } from "../../src/engine/types";
+import { GameEvent, Mission, RunEnd } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { STATION_DOSSIERS, epilogue } from "../../src/engine/fiction";
+import { FEATS, FeatId } from "../../src/engine/feats";
+import { calendarCells, emptySave, recordRunEnd } from "../../src/ui/storage";
 
 const cr2 = (n: number) => `${n.toLocaleString()}cr`;
 
@@ -1210,5 +1212,126 @@ describe("death epilogue (E2-4d)", () => {
   it("banked runs show no epilogue", () => {
     const banked = endRun(createGame(42), "retired", "Retired at Terra Hub.");
     expect(runEndScreen(banked, banked.runEnd!)).not.toContain("run-end__epilogue");
+  });
+});
+
+describe("active-contract settlement order (E2-2g)", () => {
+  const m = (id: string, commodity: "water" | "parts", reward = 400): Mission => ({
+    id,
+    commodity,
+    qty: 2,
+    destination: "kiruna",
+    reward,
+    deposit: 40,
+    deadlineDay: 10,
+  });
+
+  it("badges appear in accept order when two contracts want the same commodity", () => {
+    const s = { ...createGame(42), activeMissions: [m("a", "water"), m("b", "water")] };
+    const html = stationScreen(s);
+    expect(html).toContain("① settles first");
+    expect(html).toContain("②");
+    expect(html.indexOf("①")).toBeLessThan(html.indexOf("②"));
+  });
+
+  it("no badge renders when active contracts want different commodities", () => {
+    const s = { ...createGame(42), activeMissions: [m("a", "water"), m("b", "parts")] };
+    const html = stationScreen(s);
+    expect(html).not.toContain("settles first");
+    expect(html).not.toContain("contract-prio");
+  });
+
+  it("no badge renders for a single active contract", () => {
+    const s = { ...createGame(42), activeMissions: [m("a", "water")] };
+    expect(stationScreen(s)).not.toContain("contract-prio");
+  });
+});
+
+const banked = (score: number): RunEnd => ({
+  status: "audited",
+  cause: "Audited.",
+  daysSurvived: 12,
+  netWorthAtEnd: score,
+  survivalBonus: 0,
+  score,
+});
+
+function logbookMeta(save = emptySave()): RunMeta {
+  return {
+    runNumber: 40,
+    runLabel: "The Daily",
+    dateLabel: "Aug 9",
+    logbook: {
+      cells: calendarCells(save, "2026-08-09"),
+      feats: FEATS.map((def) => ({ def, earned: save.feats[def.id] !== undefined })),
+    },
+  };
+}
+
+describe("Logbook panel (E2-5c)", () => {
+  it("renders on day 1 with 28 aria-hidden cells and an sr-only summary", () => {
+    const html = stationScreen(createGame(42), [], "", false, logbookMeta());
+    expect(html).toContain("Logbook");
+    expect((html.match(/class="cal-cell/g) ?? []).length).toBe(28);
+    expect(html).toContain('<div class="logbook-cal" aria-hidden="true">');
+    expect(html).toContain("today's board is open");
+  });
+
+  it("does not render after day 1", () => {
+    const s = { ...createGame(42), day: 2 };
+    expect(stationScreen(s, [], "", false, logbookMeta())).not.toContain("Logbook");
+  });
+
+  it("marks a flown day's cell with its outcome tone and titles it with the score", () => {
+    const meta = logbookMeta(recordRunEnd(emptySave(), "2026-08-03", banked(2140)).save);
+    const html = stationScreen(createGame(42), [], "", false, meta);
+    expect(html).toContain("cal-cell--banked");
+    expect(html).toContain('title="Aug 3 — best 2,140 · 1 attempt"');
+  });
+
+  it("lists every feat — earned lit, unearned dimmed with its hint", () => {
+    const html = stationScreen(createGame(42), [], "", false, logbookMeta());
+    expect((html.match(/class="feat-chip/g) ?? []).length).toBe(FEATS.length);
+    expect(html).toContain("Fill the hold to capacity.");
+    expect(html).toContain(`>0/${FEATS.length}<`);
+  });
+});
+
+describe("run-end feat unlocks (E2-5d)", () => {
+  const debrief = { pbDelta: 0, isNewPB: false, prevBest: 0, isFirstEver: true };
+  const meta = (newFeats: FeatId[]): RunMeta => ({
+    runNumber: 40,
+    runLabel: "The Daily",
+    dateLabel: "Aug 9",
+    debrief: { ...debrief, newFeats },
+  });
+  const endedState = retire(createGame(42));
+
+  it("lists up to three new feats by name", () => {
+    const html = runEndScreen(
+      endedState,
+      endedState.runEnd!,
+      false,
+      meta(["audited", "clean-books"])
+    );
+    expect(html).toContain("★ Feat unlocked: Face the Audit");
+    expect(html).toContain("★ Feat unlocked: Clean Books");
+    expect(html).not.toContain("+1 more");
+  });
+
+  it("caps at three lines with a +N more overflow", () => {
+    const html = runEndScreen(
+      endedState,
+      endedState.runEnd!,
+      false,
+      meta(["audited", "clean-books", "full-house", "grand-tour", "untouched"])
+    );
+    expect((html.match(/★ Feat unlocked:/g) ?? []).length).toBe(3);
+    expect(html).toContain("+2 more");
+  });
+
+  it("renders nothing when no feat is new", () => {
+    const html = runEndScreen(endedState, endedState.runEnd!, false, meta([]));
+    expect(html).not.toContain("Feat unlocked");
   });
 });
