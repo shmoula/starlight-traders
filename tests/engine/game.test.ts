@@ -155,6 +155,14 @@ describe("createGame", () => {
   });
 });
 
+describe("market depth + cost basis state (E2-1/P2-2)", () => {
+  it("createGame zeroes soldHere and costBasis", () => {
+    const s = createGame(42);
+    expect(s.soldHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+    expect(s.costBasis).toEqual({ water: 0, parts: 0, luxury: 0 });
+  });
+});
+
 describe("buy/sell", () => {
   it("buying decreases credits and increases cargo", () => {
     const s = createGame(42);
