@@ -603,3 +603,46 @@ body {
 .contract-days--amber {
   color: var(--st-accent-alert);
 }
+
+/* Logbook (E2-5c): 4-week calendar strip + feat roster */
+.logbook-cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.cal-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--st-bg-inset);
+}
+.cal-cell--banked {
+  background: var(--st-positive);
+  opacity: 0.7;
+}
+.cal-cell--lost {
+  background: var(--st-negative);
+  opacity: 0.7;
+}
+.cal-cell--today {
+  outline: 1px solid var(--st-cyan);
+  outline-offset: 1px;
+}
+.feat-roster {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.feat-chip {
+  color: var(--st-text-dim);
+  font-size: 0.85em;
+}
+.feat-chip--earned {
+  color: var(--st-gold-bright);
+}
+.feat-hint {
+  color: var(--st-text-dim);
+}

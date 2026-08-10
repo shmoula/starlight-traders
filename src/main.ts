@@ -27,7 +27,9 @@ import {
   loadSnapshot,
   persistSnapshot,
   clearSnapshot,
+  calendarCells,
 } from "./ui/storage";
+import { FEATS } from "./engine/feats";
 import { NODES } from "./engine/world";
 import { RUN_LENGTH } from "./engine/run-end";
 import { endHeadline, type RunMeta } from "./ui/screens";
@@ -151,6 +153,13 @@ function buildMeta(): RunMeta {
       allTimePB: save.allTimePB,
     },
     debrief: state.runEnd ? lastDebrief : undefined,
+    logbook:
+      state.day === 1
+        ? {
+            cells: calendarCells(save, utcDateKey(state.bootDate)),
+            feats: FEATS.map((def) => ({ def, earned: save.feats[def.id] !== undefined })),
+          }
+        : undefined,
   };
 }
 

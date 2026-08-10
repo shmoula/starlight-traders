@@ -18,9 +18,11 @@ import {
 import { missionFeasibility } from "../../src/engine/missions";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice } from "../../src/engine/world";
 import { dockingFee } from "../../src/engine/economy";
-import { GameEvent, Mission } from "../../src/engine/types";
+import { GameEvent, Mission, RunEnd } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { STATION_DOSSIERS, epilogue } from "../../src/engine/fiction";
+import { FEATS } from "../../src/engine/feats";
+import { calendarCells, emptySave, recordRunEnd } from "../../src/ui/storage";
 
 const cr2 = (n: number) => `${n.toLocaleString()}cr`;
 
@@ -1242,5 +1244,55 @@ describe("active-contract settlement order (E2-2g)", () => {
   it("no badge renders for a single active contract", () => {
     const s = { ...createGame(42), activeMissions: [m("a", "water")] };
     expect(stationScreen(s)).not.toContain("contract-prio");
+  });
+});
+
+const banked = (score: number): RunEnd => ({
+  status: "audited",
+  cause: "Audited.",
+  daysSurvived: 12,
+  netWorthAtEnd: score,
+  survivalBonus: 0,
+  score,
+});
+
+function logbookMeta(save = emptySave()): RunMeta {
+  return {
+    runNumber: 40,
+    runLabel: "The Daily",
+    dateLabel: "Aug 9",
+    logbook: {
+      cells: calendarCells(save, "2026-08-09"),
+      feats: FEATS.map((def) => ({ def, earned: save.feats[def.id] !== undefined })),
+    },
+  };
+}
+
+describe("Logbook panel (E2-5c)", () => {
+  it("renders on day 1 with 28 aria-hidden cells and an sr-only summary", () => {
+    const html = stationScreen(createGame(42), [], "", false, logbookMeta());
+    expect(html).toContain("Logbook");
+    expect((html.match(/class="cal-cell/g) ?? []).length).toBe(28);
+    expect(html).toContain('<div class="logbook-cal" aria-hidden="true">');
+    expect(html).toContain("today's board is open");
+  });
+
+  it("does not render after day 1", () => {
+    const s = { ...createGame(42), day: 2 };
+    expect(stationScreen(s, [], "", false, logbookMeta())).not.toContain("Logbook");
+  });
+
+  it("marks a flown day's cell with its outcome tone and titles it with the score", () => {
+    const meta = logbookMeta(recordRunEnd(emptySave(), "2026-08-03", banked(2140)).save);
+    const html = stationScreen(createGame(42), [], "", false, meta);
+    expect(html).toContain("cal-cell--banked");
+    expect(html).toContain('title="Aug 3 — best 2,140 · 1 attempt"');
+  });
+
+  it("lists every feat — earned lit, unearned dimmed with its hint", () => {
+    const html = stationScreen(createGame(42), [], "", false, logbookMeta());
+    expect((html.match(/class="feat-chip/g) ?? []).length).toBe(FEATS.length);
+    expect(html).toContain("Fill the hold to capacity.");
+    expect(html).toContain(`>0/${FEATS.length}<`);
   });
 });
