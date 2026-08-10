@@ -3,6 +3,7 @@ import {
   COMMODITIES,
   fuelCost,
   getPrice,
+  baselinePrice,
   NODE_IDS,
   EDGE_DANGER,
   edgeKey,
@@ -55,6 +56,16 @@ describe("getPrice", () => {
     const p = getPrice(1, 1, "meridian", "luxury");
     expect(Number.isInteger(p)).toBe(true);
     expect(p).toBeGreaterThan(0);
+  });
+});
+
+describe("baselinePrice (E2-2f)", () => {
+  it("is basePrice under the station's produce/demand modifiers, no noise", () => {
+    expect(baselinePrice("terra", "water")).toBe(20); // no speciality
+    expect(baselinePrice("kiruna", "water")).toBe(14); // produces: ×0.7
+    expect(baselinePrice("vulcan", "water")).toBe(28); // demands: ×1.4
+    expect(baselinePrice("vulcan", "parts")).toBe(84); // produces: ×0.7
+    expect(baselinePrice("meridian", "luxury")).toBe(672); // demands: ×1.4
   });
 });
 

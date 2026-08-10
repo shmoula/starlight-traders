@@ -1070,12 +1070,13 @@ describe("escape-fare affordances (E2-2h)", () => {
   });
 
   it("blocks Accept with the fare reason, not a missing-deposit reason", () => {
-    // Seed 42's Terra board offers deposits of 17cr and 91cr. At 100cr the purse covers
-    // the 91cr bond outright, so only the 24cr fare stands in the way — and the cheap
-    // bond beside it stays live, which is what tells the two reasons apart.
+    // Seed 42's Terra board offers deposits of 16cr and 77cr (rewards anchor to the
+    // day-independent base, E2-2f). At 100cr the purse covers the 77cr bond outright,
+    // so only the 24cr fare stands in the way — and the cheap bond beside it stays live,
+    // which is what tells the two reasons apart.
     const s = dry({ credits: 100 });
     const [cheap, dear] = missionsHere(s);
-    expect([cheap.deposit, dear.deposit]).toEqual([17, 91]);
+    expect([cheap.deposit, dear.deposit]).toEqual([16, 77]);
     const html = stationScreen(s);
     expect(html).toContain(`aria-disabled="true" aria-describedby="accept-hint-${dear.id}"`);
     expect(html).toContain("(deposit would strand you — 24cr is held back for fuel)");

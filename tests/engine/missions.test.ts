@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { generateMissions, missionFeasibility } from "../../src/engine/missions";
 import { createGame } from "../../src/engine/game";
-import { COMMODITIES, NODE_IDS, getPrice, fuelCost } from "../../src/engine/world";
+import { COMMODITIES, NODE_IDS, getPrice, baselinePrice, fuelCost } from "../../src/engine/world";
 import { mulberry32, hashSeed } from "../../src/engine/rng";
-import { REFUEL_PRICE, dockingFee } from "../../src/engine/economy";
+import { MISSION_REWARD_FLOOR_MULT, REFUEL_PRICE, dockingFee } from "../../src/engine/economy";
 import { Mission, NodeId } from "../../src/engine/types";
 
 describe("generateMissions", () => {
@@ -41,10 +41,12 @@ describe("reward floor + deposit (E2-2)", () => {
         for (const node of NODE_IDS) {
           for (const m of generateMissions(seed, day, node)) {
             const originCost = m.qty * getPrice(seed, day, node, m.commodity);
-            const destCost = m.qty * getPrice(seed, day, m.destination, m.commodity);
+            // E2-2f: the premium anchors to the destination's day-independent base, not
+            // the offer-day spot — so the cap is measured against baselinePrice.
+            const destBase = m.qty * baselinePrice(m.destination, m.commodity);
             const floor = Math.round(1.2 * originCost);
             expect(m.reward).toBeGreaterThanOrEqual(floor);
-            expect(m.reward).toBeLessThanOrEqual(Math.max(Math.round(1.7 * destCost), floor));
+            expect(m.reward).toBeLessThanOrEqual(Math.max(Math.round(1.7 * destBase), floor));
             total++;
             if (m.reward > floor) aboveFloor++;
           }
@@ -96,6 +98,27 @@ describe("reward floor + deposit (E2-2)", () => {
           })
         );
         expect(actual).toEqual(reference(seed, 3, node));
+      }
+    }
+  });
+});
+
+describe("reward anchoring (E2-2f)", () => {
+  it("rewards never exceed the premium band over the day-independent base", () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      for (let day = 1; day <= 8; day++) {
+        for (const origin of NODE_IDS) {
+          for (const m of generateMissions(seed, day, origin)) {
+            const base = baselinePrice(m.destination, m.commodity);
+            const floor = Math.round(
+              MISSION_REWARD_FLOOR_MULT * m.qty * getPrice(seed, day, origin, m.commodity)
+            );
+            expect(m.reward).toBeLessThanOrEqual(Math.max(Math.round(1.7 * base * m.qty), floor));
+            expect(m.reward).toBeGreaterThanOrEqual(
+              Math.min(Math.floor(1.3 * base * m.qty), floor)
+            );
+          }
+        }
       }
     }
   });

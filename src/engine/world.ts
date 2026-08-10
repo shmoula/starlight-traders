@@ -157,3 +157,19 @@ export function getPrice(seed: number, day: number, node: NodeId, commodity: Com
   const price = Math.round(c.basePrice * modifier);
   return Math.max(1, price);
 }
+
+/**
+ * The day-independent price of `commodity` at `node`: basePrice under the station's
+ * produce/demand modifiers with the noise term removed (E2-2f). Mission rewards anchor
+ * here, so a volatile offer-day spot can never lock a stale premium into a contract.
+ * This is exactly `getPrice` with noise = 0 (modifier starts at 1, same modifiers,
+ * same rounding/floor), so it is the noise-free twin of the price function.
+ */
+export function baselinePrice(node: NodeId, commodity: CommodityId): number {
+  const c = COMMODITY_BY_ID[commodity];
+  const station = NODES[node];
+  let modifier = 1;
+  if (station.produces.includes(commodity)) modifier *= PRODUCE_PRICE_MULTIPLIER;
+  if (station.demands.includes(commodity)) modifier *= DEMAND_PRICE_MULTIPLIER;
+  return Math.max(1, Math.round(c.basePrice * modifier));
+}
