@@ -108,9 +108,10 @@ export function netWorth(state: GameState): number {
 // by the dock-side guard that keeps a spend from stranding the player, and by the UI
 // affordances that disable those spends. Three surfaces, one definition — the B-1 rule.
 
-/** Net credits a sale of `qty` `id` yields at the current dock, after the local tax. */
+/** Net credits a sale of `qty` `id` yields at the current dock — down the depth curve
+ *  (E2-1), after the local tax. */
 export function netSaleProceeds(state: GameState, id: CommodityId, qty: number): number {
-  const gross = getPrice(state.seed, state.day, state.location, id) * qty;
+  const { gross } = saleProceeds(state, id, qty);
   return gross - taxOnSale(state.location, gross);
 }
 

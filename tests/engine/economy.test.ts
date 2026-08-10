@@ -6,6 +6,9 @@ import {
   cargoUsed,
   netWorth,
   saleProceeds,
+  netSaleProceeds,
+  escapeCost,
+  canEscape,
   MARKET_DEPTH,
   DEPTH_SLOPE,
   DEPTH_FLOOR,
@@ -121,5 +124,26 @@ describe("market depth curve (E2-1)", () => {
     const r = saleProceeds(at(MARKET_DEPTH - 3), "water", 10);
     expect(r.atList).toBe(3);
     expect(r.degradedUnits).toBe(7);
+  });
+});
+
+describe("escape math prices the hold through depth (E2-1/E2-2h)", () => {
+  it("a saturated market can strand a ship that spot pricing would call safe", () => {
+    const fresh = (qty: number) =>
+      baseState({
+        location: "meridian",
+        fuel: 0,
+        credits: 0,
+        cargo: { water: qty, parts: 0, luxury: 0 },
+      });
+    let qty = 1;
+    while (netSaleProceeds(fresh(qty), "water", qty) < escapeCost(fresh(qty))) qty++;
+    expect(canEscape(fresh(qty))).toBe(true);
+    const saturated = {
+      ...fresh(qty),
+      soldHere: { water: MARKET_DEPTH + 1000, parts: 0, luxury: 0 },
+    };
+    expect(netSaleProceeds(saturated, "water", qty)).toBeLessThan(escapeCost(saturated));
+    expect(canEscape(saturated)).toBe(false);
   });
 });
