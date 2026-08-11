@@ -423,17 +423,20 @@ function tradeHubPanel(s: GameState): string {
     // P2-2b: what you paid and what selling the stack here would actually net.
     const basis = s.costBasis[c.id];
     const pnl = held > 0 ? netProceeds(s, c.id, held) - basis : 0;
+    // Derived once so the visible chip and its aria-label can't drift apart (avgPaid
+    // divides by held, so only reference these inside the held > 0 branch).
+    const positive = pnl >= 0;
+    const avgPaid = held > 0 ? Math.round(basis / held) : 0;
+    const pnlAbs = Math.abs(pnl);
     const pnlChip =
       held > 0
-        ? `<span class="st-market__pnl st-num ${pnl >= 0 ? "tick-up" : "tick-dn"}">paid ~${Math.round(
-            basis / held
-          )}cr/u · ${pnl >= 0 ? "▲ +" : "▼ −"}${Math.abs(pnl).toLocaleString()}cr</span>`
+        ? `<span class="st-market__pnl st-num ${positive ? "tick-up" : "tick-dn"}">paid ~${avgPaid}cr/u · ${positive ? "▲ +" : "▼ −"}${cr(pnlAbs)}</span>`
         : "";
     return `<div class="st-market__row" role="group" aria-label="${c.name}">
       ${iconBox(c.id)}
       <span class="st-market__name">${c.name}</span>
       <span class="st-market__prices st-num" aria-label="Market price ${price} credits — ${depthLine}"><span class="st-market__buy-price">${cr(price)}</span><span class="st-market__depth st-num">${depthLine}</span></span>
-      <span class="st-market__held st-num" aria-label="${held} units held${held > 0 ? ` — paid ~${Math.round(basis / held)}cr/u, ${pnl >= 0 ? "up" : "down"} ${cr(Math.abs(pnl))} if sold here` : ""}">×${held}${pnlChip}</span>
+      <span class="st-market__held st-num" aria-label="${held} units held${held > 0 ? ` — paid ~${avgPaid}cr/u, ${positive ? "up" : "down"} ${cr(pnlAbs)} if sold here` : ""}">×${held}${pnlChip}</span>
       <span class="st-market__actions">
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="1" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="5" aria-label="Buy ×5 ${c.name} for ${cr(5 * price)}"${disabledAttr(buy5Disabled, buy5Title)}>×5</button>
