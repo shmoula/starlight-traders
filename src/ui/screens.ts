@@ -12,12 +12,14 @@ import {
   getPrice,
 } from "../engine/world";
 import {
+  MARKET_DEPTH,
   REFUEL_PRICE,
   REPAIR_PRICE,
   cargoUsed,
   dockingFee,
   escapeCost,
   netWorth,
+  saleProceeds,
   spendableCredits,
 } from "../engine/economy";
 import {
@@ -407,11 +409,31 @@ function tradeHubPanel(s: GameState): string {
     const sellDisabled = held < 1;
     const sell5Disabled = held < 5;
     const sell5Title = sellDisabled ? "None in hold" : `Only ${held} in hold`;
+
+    // E2-1c: exact depth honesty — what the market still buys at list, or the real
+    // next-unit price once saturated. Numbers come from the engine's one curve.
+    const sold = s.soldHere[c.id];
+    const atListLeft = Math.max(0, MARKET_DEPTH - sold);
+    const depthLine =
+      atListLeft === MARKET_DEPTH
+        ? `buys ${MARKET_DEPTH} at ${cr(price)}`
+        : atListLeft > 0
+          ? `${atListLeft} more at ${cr(price)}, then falling`
+          : `next unit ${cr(saleProceeds(s, c.id, 1).gross)} ▼`;
+    // P2-2b: what you paid and what selling the stack here would actually net.
+    const basis = s.costBasis[c.id];
+    const pnl = held > 0 ? netProceeds(s, c.id, held) - basis : 0;
+    const pnlChip =
+      held > 0
+        ? `<span class="st-market__pnl st-num ${pnl >= 0 ? "tick-up" : "tick-dn"}">paid ~${Math.round(
+            basis / held
+          )}cr/u · ${pnl >= 0 ? "▲ +" : "▼ −"}${Math.abs(pnl).toLocaleString()}cr</span>`
+        : "";
     return `<div class="st-market__row" role="group" aria-label="${c.name}">
       ${iconBox(c.id)}
       <span class="st-market__name">${c.name}</span>
-      <span class="st-market__prices st-num" aria-label="Market price ${price} credits"><span class="st-market__buy-price">${cr(price)}</span></span>
-      <span class="st-market__held st-num" aria-label="${held} units held">×${held}</span>
+      <span class="st-market__prices st-num" aria-label="Market price ${price} credits — ${depthLine}"><span class="st-market__buy-price">${cr(price)}</span><span class="st-market__depth st-num">${depthLine}</span></span>
+      <span class="st-market__held st-num" aria-label="${held} units held${held > 0 ? ` — paid ~${Math.round(basis / held)}cr/u, ${pnl >= 0 ? "up" : "down"} ${cr(Math.abs(pnl))} if sold here` : ""}">×${held}${pnlChip}</span>
       <span class="st-market__actions">
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="1" aria-label="Buy 1 ${c.name}"${disabledAttr(buyDisabled, buyTitle)}>Buy 1</button>
         <button class="st-btn st-btn--sm" data-act="buy" data-id="${c.id}" data-qty="5" aria-label="Buy ×5 ${c.name} for ${cr(5 * price)}"${disabledAttr(buy5Disabled, buy5Title)}>×5</button>

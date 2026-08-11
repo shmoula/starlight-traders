@@ -457,6 +457,15 @@ body {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+.st-market__depth {
+  display: block;
+  font-size: 0.72em;
+  opacity: 0.75;
+}
+.st-market__pnl {
+  display: block;
+  font-size: 0.72em;
+}
 .contract-list {
   list-style: none;
   margin: 0;
