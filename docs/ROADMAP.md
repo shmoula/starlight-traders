@@ -49,17 +49,17 @@ Sequence decided 2026-08-01: **round 1 = E2-2 + P2-3**, then texture (E2-4 → E
 E2-5), then **E2-1 dead last** — the star map changes route viability, so E2-1's
 sim gate only measures the real game after E2-3 lands.
 
-**Round 1 closed 2026-08-02; round 2 closed 2026-08-04; round 3 (E2-3 star map) closed 2026-08-07; round 4 (E2-5 + E2-2g + E2-2j) closed 2026-08-10.** Next up: E2-1 last (sim-gated, bundling P2-2's cost-basis half and E2-2f).
+**Round 1 closed 2026-08-02; round 2 closed 2026-08-04; round 3 (E2-3 star map) closed 2026-08-07; round 4 (E2-5 + E2-2g + E2-2j) closed 2026-08-10; round 5 (E2-1 market depth + E2-2f reward re-anchor + P2-2 cost-basis) closed 2026-08-11.** Milestone 3 closed 2026-08-11.
 
-| Item     | What                                                                            | Notes                                                                                                                                                                    |
-| :------- | :------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **E2-2** | Contract integrity (deposit, expiry penalty, reward floor, instant-settle nerf) | ✅ **Shipped 2026-08-02.** Riskless-option exploit closed: 0 of 2,406 generated offers profit from accept→jump→buy-dockside→deliver.                                     |
-| **P2-3** | Contract feasibility card (cost/fuel/profit/days-left)                          | ✅ **Shipped 2026-08-02** (bundled with E2-2).                                                                                                                           |
-| **E2-4** | Fiction pack (station dossiers, named crew, death epilogues)                    | ✅ **Shipped 2026-08-04.** Template strings; reuses E0-4's Syndicate voice.                                                                                              |
-| **E2-3** | Star map + per-edge danger                                                      | ✅ **Shipped 2026-08-07.** Danger moved to a 10-entry per-lane table; clickable SVG star map in the Navigator; orb metas and bulletin read per-lane.                     |
-| **E2-5** | Achievements-lite + calendar                                                    | ✅ **Shipped 2026-08-10.** 12 local feats + 4-week Logbook calendar on day 1; feats earn on any run; save doc v2.                                                        |
-| **E2-1** | Market depth (per-day trade volume, price degrades on repeat)                   | **LAST + sim-gated** — heaviest balance change; re-run the 100-seed sweep and tighten tests.                                                                             |
-| **P2-2** | Market intel + cost basis (▲/▼ vs base, station intel, P&L)                     | Intel half (▲▼ vs base + station intel) shipped 2026-07-31 with the M2 close-out; cost-basis/P&L half remains. Coordinate with E1-1 + E2-1 to avoid duplicate surfacing. |
+| Item     | What                                                                            | Notes                                                                                                                                                                                                                            |
+| :------- | :------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **E2-2** | Contract integrity (deposit, expiry penalty, reward floor, instant-settle nerf) | ✅ **Shipped 2026-08-02.** Riskless-option exploit closed: 0 of 2,406 generated offers profit from accept→jump→buy-dockside→deliver.                                                                                             |
+| **P2-3** | Contract feasibility card (cost/fuel/profit/days-left)                          | ✅ **Shipped 2026-08-02** (bundled with E2-2).                                                                                                                                                                                   |
+| **E2-4** | Fiction pack (station dossiers, named crew, death epilogues)                    | ✅ **Shipped 2026-08-04.** Template strings; reuses E0-4's Syndicate voice.                                                                                                                                                      |
+| **E2-3** | Star map + per-edge danger                                                      | ✅ **Shipped 2026-08-07.** Danger moved to a 10-entry per-lane table; clickable SVG star map in the Navigator; orb metas and bulletin read per-lane.                                                                             |
+| **E2-5** | Achievements-lite + calendar                                                    | ✅ **Shipped 2026-08-10.** 12 local feats + 4-week Logbook calendar on day 1; feats earn on any run; save doc v2.                                                                                                                |
+| **E2-1** | Market depth (per-day trade volume, price degrades on repeat)                   | ✅ **Shipped 2026-08-11.** Sell-side market depth — price degrades per unit sold same-day, recovers next day. Final knobs: MARKET_DEPTH=20, DEPTH_SLOPE=0.08, DEPTH_FLOOR=0.6.                                                   |
+| **P2-2** | Market intel + cost basis (▲/▼ vs base, station intel, P&L)                     | ✅ **Cost-basis half shipped 2026-08-11:** avg-paid cost basis (total-paid with proportional relief) + unrealized P&L chip per held commodity. Intel half (▲▼ vs base + station intel) shipped 2026-07-31 with the M2 close-out. |
 
 ## 🟢 Milestone 4 — Texture & polish
 
@@ -98,10 +98,13 @@ debrief, 2026-07-29), E0-5 (same-day resume, 2026-07-30), E1-2 (share card v2,
 2026-07-30), B-5 (README fix, 2026-07-29), E1-1 (Trade Bulletin, 2026-07-31), P1-2
 (forecast sinks, 2026-07-31), E1-4 (honest events, 2026-07-31), B-2 (event-hash fix,
 2026-07-31), and P2-1 (structured log entries, 2026-07-31). The M3 item P2-2 also had
-its intel half (▲▼ vs base + station intel) ship 2026-07-31 with the M2 close-out; its
-cost-basis/P&L half remains. P3-1 (log collapse/newest-first/day dividers) shipped
-2026-08-04 with M3 round 2. E2-3 (star map + per-edge danger) shipped 2026-08-07 with
-M3 round 3. E2-5 (12 local feats + 4-week Logbook calendar, save doc v2), plus E2-2g
-(settlement-order badges on contested contracts) and E2-2j (best-haul/💰 highlight
-exclude the returned deposit), shipped 2026-08-10 with M3 round 4. See the two backlog
-files for details.
+its intel half (▲▼ vs base + station intel) ship 2026-07-31 with the M2 close-out. P3-1
+(log collapse/newest-first/day dividers) shipped 2026-08-04 with M3 round 2. E2-3 (star
+map + per-edge danger) shipped 2026-08-07 with M3 round 3. E2-5 (12 local feats +
+4-week Logbook calendar, save doc v2), plus E2-2g (settlement-order badges on contested
+contracts) and E2-2j (best-haul/💰 highlight exclude the returned deposit), shipped
+2026-08-10 with M3 round 4. **Milestone 3 closed 2026-08-11 with round 5:** E2-1
+(sell-side market depth, final knobs MARKET_DEPTH=20/DEPTH_SLOPE=0.08/DEPTH_FLOOR=0.6),
+E2-2f (contract rewards re-anchored to the day-independent baselinePrice, curbing the
+bounce line), and P2-2's cost-basis/P&L half (avg-paid cost basis + unrealized P&L chip
+per held commodity) all shipped. See the two backlog files for details.

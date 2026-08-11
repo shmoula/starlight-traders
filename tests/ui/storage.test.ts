@@ -252,7 +252,7 @@ const TODAY = utcDateKey(BOOT); // "2026-07-29"
 
 function liveSnapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
   return {
-    version: 4,
+    version: 5,
     dateKey: TODAY,
     label: "The Daily",
     state: createGame(42, BOOT),
@@ -312,7 +312,7 @@ describe("parseSnapshot", () => {
   });
 
   it.each([
-    ["a wrong version", { version: 5 }],
+    ["a wrong version", { version: 6 }],
     ["a bad label", { label: "Casual" }],
     ["a non-numeric logMarkBeforeJump", { logMarkBeforeJump: "3" }],
     ["a null state", { state: null }],
@@ -398,7 +398,7 @@ describe("snapshot v1 → v2 log migration (P2-1)", () => {
     };
     const parsed = parseSnapshot(JSON.stringify(v1), v1.dateKey);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(4); // migration chains: v1 → v2 → v3 → v4
+    expect(parsed!.version).toBe(5); // migration chains: v1 → v2 → v3 → v4 → v5
     expect(parsed!.state.log).toEqual([
       { msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" },
       { msg: "Bought 2 Water / Ice for 30cr.", tone: "neutral" },
@@ -453,7 +453,7 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     const v2 = { ...base, version: 2, state: v2state };
     const parsed = parseSnapshot(JSON.stringify(v2), TODAY);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(4);
+    expect(parsed!.version).toBe(5);
     expect(parsed!.state.activeMissions[0].deposit).toBe(0);
     expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
     expect(parsed!.state.contracts).toEqual({ delivered: 0, expired: 0, forfeitedCr: 0 });
@@ -491,7 +491,7 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     const v1 = { ...base, version: 1, state: v1state };
     const parsed = parseSnapshot(JSON.stringify(v1), TODAY);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(4);
+    expect(parsed!.version).toBe(5);
     expect(parsed!.state.log).toEqual([{ msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" }]);
     expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
   });
@@ -610,6 +610,41 @@ describe("snapshot v4 (E2-5 records)", () => {
     };
     const parsed = parseSnapshot(JSON.stringify(snap), TODAY);
     expect(parsed!.state.records.damageTaken).toBe(12);
+  });
+});
+
+describe("snapshot v5 (E2-1 depth + P2-2 basis)", () => {
+  it("migrates a v4 snapshot by defaulting soldHere and costBasis", () => {
+    const snap = liveSnapshot();
+    const doc = JSON.parse(JSON.stringify(snap));
+    doc.version = 4;
+    delete doc.state.soldHere;
+    delete doc.state.costBasis;
+    const parsed = parseSnapshot(JSON.stringify(doc), doc.dateKey);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.state.soldHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+    expect(parsed!.state.costBasis).toEqual({ water: 0, parts: 0, luxury: 0 });
+  });
+
+  it("round-trips a v5 snapshot with live depth and basis", () => {
+    const snap = liveSnapshot();
+    snap.state = {
+      ...snap.state,
+      soldHere: { water: 17, parts: 0, luxury: 0 },
+      costBasis: { water: 240, parts: 0, luxury: 0 },
+    };
+    const parsed = parseSnapshot(JSON.stringify(snap), snap.dateKey);
+    expect(parsed!.state.soldHere.water).toBe(17);
+    expect(parsed!.state.costBasis.water).toBe(240);
+  });
+
+  it("rejects a v5 snapshot with a negative or missing depth counter", () => {
+    const snap = liveSnapshot();
+    const doc = JSON.parse(JSON.stringify(snap));
+    doc.state.soldHere = { water: -1, parts: 0, luxury: 0 };
+    expect(parseSnapshot(JSON.stringify(doc), doc.dateKey)).toBeNull();
+    doc.state.soldHere = { water: 0, parts: 0 }; // luxury missing
+    expect(parseSnapshot(JSON.stringify(doc), doc.dateKey)).toBeNull();
   });
 });
 

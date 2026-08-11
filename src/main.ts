@@ -114,7 +114,7 @@ function tryResume(): boolean {
 function syncSnapshot(): void {
   if (state.status === "playing") {
     persistSnapshot({
-      version: 4,
+      version: 5,
       dateKey: utcDateKey(state.bootDate),
       label: runLabel,
       state,

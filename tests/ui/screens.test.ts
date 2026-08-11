@@ -17,7 +17,7 @@ import {
 } from "../../src/engine/game";
 import { missionFeasibility } from "../../src/engine/missions";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice } from "../../src/engine/world";
-import { dockingFee } from "../../src/engine/economy";
+import { dockingFee, MARKET_DEPTH, saleProceeds } from "../../src/engine/economy";
 import { GameEvent, Mission, RunEnd } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { STATION_DOSSIERS, epilogue } from "../../src/engine/fiction";
@@ -1070,12 +1070,13 @@ describe("escape-fare affordances (E2-2h)", () => {
   });
 
   it("blocks Accept with the fare reason, not a missing-deposit reason", () => {
-    // Seed 42's Terra board offers deposits of 17cr and 91cr. At 100cr the purse covers
-    // the 91cr bond outright, so only the 24cr fare stands in the way — and the cheap
-    // bond beside it stays live, which is what tells the two reasons apart.
+    // Seed 42's Terra board offers deposits of 16cr and 77cr (rewards anchor to the
+    // day-independent base, E2-2f). At 100cr the purse covers the 77cr bond outright,
+    // so only the 24cr fare stands in the way — and the cheap bond beside it stays live,
+    // which is what tells the two reasons apart.
     const s = dry({ credits: 100 });
     const [cheap, dear] = missionsHere(s);
-    expect([cheap.deposit, dear.deposit]).toEqual([17, 91]);
+    expect([cheap.deposit, dear.deposit]).toEqual([16, 77]);
     const html = stationScreen(s);
     expect(html).toContain(`aria-disabled="true" aria-describedby="accept-hint-${dear.id}"`);
     expect(html).toContain("(deposit would strand you — 24cr is held back for fuel)");
@@ -1333,5 +1334,46 @@ describe("run-end feat unlocks (E2-5d)", () => {
   it("renders nothing when no feat is new", () => {
     const html = runEndScreen(endedState, endedState.runEnd!, false, meta([]));
     expect(html).not.toContain("Feat unlocked");
+  });
+});
+
+describe("market depth + P&L surfaces (E2-1c/P2-2b)", () => {
+  it("an untouched market names its full depth at list", () => {
+    const s = createGame(42);
+    const html = stationScreen(s);
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    expect(html).toContain(`buys ${MARKET_DEPTH} at ${price.toLocaleString()}cr`);
+  });
+
+  it("a part-consumed market counts down and warns of the fall", () => {
+    const s = { ...createGame(42), soldHere: { water: 6, parts: 0, luxury: 0 } };
+    const html = stationScreen(s);
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    expect(html).toContain(`${MARKET_DEPTH - 6} more at ${price.toLocaleString()}cr, then falling`);
+  });
+
+  it("a saturated market shows the exact next-unit price", () => {
+    const s = { ...createGame(42), soldHere: { water: MARKET_DEPTH + 4, parts: 0, luxury: 0 } };
+    const html = stationScreen(s);
+    const next = saleProceeds(s, "water", 1).gross;
+    expect(html).toContain(`next unit ${next.toLocaleString()}cr ▼`);
+  });
+
+  it("held cargo shows avg paid and a depth-and-tax-honest P&L chip", () => {
+    const base = createGame(42);
+    const s = {
+      ...base,
+      cargo: { ...base.cargo, water: 10 },
+      costBasis: { water: 100, parts: 0, luxury: 0 },
+    };
+    const html = stationScreen(s);
+    const pnl = netProceeds(s, "water", 10) - 100;
+    expect(html).toContain("paid ~10cr/u");
+    expect(html).toContain(`${pnl >= 0 ? "▲ +" : "▼ −"}${Math.abs(pnl).toLocaleString()}cr`);
+  });
+
+  it("empty rows carry neither basis nor P&L", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).not.toContain("paid ~");
   });
 });

@@ -26,6 +26,9 @@ import {
   escapeCost,
   netWorth,
   BIG_TRADE_CR,
+  saleProceeds,
+  taxOnSale,
+  MARKET_DEPTH,
 } from "../../src/engine/economy";
 import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
@@ -152,6 +155,121 @@ describe("createGame", () => {
     expect(s.hull).toBe(s.hullMax);
     expect(s.status).toBe("playing");
     expect(s.day).toBe(1);
+  });
+});
+
+describe("market depth + cost basis state (E2-1/P2-2)", () => {
+  it("createGame zeroes soldHere and costBasis", () => {
+    const s = createGame(42);
+    expect(s.soldHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+    expect(s.costBasis).toEqual({ water: 0, parts: 0, luxury: 0 });
+  });
+});
+
+describe("sell consumes market depth (E2-1)", () => {
+  const withWater = (qty: number) => {
+    const s = createGame(42);
+    return { ...s, cargo: { ...s.cargo, water: qty } };
+  };
+
+  it("a sale increments soldHere and pays saleProceeds' gross", () => {
+    const s = withWater(30);
+    const expected = saleProceeds(s, "water", 30);
+    const after = sell(s, "water", 30);
+    expect(after.soldHere.water).toBe(30);
+    expect(after.credits).toBe(s.credits + expected.gross - taxOnSale("terra", expected.gross));
+  });
+
+  it("a depth-crossing sale names the saturation in the log", () => {
+    const after = sell(withWater(30), "water", 30);
+    expect(after.log[after.log.length - 1].msg).toContain(`market saturated after ${MARKET_DEPTH}`);
+  });
+
+  it("a within-depth sale logs exactly as before", () => {
+    const after = sell(withWater(5), "water", 5);
+    expect(after.log[after.log.length - 1].msg).not.toContain("saturated");
+    expect(after.log[after.log.length - 1].msg).toMatch(/^Sold 5 .* for \d+cr \(tax \d+\)\.$/);
+  });
+
+  it("jump resets soldHere alongside boughtHere", () => {
+    const sold = sell(withWater(5), "water", 5);
+    const { state } = jump(refuel(sold, 10), "vulcan");
+    expect(state.soldHere).toEqual({ water: 0, parts: 0, luxury: 0 });
+  });
+});
+
+describe("cost basis (P2-2)", () => {
+  it("buy accumulates the credits paid", () => {
+    const s = createGame(42);
+    const price = getPrice(s.seed, s.day, s.location, "water");
+    const after = buy(buy(s, "water", 3), "water", 2);
+    expect(after.costBasis.water).toBe(5 * price);
+  });
+
+  it("sell relieves basis proportionally and clamps at zero", () => {
+    const s = { ...createGame(42), cargo: { water: 10, parts: 0, luxury: 0 } };
+    const withBasis = { ...s, costBasis: { water: 100, parts: 0, luxury: 0 } };
+    const after = sell(withBasis, "water", 4);
+    expect(after.costBasis.water).toBe(60); // 100 − round(100×4/10)
+    const emptied = sell(withBasis, "water", 10);
+    expect(emptied.costBasis.water).toBe(0);
+  });
+
+  it("free salvage cargo dilutes the average (basis unchanged, units added)", () => {
+    // Reuse the "event loot never counts as dockside" fixture: a clean (non-trap) salvage
+    // day for seed 42, collected via resolveChoice. Zero-cost acquisition has no basis
+    // mutation site — the invariant IS that basis stays put while cargo.parts rises.
+    const cleanDay = Array.from({ length: 30 }, (_, i) => i + 1).find(
+      (d) => hashSeed(42, d) % SALVAGE_HAZARD_DIVISOR !== 0
+    )!;
+    const salvage: GameEvent = {
+      kind: "salvage",
+      title: "",
+      description: "",
+      choices: [{ id: "collect", label: "" }],
+    };
+    const before = { ...createGame(42), day: cleanDay };
+    const after = resolveChoice(before, salvage, "collect");
+    expect(after.cargo.parts).toBeGreaterThan(before.cargo.parts);
+    expect(after.costBasis.parts).toBe(before.costBasis.parts); // basis unchanged → average diluted
+  });
+
+  it("customs confiscation zeroes luxury basis with the cargo", () => {
+    const s = {
+      ...createGame(42),
+      cargo: { water: 0, parts: 0, luxury: 5 },
+      costBasis: { water: 0, parts: 0, luxury: 900 },
+    };
+    const after = resolveChoice(
+      s,
+      { kind: "customs", title: "", description: "", choices: [{ id: "comply", label: "" }] },
+      "comply"
+    );
+    expect(after.costBasis.luxury).toBe(0);
+  });
+
+  it("contract settlement relieves the basis of the removed units", () => {
+    // Reuse the "proportional settlement" fully-hauled fixture: mission pv1 wants 10 water
+    // at kiruna; carry exactly m.qty. Set costBasis.water = 500 before settling; delivery
+    // removes m.qty=10 from a hold of cargoBefore=10 → relief round(500×10/10) = 500 → 0.
+    const mission: Mission = {
+      id: "pv1",
+      commodity: "water",
+      qty: 10,
+      destination: "kiruna",
+      reward: 500,
+      deposit: 50,
+      deadlineDay: 99,
+    };
+    let s = acceptMission(createGame(42), mission);
+    s = {
+      ...s,
+      fuel: 20,
+      cargo: { ...s.cargo, water: 10 },
+      costBasis: { water: 500, parts: 0, luxury: 0 },
+    };
+    const after = arrive(jump(s, "kiruna").state).state;
+    expect(after.costBasis.water).toBe(0); // 500 − round(500 × 10/10)
   });
 });
 

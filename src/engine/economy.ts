@@ -43,6 +43,44 @@ export function taxOnSale(node: NodeId, proceeds: number): number {
   return Math.round(proceeds * NODES[node].taxRate);
 }
 
+// --- Market depth (E2-1) -------------------------------------------------------------
+// A station absorbs only MARKET_DEPTH units per commodity per day at the listed price;
+// each further unit sells at a linearly degraded price with a floor. Deterministic — the
+// degraded price is exactly displayable (E1-4 honesty). The spread itself is untouched:
+// depth constrains today's flow, not the price function.
+
+export const MARKET_DEPTH = 20; // ⚙ units/commodity/day at list price
+export const DEPTH_SLOPE = 0.08; // ⚙ price impact per unit past depth
+export const DEPTH_FLOOR = 0.6; // ⚙ degraded price never falls below this × list
+
+/** Sale price of one unit given `t` units already sold here today. */
+function depthUnitPrice(list: number, t: number): number {
+  const past = Math.max(0, t - MARKET_DEPTH + 1);
+  return Math.max(1, Math.round(list * Math.max(DEPTH_FLOOR, 1 - DEPTH_SLOPE * past)));
+}
+
+export interface SaleProceeds {
+  gross: number;
+  /** Units (of this sale) that sold at the listed price — positional, not price-equality. */
+  atList: number;
+  degradedUnits: number;
+}
+
+/**
+ * What selling `qty` of `id` here right now grosses, unit by unit down the depth curve —
+ * the ONLY copy of the curve. sell(), the UI's netProceeds labels, and the escape math
+ * (via netSaleProceeds → liquidationValue → canEscape) all price through this, so no
+ * surface can promise proceeds the market won't pay (B-1).
+ */
+export function saleProceeds(s: GameState, id: CommodityId, qty: number): SaleProceeds {
+  const list = getPrice(s.seed, s.day, s.location, id);
+  const sold = s.soldHere[id];
+  let gross = 0;
+  for (let i = 0; i < qty; i++) gross += depthUnitPrice(list, sold + i);
+  const atList = Math.min(qty, Math.max(0, MARKET_DEPTH - sold));
+  return { gross, atList, degradedUnits: qty - atList };
+}
+
 export function loanInterest(debt: number, day: number): number {
   if (debt <= 0) return 0;
   return Math.ceil(debt * loanRate(day));
@@ -70,9 +108,10 @@ export function netWorth(state: GameState): number {
 // by the dock-side guard that keeps a spend from stranding the player, and by the UI
 // affordances that disable those spends. Three surfaces, one definition — the B-1 rule.
 
-/** Net credits a sale of `qty` `id` yields at the current dock, after the local tax. */
+/** Net credits a sale of `qty` `id` yields at the current dock — down the depth curve
+ *  (E2-1), after the local tax. */
 export function netSaleProceeds(state: GameState, id: CommodityId, qty: number): number {
-  const gross = getPrice(state.seed, state.day, state.location, id) * qty;
+  const { gross } = saleProceeds(state, id, qty);
   return gross - taxOnSale(state.location, gross);
 }
 

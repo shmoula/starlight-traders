@@ -123,6 +123,13 @@ export interface GameState {
   /** Units of each commodity bought at the current dock since arrival — reset on jump.
    *  Delivery pays the contract premium only on units that are NOT in here (E2-2d). */
   boughtHere: Record<CommodityId, number>;
+  /** Units of each commodity sold at the current dock today — reset on jump (E2-1).
+   *  Feeds the market-depth curve: sales past MARKET_DEPTH degrade the price. */
+  soldHere: Record<CommodityId, number>;
+  /** Total credits paid for the currently-held units of each commodity (P2-2).
+   *  Display/state math only — no game rule reads it. Free cargo (salvage) adds units
+   *  at zero cost, honestly diluting the average. */
+  costBasis: Record<CommodityId, number>;
   /** Run-long contract ledger for the debrief (E2-2b). */
   contracts: {
     delivered: number;

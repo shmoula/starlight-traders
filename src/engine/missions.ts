@@ -1,6 +1,6 @@
 // src/engine/missions.ts
 import { GameState, Mission, NodeId } from "./types";
-import { COMMODITIES, NODE_IDS, fuelCost, getPrice } from "./world";
+import { COMMODITIES, NODE_IDS, baselinePrice, fuelCost, getPrice } from "./world";
 import { mulberry32, hashSeed } from "./rng";
 import {
   MISSION_REWARD_FLOOR_MULT,
@@ -19,8 +19,11 @@ export function generateMissions(seed: number, day: number, node: NodeId): Missi
     const commodity = COMMODITIES[Math.floor(rng() * COMMODITIES.length)].id;
     const destination = others[Math.floor(rng() * others.length)];
     const qty = 3 + Math.floor(rng() * 8); // 3..10
-    const destUnit = getPrice(seed, day, destination, commodity);
-    const premium = Math.round(destUnit * qty * (1.3 + rng() * 0.4)); // premium over destination spot
+    // E2-2f: the premium anchors to the destination's day-independent base, not the
+    // offer-day spot — a volatility spike can no longer lock in a stale reward the
+    // player later buys under at the destination. RNG draw order is unchanged.
+    const destUnit = baselinePrice(destination, commodity);
+    const premium = Math.round(destUnit * qty * (1.3 + rng() * 0.4)); // premium over destination base
     // E2-2c: never pay under MISSION_REWARD_FLOOR_MULT× what the cargo costs at this board's own dock today.
     const originUnit = getPrice(seed, day, node, commodity);
     const reward = Math.max(premium, Math.round(MISSION_REWARD_FLOOR_MULT * qty * originUnit));
