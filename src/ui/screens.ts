@@ -84,7 +84,7 @@ const disabledAttr = (disabled: boolean, title: string): string =>
 
 /** Statbar/bar warning class shared by the station and event screens. */
 function fuelWarnClass(s: GameState): string {
-  const cheapest = cheapestJumpCost(s.location);
+  const cheapest = cheapestJumpCost(s.seed, s.location);
   return s.fuel < cheapest ? "stat-critical" : s.fuel < cheapest * 2 ? "stat-warn" : "";
 }
 
@@ -327,12 +327,12 @@ function logbookPanel(lb: NonNullable<RunMeta["logbook"]>): string {
 
 function navigatorPanel(s: GameState): string {
   const banner =
-    s.fuel < cheapestJumpCost(s.location)
+    s.fuel < cheapestJumpCost(s.seed, s.location)
       ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Not enough fuel to jump anywhere — refuel below (${REFUEL_PRICE}cr/unit). ${cr(escapeCost(s))} of your credits is held back for it.</div>`
       : "";
   const orbs = NODE_IDS.filter((n) => n !== s.location)
     .map((n) => {
-      const cost = fuelCost(s.location, n);
+      const cost = fuelCost(s.seed, s.location, n);
       const fee = dockingFee(n);
       const raid = Math.round(pirateChance(s.location, n) * 100);
       const taxPct = Math.round(NODES[n].taxRate * 100);
@@ -501,7 +501,7 @@ function tradeHubPanel(s: GameState): string {
       const daysChip = chip && ` · ${chip}`;
       const boughtUsed = docksideUnitsShown(s, m);
       const provenance = ready && boughtUsed > 0 ? ` — ${boughtUsed} bought here pay spot` : "";
-      const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
+      const canReach = atDestination || s.fuel >= fuelCost(s.seed, s.location, m.destination);
       const jumpHintId = `jump-hint-${m.id}`;
       // Shortfall shortcut: buys the full missing amount at the local price, or
       // is disabled with a reason — never a silent partial (B-1 precedent).

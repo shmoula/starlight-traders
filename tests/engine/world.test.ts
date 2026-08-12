@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   COMMODITIES,
   fuelCost,
+  cheapestJumpCost,
+  isLongHaul,
   getPrice,
   baselinePrice,
   NODE_IDS,
@@ -18,13 +20,30 @@ describe("world data", () => {
     expect(COMMODITIES).toHaveLength(3);
   });
 
-  it("fuelCost is symmetric and positive between distinct nodes", () => {
-    expect(fuelCost("terra", "kiruna")).toBe(fuelCost("kiruna", "terra"));
-    expect(fuelCost("terra", "kiruna")).toBeGreaterThan(0);
+  it("fuelCost is symmetric and positive between distinct nodes (clear-skies seed)", () => {
+    expect(fuelCost(42, "terra", "kiruna")).toBe(fuelCost(42, "kiruna", "terra"));
+    expect(fuelCost(42, "terra", "kiruna")).toBe(4); // the raw DISTANCE table
   });
 
-  it("fuelCost from a node to itself is 0", () => {
-    expect(fuelCost("terra", "terra")).toBe(0);
+  it("fuelCost from a node to itself is 0, even under ion storms", () => {
+    expect(fuelCost(42, "terra", "terra")).toBe(0);
+    expect(fuelCost(1, "terra", "terra")).toBe(0); // seed 1 = ionStorms
+  });
+
+  it("ion storms add fuelDelta only to long-haul lanes; short hops stay cheap (E3-1)", () => {
+    expect(fuelCost(1, "kiruna", "verge")).toBe(8); // 7⛽ long-haul + 1
+    expect(fuelCost(1, "kiruna", "meridian")).toBe(9); // 8⛽ long-haul + 1
+    expect(fuelCost(1, "terra", "kiruna")).toBe(4); // 4⛽ short lane — untaxed
+    expect(fuelCost(1, "terra", "verge")).toBe(6); // 6⛽ — below the long-haul cutoff
+    expect(cheapestJumpCost(1, "terra")).toBe(3); // cheapest hop (terra–vulcan 3) untaxed
+    expect(cheapestJumpCost(42, "terra")).toBe(3); // clear skies unchanged
+  });
+
+  it("isLongHaul marks exactly the two 7–8⛽ lanes, by the base table (E3-2)", () => {
+    expect(isLongHaul("kiruna", "verge")).toBe(true); // 7⛽
+    expect(isLongHaul("kiruna", "meridian")).toBe(true); // 8⛽
+    expect(isLongHaul("meridian", "kiruna")).toBe(true); // symmetric
+    expect(isLongHaul("terra", "verge")).toBe(false); // 6⛽ — storms don't promote it
   });
 });
 

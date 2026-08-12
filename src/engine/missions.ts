@@ -52,7 +52,7 @@ export function missionFeasibility(
   m: Mission
 ): { cargoCost: number; fuel: number; estProfit: number; daysLeft: number } {
   const cargoCost = m.qty * getPrice(s.seed, s.day, s.location, m.commodity);
-  const fuel = fuelCost(s.location, m.destination);
+  const fuel = fuelCost(s.seed, s.location, m.destination);
   const dock = fuel > 0 ? dockingFee(m.destination) : 0;
   return {
     cargoCost,

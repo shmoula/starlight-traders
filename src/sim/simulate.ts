@@ -35,7 +35,7 @@ function bestTrade(
 ): { to: NodeId; id: CommodityId } | null {
   let best: { to: NodeId; id: CommodityId; margin: number } | null = null;
   for (const to of NODE_IDS.filter((n) => n !== s.location)) {
-    const f = fuelCost(s.location, to);
+    const f = fuelCost(s.seed, s.location, to);
     if (s.fuel < f) continue;
     for (const id of candidates) {
       const buyP = getPrice(s.seed, s.day, s.location, id);
@@ -85,9 +85,9 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
       // Cannot trade — checkLoss says a jump is still affordable, so top up to the
       // cheapest hop and take it to advance the day and accrue costs.
       const to = NODE_IDS.filter((n) => n !== s.location).sort(
-        (a, b) => fuelCost(s.location, a) - fuelCost(s.location, b)
+        (a, b) => fuelCost(s.seed, s.location, a) - fuelCost(s.seed, s.location, b)
       )[0];
-      s = refuel(s, Math.max(0, fuelCost(s.location, to) - s.fuel));
+      s = refuel(s, Math.max(0, fuelCost(s.seed, s.location, to) - s.fuel));
       const r = jump(s, to);
       if (r.event === null) break;
       const choice = chooseEventOption(
@@ -156,7 +156,7 @@ export function viableLoops(seed: number, day: number): number {
       if (a === b) continue;
       const profitable = COMMODITIES.some((c) => {
         const margin = getPrice(seed, day + 1, b, c.id) - getPrice(seed, day, a, c.id);
-        return MARKET_DEPTH * margin - fuelCost(a, b) * REFUEL_PRICE - dockingFee(b) > 0;
+        return MARKET_DEPTH * margin - fuelCost(seed, a, b) * REFUEL_PRICE - dockingFee(b) > 0;
       });
       if (profitable) count++;
     }

@@ -24,7 +24,7 @@ export interface DailyModifier {
   glyph: string; // "⚡"
   /** ≤70 chars, "TODAY: "-prefixed — the bulletin's lead line (spec decision 12). */
   bulletinLine: string;
-  /** Extra fuel burned by every jump (ionStorms). */
+  /** Extra fuel burned by long-haul jumps (ionStorms) — see fuelCost/isLongHaul. */
   fuelDelta?: number;
   /** Price multiplier for one (node, commodity) pair, applied inside getPrice. */
   priceMult?: { node: NodeId; commodity: CommodityId; mult: number };
@@ -54,7 +54,7 @@ export const MODIFIER_POOL: readonly DailyModifier[] = [
     name: "Ion storms",
     glyph: "⚡",
     fuelDelta: 1, // ⚙
-    bulletinLine: "TODAY: Ion storms — every jump burns +1⛽",
+    bulletinLine: "TODAY: Ion storms — long crossings burn +1⛽",
   },
   {
     id: "luxuryBoom",
@@ -98,7 +98,8 @@ export function dailyModifier(seed: number): DailyModifier {
   return MODIFIER_POOL[hashSeed(seed, MODIFIER_SALT) % MODIFIER_POOL.length];
 }
 
-/** Extra fuel per jump under `seed`'s modifier — 0 on ordinary days. */
+/** Extra fuel under `seed`'s modifier — 0 on ordinary days. fuelCost applies this only
+ *  to long-haul lanes (isLongHaul), so short survival hops stay cheap (E3-1). */
 export function fuelDelta(seed: number): number {
   return dailyModifier(seed).fuelDelta ?? 0;
 }

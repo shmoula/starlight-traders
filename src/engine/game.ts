@@ -522,7 +522,7 @@ export function checkLoss(state: GameState): GameState {
 export function jump(state: GameState, to: NodeId): { state: GameState; event: GameEvent | null } {
   if (state.status !== "playing") return { state, event: null };
   if (to === state.location) return { state, event: null };
-  const cost = fuelCost(state.location, to);
+  const cost = fuelCost(state.seed, state.location, to);
   if (state.fuel < cost) return { state, event: null };
 
   let s: GameState = {

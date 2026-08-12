@@ -1,6 +1,7 @@
 // src/engine/world.ts
 import { Commodity, CommodityId, NodeId, StationNode } from "./types";
 import { mulberry32, hashSeed } from "./rng";
+import { fuelDelta } from "./modifiers";
 
 export const COMMODITIES: Commodity[] = [
   { id: "water", name: "Water / Ice", basePrice: 20, volatility: 0.15 },
@@ -67,20 +68,42 @@ const DISTANCE: Record<NodeId, Partial<Record<NodeId, number>>> = {
   meridian: { terra: 5, kiruna: 8, vulcan: 6, verge: 5 },
 };
 
-export function fuelCost(from: NodeId, to: NodeId): number {
-  if (from === to) return 0;
+/** ⚙ Base-table fuel at or above this marks a lane long-haul (E3-2) — the storm
+ *  modifier taxes only these; short survival hops stay cheap so thin runs aren't
+ *  stranded (E3-1 fairness). */
+export const LONG_HAUL_FUEL = 7;
+
+/** True for the map's long-haul lanes (kiruna–verge, kiruna–meridian today). */
+export function isLongHaul(from: NodeId, to: NodeId): boolean {
+  if (from === to) return false;
   const d = DISTANCE[from][to];
   if (d === undefined) throw new Error(`No route ${from}->${to}`);
-  return d;
+  return d >= LONG_HAUL_FUEL;
 }
 
 /**
- * Fuel burned by the cheapest jump out of `from` — the minimum price of leaving at all.
- * The loss check, the dock-side escape guard (E2-2h) and the UI's fuel warning all key
- * off this one number, so "can I still get out of here?" means the same thing everywhere.
+ * Fuel burned jumping `from`→`to` under `seed`'s daily sky. Base is the raw DISTANCE
+ * table; ion storms (fuelDelta) tax only the long crossings (isLongHaul), so short
+ * survival hops stay cheap and thin-margin runs aren't stranded (E3-1).
+ * A self-jump is always 0 — no fuel, no storm surcharge.
  */
-export function cheapestJumpCost(from: NodeId): number {
-  return Math.min(...NODE_IDS.filter((n) => n !== from).map((n) => fuelCost(from, n)));
+export function fuelCost(seed: number, from: NodeId, to: NodeId): number {
+  if (from === to) return 0;
+  const d = DISTANCE[from][to];
+  if (d === undefined) throw new Error(`No route ${from}->${to}`);
+  // E3-1: ion storms tax only the long crossings — short survival hops stay cheap,
+  // so the +1 bites the map's dead edges, not the thin-margin cautious lifeline.
+  return d + (isLongHaul(from, to) ? fuelDelta(seed) : 0);
+}
+
+/**
+ * Fuel burned by the cheapest jump out of `from` under `seed`'s sky — the minimum price
+ * of leaving at all. The loss check, the dock-side escape guard (E2-2h) and the UI's fuel
+ * warning all key off this one number, so "can I still get out of here?" means the same
+ * thing everywhere, storm surcharge included.
+ */
+export function cheapestJumpCost(seed: number, from: NodeId): number {
+  return Math.min(...NODE_IDS.filter((n) => n !== from).map((n) => fuelCost(seed, from, n)));
 }
 
 /**

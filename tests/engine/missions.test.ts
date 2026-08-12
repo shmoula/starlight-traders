@@ -139,7 +139,7 @@ describe("missionFeasibility (P2-3)", () => {
     const s = createGame(42); // terra, day 1
     const f = missionFeasibility(s, m);
     const cargoCost = 10 * getPrice(42, 1, "terra", "water");
-    const fuel = fuelCost("terra", "kiruna"); // 4
+    const fuel = fuelCost(42, "terra", "kiruna"); // 4
     expect(f).toEqual({
       cargoCost,
       fuel,
@@ -161,7 +161,7 @@ describe("missionFeasibility (P2-3)", () => {
     const s = createGame(42); // terra, day 1
     const f = missionFeasibility(s, underwater);
     const cargoCost = 10 * getPrice(42, 1, "terra", "water");
-    const fuel = fuelCost("terra", "kiruna"); // 4
+    const fuel = fuelCost(42, "terra", "kiruna"); // 4
     expect(f.estProfit).toBe(10 - cargoCost - fuel * REFUEL_PRICE - dockingFee("kiruna"));
     expect(f.estProfit).toBeLessThan(0);
   });
