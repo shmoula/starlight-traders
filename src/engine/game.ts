@@ -46,6 +46,7 @@ import {
   salvageAmount,
 } from "./preview";
 import { RUN_LENGTH, endRun } from "./run-end";
+import { dailyModifier } from "./modifiers";
 
 export const STARTING = {
   credits: 800,
@@ -298,7 +299,7 @@ export function netProceeds(state: GameState, id: CommodityId, qty: number): num
  * jump() applies, so the chip can never disagree with the accrual.
  */
 export function interestForecast(s: GameState): { inDays: number; amount: number } | null {
-  if (s.debt <= 0 || s.status !== "playing") return null;
+  if (s.debt <= 0 || s.status !== "playing" || dailyModifier(s.seed).interestHoliday) return null;
   const inDays = INTEREST_EVERY - (s.day % INTEREST_EVERY);
   return { inDays, amount: loanInterest(s.debt, s.day + inDays) };
 }
@@ -534,8 +535,8 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
     soldHere: { water: 0, parts: 0, luxury: 0 },
   };
 
-  // Interest accrues on a fixed cadence.
-  if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
+  // Interest accrues on a fixed cadence — unless today's sky is a Syndicate rest (E3-1).
+  if (s.day % INTEREST_EVERY === 0 && s.debt > 0 && !dailyModifier(s.seed).interestHoliday) {
     const interest = loanInterest(s.debt, s.day);
     s = withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day), "bad");
   }

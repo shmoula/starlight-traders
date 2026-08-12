@@ -1458,3 +1458,23 @@ describe("E2-2j: payday stats exclude the returned deposit", () => {
     expect(line.delta).toBe(550);
   });
 });
+
+describe("syndicateRest interest holiday (E3-1)", () => {
+  // Seed 3 = syndicateRest, seed 42 = clearSkies (modifiers.test.ts pins both).
+  it("accrues no interest across a full run on a rest seed", () => {
+    let s = createGame(3);
+    for (const to of ["vulcan", "terra", "vulcan", "terra", "vulcan", "terra"] as const) {
+      s = refuel(s, 10);
+      const r = jump(s, to);
+      if (r.event === null) break;
+      s = arrive(resolveChoice(r.state, r.event, r.event.choices[0].id)).state;
+      if (s.status !== "playing") break;
+    }
+    expect(s.debt).toBe(STARTING.debt); // nothing compounded
+    expect(interestForecast(createGame(3))).toBeNull();
+  });
+
+  it("clear-skies seeds accrue exactly as before", () => {
+    expect(interestForecast(createGame(42))).toEqual({ inDays: 2, amount: 60 }); // day 1 → tick day 3, 4% of 1500
+  });
+});
