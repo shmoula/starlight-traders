@@ -319,8 +319,9 @@ Vitest, same pure-logic/thin-I/O split:
   none elsewhere; non-cadence boards byte-identical to pre-round; reward,
   deadline, deposit in authored ranges; E2-2c floor still binds; feasibility
   card prices it like any mission.
-- **missions/prices:** `baselinePrice` ignores modifiers; boom-seed rewards
-  identical to clearSkies-seed rewards for the same board shape.
+- **missions/prices:** `baselinePrice` ignores modifiers; the reward premium
+  anchor is modifier-free, while the E2-2c floor reads the (modified) origin
+  spot — a boom-board floor can only rise, per decision 4.
 - **interest:** syndicateRest seed accrues nothing across a full run;
   `interestForecast` returns null; other seeds unchanged.
 - **snapshot:** v5 resumes with `pirateTail: false`; v6 round-trips; a stored
