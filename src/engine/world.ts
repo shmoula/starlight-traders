@@ -1,7 +1,7 @@
 // src/engine/world.ts
 import { Commodity, CommodityId, NodeId, StationNode } from "./types";
 import { mulberry32, hashSeed } from "./rng";
-import { fuelDelta } from "./modifiers";
+import { fuelDelta, priceMultiplier } from "./modifiers";
 
 export const COMMODITIES: Commodity[] = [
   { id: "water", name: "Water / Ice", basePrice: 20, volatility: 0.15 },
@@ -176,7 +176,9 @@ function stationPriceModifier(node: NodeId, commodity: CommodityId): number {
 
 /**
  * Deterministic local price for a commodity at a node on a given day.
- * Produced -> discounted; demanded -> premium; plus seeded daily noise.
+ * Produced -> discounted; demanded -> premium; plus seeded daily noise, then
+ * today's boom/glut hook (priceMultiplier) — e.g. luxuryBoom lifts Meridian
+ * luxury ×1.25, partsGlut cuts Vulcan parts ×0.8; 1 on ordinary days (E3-1).
  */
 export function getPrice(seed: number, day: number, node: NodeId, commodity: CommodityId): number {
   const c = COMMODITY_BY_ID[commodity];
@@ -184,7 +186,15 @@ export function getPrice(seed: number, day: number, node: NodeId, commodity: Com
     hashSeed(seed, day, node.length, commodity.length, node.charCodeAt(0), commodity.charCodeAt(0))
   );
   const noise = (rng() * 2 - 1) * c.volatility; // -vol..+vol
-  return Math.max(1, Math.round(c.basePrice * (1 + noise) * stationPriceModifier(node, commodity)));
+  return Math.max(
+    1,
+    Math.round(
+      c.basePrice *
+        (1 + noise) *
+        stationPriceModifier(node, commodity) *
+        priceMultiplier(seed, node, commodity) // E3-1: today's boom/glut, if any
+    )
+  );
 }
 
 /**
