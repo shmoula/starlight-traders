@@ -496,7 +496,13 @@ function isValidContracts(c: unknown): boolean {
 const MISSION_NUMERIC_KEYS = ["deposit", "reward", "qty"];
 function hasValidMissionFields(missions: unknown): boolean {
   return (
-    Array.isArray(missions) && missions.every((m) => allNonNegativeNumbers(m, MISSION_NUMERIC_KEYS))
+    Array.isArray(missions) &&
+    missions.every((m) => {
+      if (!allNonNegativeNumbers(m, MISSION_NUMERIC_KEYS)) return false;
+      // E3-2b: the only tag we mint is "ice"; anything else is a corrupt/forged doc.
+      const tag = (m as { tag?: unknown }).tag;
+      return tag === undefined || tag === "ice";
+    })
   );
 }
 

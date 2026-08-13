@@ -9,6 +9,14 @@ import {
   dockingFee,
 } from "./economy";
 
+export const ICE_RUN_CADENCE = 3; // ⚙ E3-2b
+const ICE_SALT = 0x1ce0;
+
+/** True when `day`'s Kiruna board carries the seeded ice run (E3-2b). */
+export function iceRunDay(seed: number, day: number): boolean {
+  return hashSeed(seed, day, ICE_SALT) % ICE_RUN_CADENCE === 0;
+}
+
 /** Deterministic set of delivery missions offered at a node on a given day. */
 export function generateMissions(seed: number, day: number, node: NodeId): Mission[] {
   const rng = mulberry32(hashSeed(seed, day, node.charCodeAt(0), 777));
@@ -36,6 +44,26 @@ export function generateMissions(seed: number, day: number, node: NodeId): Missi
       reward,
       deposit: Math.round(MISSION_DEPOSIT_RATE * reward),
       deadlineDay,
+    });
+  }
+  // E3-2b: on seeded ice days, Kiruna's board gains ONE tagged long-haul water→Verge
+  // contract, drawn from its OWN rng stream (ICE_SALT,1) so the base board's draws above
+  // stay byte-identical — appended, never interleaved.
+  if (node === "kiruna" && iceRunDay(seed, day)) {
+    const ice = mulberry32(hashSeed(seed, day, ICE_SALT, 1));
+    const qty = 10 + Math.floor(ice() * 5); // 10..14
+    const premium = Math.round(baselinePrice("verge", "water") * qty * (2.4 + ice() * 0.6));
+    const originUnit = getPrice(seed, day, node, "water");
+    const reward = Math.max(premium, Math.round(MISSION_REWARD_FLOOR_MULT * qty * originUnit));
+    missions.push({
+      id: `${node}-${day}-ice`,
+      commodity: "water",
+      qty,
+      destination: "verge",
+      reward,
+      deposit: Math.round(MISSION_DEPOSIT_RATE * reward),
+      deadlineDay: day + 2 + Math.floor(ice() * 2), // +2..3
+      tag: "ice",
     });
   }
   return missions;

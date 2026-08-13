@@ -32,6 +32,8 @@ export interface Mission {
    */
   deposit: number;
   deadlineDay: number; // absolute game day by which cargo must arrive
+  /** "ice" marks the seeded long-haul special (E3-2b); absent on ordinary offers. */
+  tag?: "ice";
 }
 
 export type RunEndStatus = "lost" | "audited" | "retired";

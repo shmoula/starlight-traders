@@ -14,7 +14,7 @@ import {
   CALENDAR_DAYS,
   RunSnapshot,
 } from "../../src/ui/storage";
-import { RunEnd, GameEvent } from "../../src/engine/types";
+import { RunEnd, GameEvent, Mission } from "../../src/engine/types";
 import { createGame } from "../../src/engine/game";
 import { utcDateKey, runStrip } from "../../src/ui/share";
 
@@ -671,6 +671,25 @@ describe("snapshot v6 (E3-4 pirate tail)", () => {
     const doc = JSON.parse(JSON.stringify(snap));
     doc.state.pirateTail = "yes";
     expect(parseSnapshot(JSON.stringify(doc), doc.dateKey)).toBeNull();
+  });
+
+  it("accepts a stored ice-run mission and rejects an unknown tag", () => {
+    const snap = liveSnapshot();
+    const mission: Mission = {
+      id: "kiruna-9-ice",
+      commodity: "water",
+      qty: 12,
+      destination: "verge",
+      reward: 700,
+      deposit: 70,
+      deadlineDay: 11,
+      tag: "ice",
+    };
+    snap.state = { ...snap.state, activeMissions: [mission] };
+    expect(parseSnapshot(JSON.stringify(snap), snap.dateKey)).not.toBeNull();
+    const bad = JSON.parse(JSON.stringify(snap));
+    bad.state.activeMissions[0].tag = "banana";
+    expect(parseSnapshot(JSON.stringify(bad), bad.dateKey)).toBeNull();
   });
 });
 
