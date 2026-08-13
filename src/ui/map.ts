@@ -101,7 +101,7 @@ export function starMap(s: GameState): string {
         continue;
       }
       const other = a === s.location ? b : a;
-      const risk = pirateChance(s.location, other);
+      const risk = pirateChance(s, other);
       lanes.push(line(`map-edge--${laneTone(risk)}`));
       const lp = labelPos(here, MAP_LAYOUT[other]);
       labels.push(

@@ -551,7 +551,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
     -fee
   );
 
-  const event = rollEvent(s.seed, s.day, state.location, to);
+  const event = rollEvent(s.seed, s.day, state.location, to, state.pirateTail);
   return { state: s, event };
 }
 
