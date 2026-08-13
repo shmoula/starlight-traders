@@ -143,9 +143,9 @@ describe("stake previews match resolveChoice outcomes", () => {
 });
 
 describe("choiceOdds (E1-4)", () => {
-  it("prices the salvage gamble as 1-in-3", () => {
+  it("salvage odds name both the hazard and the bait draw (E3-4)", () => {
     const e = { kind: "salvage", title: "", description: "", choices: [] } as GameEvent;
-    expect(choiceOdds(e)).toEqual({ collect: "1-in-3 hides a hazard" });
+    expect(choiceOdds(e).collect).toBe("1-in-3 hides a hazard · clean scoop: 1-in-4 is bait");
   });
   it("prices the derelict gamble as 50/50", () => {
     const e = { kind: "derelict", title: "", description: "", choices: [] } as GameEvent;

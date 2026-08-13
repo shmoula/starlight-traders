@@ -41,6 +41,7 @@ import {
   engineHullStrain,
   fleeDamage,
   pirateToll,
+  SALVAGE_BAIT_DIVISOR,
   SALVAGE_HAZARD_DIVISOR,
   SALVAGE_TRAP_DAMAGE,
   salvageAmount,
@@ -534,6 +535,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
     day: state.day + 1,
     boughtHere: { water: 0, parts: 0, luxury: 0 },
     soldHere: { water: 0, parts: 0, luxury: 0 },
+    pirateTail: false, // E3-4: the tail lasts exactly one jump, fired or not
   };
 
   // Interest accrues on a fixed cadence — unless today's sky is a Syndicate rest (E3-1).
@@ -605,6 +607,9 @@ function resolvePirates(s: GameState, choiceId: string): GameState {
   return withLog(withHullDamage(marked, dmg), `Outran ${crew} — took ${dmg} hull damage.`, "bad");
 }
 
+/** Salts the bait draw so it is independent of the same-day hazard draw (E3-4). */
+const BAIT_SALT = 0xba17;
+
 function resolveSalvage(s: GameState, choiceId: string): GameState {
   if (choiceId !== "collect") return s;
   // Deterministic per seed/day via the shared hash — mulberry32's hashSeed avoids the
@@ -617,13 +622,23 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
     );
   }
   const got = salvageAmount(s);
-  return got > 0
-    ? withLog(
-        trackFullHold({ ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } }),
-        `Salvaged ${got} ${commodityName("parts")}.`,
-        "good"
-      )
-    : withLog(s, `Hold full — left the salvage drifting.`, "neutral");
+  if (got <= 0) return withLog(s, `Hold full — left the salvage drifting.`, "neutral");
+  let next = withLog(
+    trackFullHold({ ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } }),
+    `Salvaged ${got} ${commodityName("parts")}.`,
+    "good"
+  );
+  // E3-4: a clean scoop is seeded 1-in-SALVAGE_BAIT_DIVISOR to be bait — announced
+  // immediately, so the tail is a navigation decision, not a gotcha. Salted apart from
+  // the hazard draw, and unreachable from the warhead/full-hold paths above.
+  if (hashSeed(s.seed, s.day, BAIT_SALT) % SALVAGE_BAIT_DIVISOR === 0) {
+    next = withLog(
+      { ...next, pirateTail: true },
+      `That debris was bait — a pirate tail swings in behind you.`,
+      "bad"
+    );
+  }
+  return next;
 }
 
 function resolveEngine(s: GameState): GameState {

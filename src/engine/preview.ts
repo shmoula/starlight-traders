@@ -35,6 +35,8 @@ export function salvageAmount(s: GameState): number {
 export const SALVAGE_TRAP_DAMAGE = 10;
 /** Collecting salvage hides a hazard on 1-in-N days (game.ts resolveSalvage's `% N`). */
 export const SALVAGE_HAZARD_DIVISOR = 3;
+/** A clean scoop draws a pirate tail on 1-in-N days (game.ts resolveSalvage's `% N`). */
+export const SALVAGE_BAIT_DIVISOR = 4; // ⚙ E3-4
 
 /** A coolant leak always vents this many units of trouble. */
 export const ENGINE_LEAK = 2;
@@ -115,7 +117,9 @@ export function choiceStakes(s: GameState, e: GameEvent): Record<string, string>
 export function choiceOdds(e: GameEvent): Record<string, string> {
   switch (e.kind) {
     case "salvage":
-      return { collect: `1-in-${SALVAGE_HAZARD_DIVISOR} hides a hazard` };
+      return {
+        collect: `1-in-${SALVAGE_HAZARD_DIVISOR} hides a hazard · clean scoop: 1-in-${SALVAGE_BAIT_DIVISOR} is bait`,
+      };
     case "derelict": {
       const rewardPct = Math.round(100 / DERELICT_REWARD_DIVISOR);
       return { board: `${rewardPct}/${100 - rewardPct}` };
