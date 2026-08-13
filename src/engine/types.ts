@@ -130,6 +130,10 @@ export interface GameState {
    *  Display/state math only — no game rule reads it. Free cargo (salvage) adds units
    *  at zero cost, honestly diluting the average. */
   costBasis: Record<CommodityId, number>;
+  /** A salvage scoop was bait (E3-4): the next jump's ambush odds carry TAIL_BONUS.
+   *  Set by resolveSalvage, read by jump's event roll, cleared in the jump reset —
+   *  boughtHere's lifecycle. */
+  pirateTail: boolean;
   /** Run-long contract ledger for the debrief (E2-2b). */
   contracts: {
     delivered: number;

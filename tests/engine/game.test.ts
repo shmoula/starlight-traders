@@ -156,6 +156,10 @@ describe("createGame", () => {
     expect(s.status).toBe("playing");
     expect(s.day).toBe(1);
   });
+
+  it("createGame starts untailed (E3-4)", () => {
+    expect(createGame(42).pirateTail).toBe(false);
+  });
 });
 
 describe("market depth + cost basis state (E2-1/P2-2)", () => {

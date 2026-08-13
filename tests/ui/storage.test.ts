@@ -252,7 +252,7 @@ const TODAY = utcDateKey(BOOT); // "2026-07-29"
 
 function liveSnapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
   return {
-    version: 5,
+    version: 6,
     dateKey: TODAY,
     label: "The Daily",
     state: createGame(42, BOOT),
@@ -312,7 +312,7 @@ describe("parseSnapshot", () => {
   });
 
   it.each([
-    ["a wrong version", { version: 6 }],
+    ["a wrong version", { version: 7 }],
     ["a bad label", { label: "Casual" }],
     ["a non-numeric logMarkBeforeJump", { logMarkBeforeJump: "3" }],
     ["a null state", { state: null }],
@@ -398,7 +398,7 @@ describe("snapshot v1 → v2 log migration (P2-1)", () => {
     };
     const parsed = parseSnapshot(JSON.stringify(v1), v1.dateKey);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(5); // migration chains: v1 → v2 → v3 → v4 → v5
+    expect(parsed!.version).toBe(6); // migration chains: v1 → v2 → v3 → v4 → v5 → v6
     expect(parsed!.state.log).toEqual([
       { msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" },
       { msg: "Bought 2 Water / Ice for 30cr.", tone: "neutral" },
@@ -453,7 +453,7 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     const v2 = { ...base, version: 2, state: v2state };
     const parsed = parseSnapshot(JSON.stringify(v2), TODAY);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(5);
+    expect(parsed!.version).toBe(6);
     expect(parsed!.state.activeMissions[0].deposit).toBe(0);
     expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
     expect(parsed!.state.contracts).toEqual({ delivered: 0, expired: 0, forfeitedCr: 0 });
@@ -491,7 +491,7 @@ describe("snapshot v2 → v3 contract migration (E2-2)", () => {
     const v1 = { ...base, version: 1, state: v1state };
     const parsed = parseSnapshot(JSON.stringify(v1), TODAY);
     expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(5);
+    expect(parsed!.version).toBe(6);
     expect(parsed!.state.log).toEqual([{ msg: "Docked at Terra Hub, fee 40cr.", tone: "neutral" }]);
     expect(parsed!.state.boughtHere).toEqual({ water: 0, parts: 0, luxury: 0 });
   });
@@ -644,6 +644,32 @@ describe("snapshot v5 (E2-1 depth + P2-2 basis)", () => {
     doc.state.soldHere = { water: -1, parts: 0, luxury: 0 };
     expect(parseSnapshot(JSON.stringify(doc), doc.dateKey)).toBeNull();
     doc.state.soldHere = { water: 0, parts: 0 }; // luxury missing
+    expect(parseSnapshot(JSON.stringify(doc), doc.dateKey)).toBeNull();
+  });
+});
+
+describe("snapshot v6 (E3-4 pirate tail)", () => {
+  it("migrates a v5 snapshot by defaulting pirateTail", () => {
+    const snap = liveSnapshot();
+    const doc = JSON.parse(JSON.stringify(snap));
+    doc.version = 5;
+    delete doc.state.pirateTail;
+    const parsed = parseSnapshot(JSON.stringify(doc), doc.dateKey);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.state.pirateTail).toBe(false);
+  });
+
+  it("round-trips a live tail", () => {
+    const snap = liveSnapshot();
+    snap.state = { ...snap.state, pirateTail: true };
+    const parsed = parseSnapshot(JSON.stringify(snap), snap.dateKey);
+    expect(parsed!.state.pirateTail).toBe(true);
+  });
+
+  it("rejects a non-boolean pirateTail", () => {
+    const snap = liveSnapshot();
+    const doc = JSON.parse(JSON.stringify(snap));
+    doc.state.pirateTail = "yes";
     expect(parseSnapshot(JSON.stringify(doc), doc.dateKey)).toBeNull();
   });
 });
