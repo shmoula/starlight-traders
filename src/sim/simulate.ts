@@ -26,6 +26,8 @@ export interface SimResult {
   status: GameState["status"];
   /** Days whose highlight is 💰 — observability for E1-2's BIG_TRADE_CR tuning. */
   bigTradeDays: number;
+  /** Bait tails latched during the run (E3-4) — observability for the death-rate split. */
+  tails: number;
 }
 
 /** Pick the destination + commodity that maximizes naive expected margin this turn. */
@@ -56,7 +58,7 @@ function candidatesFor(kind: Archetype): CommodityId[] {
 
 /** Read the banked run summary into a sim result, falling back if the run
  *  somehow ended without one. */
-function toResult(s: GameState): SimResult {
+function toResult(s: GameState, tails: number): SimResult {
   return {
     daysSurvived: s.runEnd?.daysSurvived ?? Math.min(s.day, 12),
     peakNetWorth: s.peakNetWorth,
@@ -64,6 +66,7 @@ function toResult(s: GameState): SimResult {
     netWorthAtEnd: s.runEnd?.netWorthAtEnd ?? 0,
     status: s.status,
     bigTradeDays: Object.values(s.dayHighlights).filter((k) => k === "bigTrade").length,
+    tails,
   };
 }
 
@@ -71,6 +74,7 @@ function toResult(s: GameState): SimResult {
 export function runArchetype(kind: Archetype, seed: number): SimResult {
   let s = createGame(seed);
   const candidates = candidatesFor(kind);
+  let tails = 0;
 
   while (s.status === "playing") {
     // Top up fuel modestly each turn; careful personas also maintain the hull now
@@ -95,6 +99,7 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
         r.event.choices.map((c) => c.id)
       );
       s = resolveChoice(r.state, r.event, choice);
+      if (s.pirateTail) tails++;
       s = arrive(s).state;
       continue;
     }
@@ -116,6 +121,7 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
       r.event.choices.map((c) => c.id)
     );
     s = resolveChoice(r.state, r.event, choice);
+    if (s.pirateTail) tails++;
     // arrive() settles deliveries, banks the Day-12 audit, and runs the loss check.
     s = arrive(s).state;
     if (s.status !== "playing") break;
@@ -127,7 +133,7 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
     s = checkLoss(s);
   }
 
-  return toResult(s);
+  return toResult(s, tails);
 }
 
 function chooseEventOption(kind: Archetype, ids: string[]): string {
@@ -172,6 +178,7 @@ export interface ArchetypeSummary {
   peakSum: number;
   scoreSum: number;
   netWorthSum: number;
+  tailsSum: number;
 }
 
 /** Aggregate sweep outcomes per archetype — the balance gates' one shared shape. */
@@ -185,12 +192,14 @@ export function sweepSummary(seeds: readonly number[]): ArchetypeSummary[] {
       peakSum: 0,
       scoreSum: 0,
       netWorthSum: 0,
+      tailsSum: 0,
     };
     for (const seed of seeds) {
       const r = runArchetype(kind, seed);
       sum.peakSum += r.peakNetWorth;
       sum.scoreSum += r.score;
       sum.netWorthSum += r.netWorthAtEnd;
+      sum.tailsSum += r.tails;
       if (r.status === "audited") sum.audited++;
       else if (r.status === "lost") sum.lost++;
       else sum.retired++;
