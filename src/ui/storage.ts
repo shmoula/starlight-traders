@@ -355,12 +355,20 @@ function hasValidStateCore(st: Partial<GameState>): boolean {
   );
 }
 
+/** dayHighlights is a plain object whose every value is a known highlight kind. */
+function isValidDayHighlights(dayHighlights: unknown): boolean {
+  return (
+    typeof dayHighlights === "object" &&
+    dayHighlights !== null &&
+    Object.values(dayHighlights).every((k) => HIGHLIGHT_KINDS.has(k))
+  );
+}
+
 function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (typeof s !== "object" || s === null) return false;
   const st = s as Partial<GameState>;
   if (typeof st.bootDate !== "string" || !stampsDay(st.bootDate, dateKey)) return false;
-  if (typeof st.dayHighlights !== "object" || st.dayHighlights === null) return false;
-  if (!Object.values(st.dayHighlights).every((k) => HIGHLIGHT_KINDS.has(k))) return false;
+  if (!isValidDayHighlights(st.dayHighlights)) return false;
   if (!isValidLog(st.log)) return false;
   if (!isValidBoughtHere(st.boughtHere)) return false;
   if (!allNonNegativeNumbers(st.soldHere, COMMODITY_KEYS)) return false;
