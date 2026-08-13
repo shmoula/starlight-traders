@@ -107,6 +107,8 @@ export interface ShareData {
   endLabel: string;
   /** Names of feats first earned by this run (E2-5d); the card stays byte-identical without them. */
   featNames?: string[];
+  /** "{glyph} {name}" of the day's modifier (E3-1b) — the card's built-in excuse/brag. */
+  modifier: string;
 }
 
 export function shareText(d: ShareData): string {
@@ -116,7 +118,7 @@ export function shareText(d: ShareData): string {
     ? [`★ ${d.featNames[0]}${d.featNames.length > 1 ? ` +${d.featNames.length - 1} more` : ""}`]
     : [];
   return [
-    `🚀 Starlight #${d.runNumber} · ${d.dateLabel} · ${d.label}`,
+    `🚀 Starlight #${d.runNumber} · ${d.dateLabel} · ${d.label} · ${d.modifier}`,
     `Score ${d.score.toLocaleString("en-US")} · survived ${d.daysSurvived} days — ${d.endLabel}`,
     d.strip,
     ...feat,

@@ -31,6 +31,7 @@ import {
   calendarCells,
 } from "./ui/storage";
 import { FEATS, earnedFeats, featDef } from "./engine/feats";
+import { dailyModifier } from "./engine/modifiers";
 import { NODES } from "./engine/world";
 import { RUN_LENGTH } from "./engine/run-end";
 import { endHeadline, type RunMeta } from "./ui/screens";
@@ -334,6 +335,7 @@ app.addEventListener("click", async (e) => {
         strip: runStrip(state.dayHighlights, state.runEnd.daysSurvived, state.runEnd.status),
         endLabel: endHeadline(state.runEnd),
         featNames: (lastDebrief?.newFeats ?? []).map((id) => featDef(id).name),
+        modifier: `${dailyModifier(state.seed).glyph} ${dailyModifier(state.seed).name}`,
       });
     }
   } else {
