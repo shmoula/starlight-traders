@@ -1307,17 +1307,33 @@ npx vite-node -e "import('./src/sim/simulate').then(m => console.log(JSON.string
 
 (or an equivalent scratch script). Expected movements vs the plan-header table: cautious `netWorthSum` **rises** (amnesty saves tolls, syndicateRest saves interest on ~26 seeds); greedy `lost` rises a few (bait + corsairs, minus amnesty).
 
+**Recorded (post-M4r1, seeds 1–100):**
+
+| kind     | audited | lost | peakSum | scoreSum | netWorthSum |
+| :------- | ------: | ---: | ------: | -------: | ----------: |
+| cautious |      97 |    3 |       0 |    58200 |     −189973 |
+| balanced |     100 |    0 |  812373 |   845277 |      785277 |
+| greedy   |      70 |   30 | 1143011 |   824560 |      710137 |
+
+`tailsSum`: cautious 0, balanced 0, greedy 17. Per-modifier cautious+balanced
+audit%: ionStorms 100.0, syndicateRest 94.1, partsGlut 100.0, clearSkies 100.0,
+corsairSeason 100.0, amnesty 96.7, luxuryBoom 100.0 — all ≥90. (The measured
+movements matched the prediction: cautious rose from −196934 to −189973; greedy
+lost rose 26 → 30. Final knobs held at plan defaults — no knob-pulling needed.)
+
 - [ ] **Step 4: Re-record the decay thresholds honestly.** In `tests/sim/simulate.test.ts`:
 
-- If the cautious gate (`≤ base.cautious.netWorthSum − 5_000`, i.e. ≤ −195,880) now fails, replace it with the gate's spirit against the fixture — cautious must stay strictly below the pre-depth baseline — and pin the measured value in the comment:
+- The cautious gate (`≤ base.cautious.netWorthSum − 5_000`, i.e. ≤ −195,880) **tripped as predicted** and was re-anchored (user-approved). Amnesty (no tolls) and syndicateRest (no interest) legitimately lift the debt-dominated turtle _above_ its pre-depth baseline — measured post-M4r1 cautious `netWorthSum` **−189,973** vs pre-depth **−190,880** (i.e. +907 above) — so "strictly below" is no longer the right claim. The gate became an anchor guardrail (`|cautious − pre-depth| < 10_000`): the turtle stays pinned to its debt floor, neither runaway-rich nor collapsed. The load-bearing "market pushes back" proof stays the BALANCED decay gate (−18%, unchanged):
 
 ```ts
-// Re-anchored for M4 r1: amnesty (no tolls) and syndicateRest (no interest) legitimately
-// lift cautious on ~26 of 100 seeds, eating the old −5k margin. The load-bearing claim
-// stays: depth keeps the water turtle below its pre-depth earnings. Measured post-M4r1:
-// <RECORD the sweep number here>.
-it("the water turtle stays below its pre-depth baseline", () => {
-  expect(post.cautious.netWorthSum).toBeLessThan(base.cautious.netWorthSum);
+// Re-anchored for M4 r1 (user-approved): amnesty (no tolls) and syndicateRest (no
+// interest) legitimately lift cautious on ~26 of 100 seeds, so it lands ABOVE the
+// pre-depth baseline (measured post-M4r1 netWorthSum −189_973 vs pre-depth −190_880,
+// +907 above). The old "≥5k below" decay gate no longer holds and was never the
+// load-bearing proof — that stays the BALANCED gate (−18%). Guardrail: the
+// debt-dominated turtle stays anchored to its debt floor, band < 10_000.
+it("the water turtle stays anchored to its pre-depth debt floor", () => {
+  expect(Math.abs(post.cautious.netWorthSum - base.cautious.netWorthSum)).toBeLessThan(10_000);
 });
 ```
 

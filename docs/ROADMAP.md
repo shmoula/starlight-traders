@@ -63,12 +63,14 @@ sim gate only measures the real game after E2-3 lands.
 
 ## 🟢 Milestone 4 — Texture & polish
 
-| Item     | What                                                    | Notes                                                   |
-| :------- | :------------------------------------------------------ | :------------------------------------------------------ |
-| **E3-1** | Daily modifiers (one seeded modifier/day)               | Best chatter-per-effort; pairs with E1-1 bulletin.      |
-| **E3-2** | Long-haul incentive (richer tables on dead 7–8⛽ edges) | Reclaims wasted map edges.                              |
-| **E3-4** | Salvage bait (sometimes attracts a pirate tail)         | Prices the free-money salvage; risk scales with wealth. |
-| **P3-2** | Juice (pulse stats, floating toast, danger pips)        | Needs P2-1. Partially shipped already.                  |
+**Round 1 closed 2026-08-13 ("No Two Days Alike"): E3-1 + E3-2 + E3-4 shipped together** — one seeded daily modifier per date, salvage-rich long-haul lanes plus seeded ice-run contracts, and salvage bait that latches a one-jump pirate tail, all honest on every surface and held by the 100-seed sim sweep (new per-modifier fairness gate, all 7 groups ≥90%). P3-2 (juice remainder) is the open M4 tail.
+
+| Item     | What                                                    | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| :------- | :------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **E3-1** | Daily modifiers (one seeded modifier/day)               | ✅ **Shipped 2026-08-13.** One seeded modifier per daily seed, constant all run, from a 7-entry pool (clear skies, ion storms, luxury boom, parts glut, pirate amnesty, corsair season, syndicate rest); effects channel through fuelCost/getPrice/event bands/interest and surface on the bulletin lead, screen-head chip, and share card. Ion storms softened to long-haul-only (+1⛽ on base ≥7⛽ lanes) to clear the ≥90% per-modifier fairness gate. |
+| **E3-2** | Long-haul incentive (richer tables on dead 7–8⛽ edges) | ✅ **Shipped 2026-08-13.** The two 7–8⛽ lanes (kiruna–verge, kiruna–meridian) double their salvage band and read "salvage-rich"; seeded ❄ ice-run contracts (water → Verge) append to Kiruna's board on a ~1-in-3 cadence with a day-1 bulletin notice.                                                                                                                                                                                                  |
+| **E3-4** | Salvage bait (sometimes attracts a pirate tail)         | ✅ **Shipped 2026-08-13.** A clean salvage scoop is seeded 1-in-4 to be bait, latching a one-jump pirate tail (+0.35 ambush odds) shown on the collect button and announced immediately, cleared on the next jump; persisted via snapshot v6.                                                                                                                                                                                                             |
+| **P3-2** | Juice (pulse stats, floating toast, danger pips)        | Needs P2-1. Partially shipped already.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ---
 
@@ -107,4 +109,12 @@ contracts) and E2-2j (best-haul/💰 highlight exclude the returned deposit), sh
 (sell-side market depth, final knobs MARKET_DEPTH=20/DEPTH_SLOPE=0.08/DEPTH_FLOOR=0.6),
 E2-2f (contract rewards re-anchored to the day-independent baselinePrice, curbing the
 bounce line), and P2-2's cost-basis/P&L half (avg-paid cost basis + unrealized P&L chip
-per held commodity) all shipped. See the two backlog files for details.
+per held commodity) all shipped. **Milestone 4 opened 2026-08-13 with round 1
+("No Two Days Alike"):** E3-1 (daily modifiers — 7-entry seeded pool through
+fuelCost/getPrice/event-bands/interest, surfaced on bulletin/screen-head/share
+card; ion storms shipped long-haul-only after the fairness gate), E3-2
+(salvage-rich long-haul lanes + seeded ❄ ice-run contracts at Kiruna), and E3-4
+(salvage bait → one-jump pirate tail, snapshot v6) all shipped; final knobs at
+plan defaults (SALVAGE_BAIT_DIVISOR=4, TAIL_BONUS=0.35, CORSAIR_DANGER_DELTA=0.06,
+LONG_HAUL_SALVAGE_BAND=0.36, ICE_RUN_CADENCE=3, MODIFIER_SALT=0x7007). See the two
+backlog files for details.

@@ -1,6 +1,6 @@
 # M4 Round 1 — "No Two Days Alike" (E3-1 + E3-2 + E3-4)
 
-**Date:** 2026-08-12 · **Status:** draft — awaiting review
+**Date:** 2026-08-12 · **Status:** ✅ shipped 2026-08-13 (M4 round 1)
 **Source:** [ROADMAP.md](../../ROADMAP.md) Milestone 4; specs in
 [ENGAGEMENT_BACKLOG.md](../../ENGAGEMENT_BACKLOG.md) rows E3-1, E3-2, E3-4.
 
@@ -381,3 +381,52 @@ Round:
 - [ ] Snapshot v6 migrates v5 silently; full suite green; Lighthouse CI green.
 - [ ] ROADMAP/backlog rows ticked on land (E3-1, E3-2, E3-4) — M4 round 1
       closed; E1-5 heat gate ruled on and recorded in the roadmap.
+
+## Deviations & final knobs
+
+Recorded on round close (2026-08-13). E3-1, E3-2, and E3-4 all shipped.
+
+### Deviations from the spec as drafted
+
+1. **Ion storms shipped long-haul-only, not every jump.** The draft (decision 2
+   pool table; decision 3) had `ionStorms` add +1⛽ to _every_ jump. That failed
+   the new E3-1 per-modifier fairness gate — the ionStorms cautious+balanced
+   audit rate came in at **71.4%** against the 90% floor, because the flat +1
+   stranded thin cautious survival hops. Shipped behavior: `fuelCost` applies the
+   storm surcharge **only on long-haul lanes** (base distance ≥ `LONG_HAUL_FUEL`
+   = 7⛽). The bulletin line reads "TODAY: Ion storms — long crossings burn +1⛽".
+   Post-fix all 7 modifier groups clear ≥90%.
+
+2. **`LONG_HAUL_FUEL` and `isLongHaul()` live in `src/engine/world.ts`, not
+   events.ts.** This was the plan's pre-noted deviation: world.ts owns the
+   DISTANCE table they read, and events.ts already imports world.ts — the reverse
+   would be an import cycle. It was also pulled forward from Task 6 into Task 2 so
+   `fuelCost` could reference it for deviation 1.
+
+3. **The cautious decay sim gate was re-anchored (user-approved).** The pre-round
+   gate ("cautious sinks ≥5k below its pre-depth baseline") was invalidated by two
+   of this round's modifiers: `amnesty` (no pirate tolls) and `syndicateRest` (no
+   interest) legitimately lift the debt-dominated water turtle, erasing the
+   aggregate decay signal (post-round cautious netWorthSum **−189,973** vs
+   pre-depth **−190,880** — i.e. +907 _above_ the pre-depth baseline). The gate was
+   replaced with an anchor guardrail — `|cautious − pre-depth| < 10_000` (the
+   turtle stays pinned to its debt floor, neither runaway-rich nor collapsed). The
+   load-bearing "market pushes back" proof remains the **balanced** decay gate
+   (−18%, unchanged).
+
+### Final ⚙ knob values
+
+All shipped at their plan defaults — no knob-pulling was needed to hold the gates:
+
+| knob                     | value  |
+| :----------------------- | :----- |
+| `SALVAGE_BAIT_DIVISOR`   | 4      |
+| `TAIL_BONUS`             | 0.35   |
+| `CORSAIR_DANGER_DELTA`   | 0.06   |
+| `LONG_HAUL_SALVAGE_BAND` | 0.36   |
+| `SALVAGE_BAND`           | 0.18   |
+| `DANGER_CAP`             | 0.9    |
+| `ICE_RUN_CADENCE`        | 3      |
+| `MODIFIER_SALT`          | 0x7007 |
+
+Greedy death rate landed at **30/100** (band 10–40).
