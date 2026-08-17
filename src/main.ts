@@ -34,12 +34,28 @@ import { FEATS, earnedFeats, featDef } from "./engine/feats";
 import { dailyModifier } from "./engine/modifiers";
 import { NODES } from "./engine/world";
 import { RUN_LENGTH } from "./engine/run-end";
-import { endHeadline, type RunMeta } from "./ui/screens";
+import { endHeadline, type RunMeta, type ShareStatus } from "./ui/screens";
 import { BACKDROP_SVG } from "./ui/art";
+import { Pulses, Vitals, vitalPulses, vitalsOf } from "./ui/pulse";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 // Static decoration, injected once — deliberately outside the paint() cycle.
 document.querySelector<HTMLDivElement>("#backdrop")!.innerHTML = BACKDROP_SVG;
+const toastLayer = document.getElementById("toasts");
+
+/** P3-2: float the credit delta that just landed. A missing layer degrades to no
+ *  toast — never a throw, since this is decoration on top of a rendered truth. */
+function showCreditToast(prev: Vitals | null, next: Vitals): void {
+  if (!toastLayer || !prev) return;
+  const delta = next.credits - prev.credits;
+  if (delta === 0) return;
+  const el = document.createElement("div");
+  el.className = `st-toast st-toast--${delta > 0 ? "up" : "down"} st-num`;
+  el.textContent = `${delta > 0 ? "+" : "−"}${Math.abs(delta).toLocaleString()}cr`;
+  el.addEventListener("animationend", () => el.remove());
+  window.setTimeout(() => el.remove(), 2000);
+  toastLayer.appendChild(el);
+}
 
 // One place ties the seed and the display date to a single instant, so they cannot
 // desync: the run stamps its own UTC day into GameState (see createGame), and the
@@ -71,11 +87,19 @@ let retireArmed = false;
 let restartArmed = false;
 // Dock-talk marquee pause — pure view state, never snapshotted.
 let tickerPaused = false;
+// Result of the last clipboard attempt, shown on the share button for ~2s (P2-4).
+let shareStatus: ShareStatus = "idle";
+let shareResetTimer: number | null = null;
 // Last action dispatched, used to restore focus after the innerHTML re-render.
 let lastAct: { act?: string; id?: string } = {};
 // Whether the live run came out of storage rather than being created here. Gates
 // safePaint's recovery: only a restored run has a snapshot worth blaming.
 let resumedFromSnapshot = false;
+// Vitals as of the last paint, so paint() can diff this turn's movement into a
+// one-shot pulse (P3-2). null before the first paint — nothing has moved yet.
+// Also reset to null by startNewRun(), since an in-page restart reuses this module
+// scope rather than getting a fresh one.
+let prevVitals: Vitals | null = null;
 
 function startNewRun() {
   state = bootDailyGame();
@@ -86,6 +110,11 @@ function startNewRun() {
   recorded = false;
   lastDebrief = undefined;
   resumedFromSnapshot = false;
+  // This is an in-page restart, not a reload — module scope survives it, so prevVitals
+  // still holds the previous run's last-painted vitals. Without clearing it, the new
+  // run's fixed starting numbers would diff against the old run's end-state and fire
+  // spurious pulses on the very first paint (P3-2).
+  prevVitals = null;
   runLabel = labelForDay(save, utcDateKey(state.bootDate));
 }
 
@@ -187,6 +216,8 @@ function restoreFocus() {
 }
 
 function paint() {
+  const nextVitals = vitalsOf(state);
+  const pulses: Pulses = vitalPulses(prevVitals, nextVitals);
   render(app, {
     state,
     pendingEvent,
@@ -196,9 +227,13 @@ function paint() {
     restartArmed,
     meta: buildMeta(),
     tickerPaused,
+    pulses,
+    shareStatus,
   });
   document.title = titleFor(state);
   restoreFocus();
+  showCreditToast(prevVitals, nextVitals);
+  prevVitals = nextVitals;
 }
 
 /**
@@ -326,7 +361,7 @@ app.addEventListener("click", async (e) => {
 
   if (act === "share") {
     if (state.runEnd) {
-      await copyShare({
+      const ok = await copyShare({
         dateLabel: dateLabelOf(state),
         score: state.runEnd.score,
         daysSurvived: state.runEnd.daysSurvived,
@@ -337,6 +372,13 @@ app.addEventListener("click", async (e) => {
         featNames: (lastDebrief?.newFeats ?? []).map((id) => featDef(id).name),
         modifier: `${dailyModifier(state.seed).glyph} ${dailyModifier(state.seed).name}`,
       });
+      shareStatus = ok ? "ok" : "fail";
+      if (shareResetTimer !== null) window.clearTimeout(shareResetTimer);
+      shareResetTimer = window.setTimeout(() => {
+        shareStatus = "idle";
+        shareResetTimer = null;
+        safePaint();
+      }, 2000);
     }
   } else {
     applyAction(act, id, qty);

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { Archetype, runArchetype, sweepSummary, viableLoops } from "../../src/sim/simulate";
 import { dailyModifier } from "../../src/engine/modifiers";
+import { HEAT_PER_CR } from "../../src/engine/economy";
 
 const SEEDS = Array.from({ length: 100 }, (_, i) => i + 1);
 const ALL: Archetype[] = ["cautious", "balanced", "greedy"];
@@ -80,6 +81,50 @@ describe("route viability (E2-1 acceptance)", () => {
         expect(viableLoops(seed, day), `seed ${seed} day ${day}`).toBeGreaterThanOrEqual(2);
       }
     }
+  });
+});
+
+describe("pressure curve (E1-5 acceptance) — the endgame is no longer flat", () => {
+  const seeds = Array.from({ length: 100 }, (_, i) => i + 1);
+  const summary = Object.fromEntries(sweepSummary(seeds).map((s) => [s.kind, s]));
+
+  // The danger lift is measured among runs that actually reach the last three days
+  // (daysSurvived >= 9) having earned heat (peakNetWorth >= HEAT_PER_CR). The raw sweep
+  // mean is diluted by runs that die before day 9: they take no late jumps, so their
+  // per-run late danger is a median-of-nothing 0 that drags the aggregate flat. This
+  // conditioning isolates the population heat can act on, and it filters on the cause
+  // (survival + wealth), never on the danger outcome — so there is no selection bias
+  // toward hotter late lanes.
+  const conditionedLift = (kind: Archetype): number => {
+    const runs = seeds
+      .map((seed) => runArchetype(kind, seed))
+      .filter((r) => r.daysSurvived >= 9 && r.peakNetWorth >= HEAT_PER_CR);
+    const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+    return mean(runs.map((r) => r.lateDanger)) - mean(runs.map((r) => r.earlyDanger));
+  };
+
+  it("late-run lanes are measurably more dangerous than the opening", () => {
+    for (const kind of ["balanced", "greedy"] as const) {
+      expect(conditionedLift(kind), `${kind} conditioned danger lift`).toBeGreaterThanOrEqual(
+        0.02 // ⚙
+      );
+    }
+  });
+
+  it("the toll still means something on day 9+ (was 4.2% pre-round)", () => {
+    for (const kind of ["balanced", "greedy"] as const) {
+      expect(summary[kind].lateTollShareMean, `${kind} late toll share`).toBeGreaterThanOrEqual(
+        0.08 // ⚙
+      );
+    }
+  });
+
+  it("the turtle is untouched: it never gets rich, so it earns no heat and no scaled toll", () => {
+    // Canary: if either assertion trips, a balance change let a cautious run go net-worth
+    // positive at least once across the 100 seeds — peakSum > 0 means it earned heat,
+    // lateTollShareMean > 0 means the scaled toll fired. The turtle must stay flat.
+    expect(summary.cautious.peakSum).toBe(0); // no heat: heat is derived from peakNetWorth
+    expect(summary.cautious.lateTollShareMean).toBe(0); // no scaled toll: net worth never positive
   });
 });
 

@@ -17,7 +17,7 @@ import {
 } from "../../src/engine/game";
 import { missionFeasibility } from "../../src/engine/missions";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice } from "../../src/engine/world";
-import { dockingFee, MARKET_DEPTH, saleProceeds } from "../../src/engine/economy";
+import { dockingFee, HEAT_PER_CR, MARKET_DEPTH, saleProceeds } from "../../src/engine/economy";
 import { GameEvent, Mission, RunEnd } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { STATION_DOSSIERS, epilogue } from "../../src/engine/fiction";
@@ -603,6 +603,15 @@ describe("runEndScreen debrief (E1-3)", () => {
     const html = runEndScreen(ended, ended.runEnd!, false, meta);
     expect(html).toContain("▼ 300"); // absolute value, no minus sign
     expect(html).not.toContain("New personal best");
+  });
+});
+
+describe("share button feedback (P2-4)", () => {
+  it("labels the button by copy status", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    expect(runEndScreen(ended, ended.runEnd!, false, META)).toContain("Copy score card");
+    expect(runEndScreen(ended, ended.runEnd!, false, META, "ok")).toContain("Copied ✓");
+    expect(runEndScreen(ended, ended.runEnd!, false, META, "fail")).toContain("Copy failed");
   });
 });
 
@@ -1401,5 +1410,62 @@ describe("market depth + P&L surfaces (E2-1c/P2-2b)", () => {
   it("empty rows carry neither basis nor P&L", () => {
     const html = stationScreen(createGame(42));
     expect(html).not.toContain("paid ~");
+  });
+});
+
+describe("statbar heat + peak chips (E1-5 / P2-4)", () => {
+  const rich = { ...createGame(42), peakNetWorth: 6249 };
+
+  it("always shows peak net worth, so the number driving danger is visible", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("🏆");
+    expect(html).toContain("0cr"); // a fresh run's peak
+    expect(stationScreen(rich)).toContain("6,249cr");
+  });
+
+  it("shows the heat chip only once heat exists, with the % the lanes actually carry", () => {
+    expect(stationScreen(createGame(42))).not.toContain("heat +");
+    const html = stationScreen(rich);
+    expect(html).toContain("heat +4%");
+  });
+
+  it("announces heat to screen readers, since the statbar is aria-hidden here", () => {
+    const html = stationScreen(rich);
+    expect(html).toMatch(/st-sr-only[^>]*>[^<]*heat/i);
+  });
+
+  it("steps the chip with the peak", () => {
+    const s = { ...createGame(42), peakNetWorth: HEAT_PER_CR * 9 };
+    expect(stationScreen(s)).toContain("heat +9%");
+  });
+});
+
+describe("danger pips (P3-2)", () => {
+  it("gives every jump orb a pip group in the lane's tier", () => {
+    const html = stationScreen(createGame(42));
+    // terra→kiruna is 0.05 (safe); terra→verge is 0.25 (hot)
+    expect(html).toContain('class="st-orb__pips st-orb__pips--safe"');
+    expect(html).toContain('class="st-orb__pips st-orb__pips--hot"');
+  });
+
+  it("reddens the pips as heat climbs, with no change to the announced text", () => {
+    const rich = { ...createGame(42), peakNetWorth: 6249 }; // heat 0.04 → 0.05 + 0.04 = 0.09
+    const html = stationScreen(rich);
+    expect(html).toContain('class="st-orb__pips st-orb__pips--safe"'); // 0.09 still < 0.10
+    const hotter = { ...createGame(42), peakNetWorth: 22_500 }; // heat 0.15 → 0.20
+    expect(stationScreen(hotter)).toContain('class="st-orb__pips st-orb__pips--warn"');
+  });
+
+  it("keeps pips out of the accessibility tree — the raid % already says it", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toMatch(/<span class="st-orb__pips[^"]*" aria-hidden="true">/);
+  });
+});
+
+describe("statbar vital pulses (P3-2)", () => {
+  it("marks the moved stat for a one-shot pulse (P3-2)", () => {
+    const html = stationScreen(createGame(42), [], "", false, undefined, false, { credits: "up" });
+    expect(html).toContain("st-statbar__chip--pulse-up");
+    expect(stationScreen(createGame(42))).not.toContain("st-statbar__chip--pulse");
   });
 });

@@ -25,8 +25,9 @@ export const MAP_LAYOUT: Record<NodeId, { x: number; y: number }> = {
 const NODE_R = 14;
 
 /** Tone class per danger band — the table's three story tiers (plan deviation 1):
- *  patrolled (<10%), direct-but-raided (<25%), frontier (≥25%). */
-function laneTone(p: number): "safe" | "warn" | "hot" {
+ *  patrolled (<10%), direct-but-raided (<25%), frontier (≥25%). Shared with the
+ *  Navigator's orb pips (P3-2) so the map and the buttons cannot disagree. */
+export function laneTone(p: number): "safe" | "warn" | "hot" {
   return p < 0.1 ? "safe" : p < 0.25 ? "warn" : "hot";
 }
 

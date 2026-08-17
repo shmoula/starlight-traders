@@ -284,6 +284,11 @@ body {
 .st-statbar__chip--gold {
   color: var(--st-accent-currency);
 }
+/* Heat (E1-5): the one chip that means "you are being hunted". */
+.st-statbar__chip--heat {
+  color: var(--st-accent-alert);
+  border-color: color-mix(in srgb, var(--st-accent-alert) 45%, transparent);
+}
 /* DOM order is stage → left rail → right rail (see screens.ts) so the
    single-column mobile layout leads with the trade hub with focus order
    intact. From tablet up, restore the left → stage → right arrangement. */

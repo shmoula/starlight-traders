@@ -4,7 +4,7 @@
 // same formulas, so a stake label shown on a choice button can never drift from
 // what the choice actually does. E1-4 (honest events pass) extends this module.
 import { GameEvent, GameState } from "./types";
-import { cargoUsed } from "./economy";
+import { cargoUsed, TOLL_RATE, netWorth } from "./economy";
 import { commodityName, getPrice } from "./world";
 
 /** Appended to a stake whose worst-case hull roll would destroy the ship (B-6 honesty). */
@@ -15,9 +15,17 @@ function lethalIf(s: GameState, worstCaseDamage: number): string {
   return worstCaseDamage >= s.hull ? LETHAL_MARK : "";
 }
 
-/** Pirate toll demanded today, clamped to what the player holds. */
+/**
+ * Pirate toll demanded today (E1-5b). The old flat schedule survives as a FLOOR, so the
+ * early run is byte-identical; above the crossover — (150 + day × 10) / TOLL_RATE, i.e.
+ * 1,600cr on day 1 rising to 2,700cr on day 12 — the demand tracks what the ship is
+ * actually worth, which is what keeps pay-vs-flee a decision instead of a formality.
+ * Still clamped to held credits: a wiped-out trader is never asked for what they lack.
+ */
 export function pirateToll(s: GameState): number {
-  return Math.max(0, Math.min(s.credits, 150 + s.day * 10));
+  const flat = 150 + s.day * 10;
+  const scaled = Math.round(TOLL_RATE * netWorth(s));
+  return Math.max(0, Math.min(s.credits, Math.max(flat, scaled)));
 }
 
 /** Hull damage taken when fleeing pirates. */

@@ -27,10 +27,12 @@ import {
   cargoUsed,
   netWorth,
   spendableCredits,
+  HEAT_VOICE_STEP,
+  heatOf,
 } from "./economy";
 import { docksideUnitsUsed, generateMissions } from "./missions";
-import { rollEvent } from "./events";
-import { crewName } from "./fiction";
+import { riskOf, rollEvent } from "./events";
+import { crewName, heatLine } from "./fiction";
 import { hashSeed } from "./rng";
 import {
   DERELICT_REWARD_DIVISOR,
@@ -126,9 +128,21 @@ function interestLine(interest: number, day: number): string {
   return base;
 }
 
+/** Integer tier of a heat value — 0.05/0.10/0.15 → 1/2/3 at the default step. Integer
+ *  math (not division on floats) so 0.15 / 0.05 can't land on 2.9999… and skip a line. */
+function heatTier(heat: number): number {
+  return Math.floor(Math.round(heat * 100) / Math.round(HEAT_VOICE_STEP * 100));
+}
+
 function trackPeak(state: GameState): GameState {
   const nw = netWorth(state);
-  return nw > state.peakNetWorth ? { ...state, peakNetWorth: nw } : state;
+  if (nw <= state.peakNetWorth) return state;
+  const raised = { ...state, peakNetWorth: nw };
+  // E1-5c: the Syndicate notices when your fortune crosses a threshold. The crossing is
+  // visible in this transition, so nothing needs remembering — no new state field.
+  const line = heatLine(heatTier(heatOf(raised)));
+  const crossed = heatTier(heatOf(raised)) > heatTier(heatOf(state));
+  return crossed && line ? withLog(raised, line, "bad") : raised;
 }
 
 /** Keep the single largest credit inflow of the run (E1-3 "best haul"). */
@@ -553,7 +567,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
     -fee
   );
 
-  const event = rollEvent(s.seed, s.day, state.location, to, state.pirateTail);
+  const event = rollEvent(s.seed, s.day, state.location, to, riskOf(state));
   return { state: s, event };
 }
 

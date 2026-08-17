@@ -20,6 +20,7 @@ import {
   cargoUsed,
   dockingFee,
   escapeCost,
+  heatOf,
   netWorth,
   saleProceeds,
   spendableCredits,
@@ -39,15 +40,36 @@ import { STATION_DOSSIERS, epilogue } from "../engine/fiction";
 import { choiceOdds, choiceStakes } from "../engine/preview";
 import { bulletin } from "../engine/bulletin";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
-import { starMap } from "./map";
+import { starMap, laneTone } from "./map";
 import { runStrip, stripSummary } from "./share";
 import type { CalendarCell } from "./storage";
 import { FeatDef, FeatId, featDef } from "../engine/feats";
+import { Pulses, Vitals } from "./pulse";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
 
 /** Compact exchange-board symbol per commodity for the EXCH ticker lane. */
 const COMMODITY_SYM: Record<CommodityId, string> = { water: "WTR", parts: "PRT", luxury: "LUX" };
+
+/** Result of the last clipboard attempt, shown on the button for ~2s (P2-4). */
+export type ShareStatus = "idle" | "ok" | "fail";
+
+/** Share button label for the last clipboard attempt (P2-4). */
+function shareButtonLabel(shareStatus: ShareStatus): string {
+  if (shareStatus === "ok") return "Copied ✓";
+  if (shareStatus === "fail") return "Copy failed";
+  return "Copy score card";
+}
+
+/** New-run control on the debrief: a two-step confirm when armed, else one button. */
+function restartControls(restartArmed: boolean): string {
+  return restartArmed
+    ? `<div class="retire-confirm">
+            <button class="st-btn st-btn--ghost retire-confirm__go" data-act="restartConfirm">Start a Practice run?</button>
+            <button class="st-btn st-btn--ghost retire-confirm__cancel" data-act="restartCancel" aria-label="Cancel new run" title="Cancel">✕</button>
+          </div>`
+    : `<button class="st-btn st-btn--ghost" data-act="restart">New run</button>`;
+}
 
 export interface RunMeta {
   runNumber: number;
@@ -119,6 +141,13 @@ function screenHead(s: GameState, dateLabel = "", meta?: RunMeta): string {
   </header>`;
 }
 
+/** P3-2: one-shot animation class for a vital that just moved. The full innerHTML
+ *  swap means the class lands on a fresh node, so the animation plays exactly once. */
+function pulseClass(pulses: Pulses, key: keyof Vitals): string {
+  const dir = pulses[key];
+  return dir ? ` st-statbar__chip--pulse-${dir}` : "";
+}
+
 /**
  * At-a-glance vitals strip. On the station screen it duplicates panel data, so it
  * ships presentation-only (aria-hidden). On the event screen it is the ONLY vitals
@@ -127,15 +156,20 @@ function screenHead(s: GameState, dateLabel = "", meta?: RunMeta): string {
 function statbar(
   s: GameState,
   fuelClass: string,
-  opts: { presentation?: boolean; extra?: string } = {}
+  opts: { presentation?: boolean; extra?: string; pulses?: Pulses } = {}
 ): string {
-  const { presentation = true, extra = "" } = opts;
+  const { presentation = true, extra = "", pulses = {} } = opts;
   const creditsClass = s.credits < 0 ? " credits-negative" : "";
+  const heat = heatOf(s);
+  const heatChip = heat
+    ? `<span class="st-statbar__chip st-num st-statbar__chip--heat" title="Word of your fortune travels — every lane carries +${Math.round(heat * 100)}% raid risk.">☠ heat +${Math.round(heat * 100)}%</span>`
+    : "";
   return `<div class="st-statbar${extra ? ` ${extra}` : ""}"${presentation ? ' aria-hidden="true"' : ""}>
-    <span class="st-statbar__chip st-statbar__chip--gold st-num${creditsClass}">${cr(s.credits)}</span>
-    <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
-    <span class="st-statbar__chip st-num">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
+    <span class="st-statbar__chip st-statbar__chip--gold st-num${creditsClass}${pulseClass(pulses, "credits")}">${cr(s.credits)}</span>
+    <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}${pulseClass(pulses, "fuel")}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
+    <span class="st-statbar__chip st-num${pulseClass(pulses, "hull")}">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
     <span class="st-statbar__chip st-num">Hold ${cargoUsed(s.cargo)}/${s.cargoCapacity}</span>
+    <span class="st-statbar__chip st-num">🏆 ${cr(s.peakNetWorth)}</span>${heatChip}
   </div>`;
 }
 
@@ -338,6 +372,14 @@ function navigatorPanel(s: GameState): string {
   const tailBanner = s.pirateTail
     ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Pirate tail — raid risk up on every lane until you jump.</div>`
     : "";
+  // E1-5: heat gets exactly one announced surface per screen. On the station screen the
+  // statbar chip is aria-hidden (it duplicates panel data), so this sr-only line carries
+  // it; on the event screen the statbar isn't aria-hidden, so the chip announces it there
+  // and this line isn't rendered. The per-lane raid % below already includes heat.
+  const heat = heatOf(s);
+  const heatNote = heat
+    ? `<p class="st-sr-only">Heat +${Math.round(heat * 100)}% — your peak fortune of ${cr(s.peakNetWorth)} adds ${Math.round(heat * 100)} points of raid risk to every lane.</p>`
+    : "";
   const orbs = NODE_IDS.filter((n) => n !== s.location)
     .map((n) => {
       const cost = fuelCost(s.seed, s.location, n);
@@ -350,10 +392,18 @@ function navigatorPanel(s: GameState): string {
       const disabled = s.fuel < cost;
       const reason = disabled ? ` — need ${cost}, have ${s.fuel}` : "";
       const detail = `${cost} fuel · dock ${cr(fee)} · ${raid}% raid risk · sells taxed ${taxPct}%${customsNote}${salvageNote}`;
+      // P3-2: three pips, filled to the lane's tier — the glanceable read of the same
+      // number the meta line spells out, and heat's most visible surface as it climbs.
+      const tone = laneTone(pirateChance(s, n));
+      const filled = tone === "safe" ? 1 : tone === "warn" ? 2 : 3;
+      const pips = `<span class="st-orb__pips st-orb__pips--${tone}" aria-hidden="true">${[1, 2, 3]
+        .map((i) => `<span class="st-orb__pip${i <= filled ? " is-on" : ""}"></span>`)
+        .join("")}</span>`;
       return `<button class="st-orb" data-act="jump" data-id="${n}"${disabledAttr(disabled, `Need ${cost}⛽, have ${s.fuel}`)}>
         <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
         <span class="st-orb__label">${NODES[n].name}</span>
         <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${cr(fee)} · ${raid}%</span>
+        ${pips}
         <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${detail}${reason}</span>
         <span class="st-sr-only"> — jump here, ${detail}${reason}</span>
       </button>`;
@@ -361,7 +411,7 @@ function navigatorPanel(s: GameState): string {
     .join("");
   return panel(
     "Navigator",
-    `${banner}${tailBanner}${starMap(s)}<div class="st-orb-group">${orbs}</div>`
+    `${banner}${tailBanner}${heatNote}${starMap(s)}<div class="st-orb-group">${orbs}</div>`
   );
 }
 
@@ -649,7 +699,8 @@ export function stationScreen(
   dateLabel = "",
   retireArmed = false,
   meta?: RunMeta,
-  tickerPaused = false
+  tickerPaused = false,
+  pulses: Pulses = {}
 ): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
@@ -666,7 +717,7 @@ export function stationScreen(
 
   return `
     ${screenHead(s, dateLabel, meta)}
-    ${statbar(s, fuelClass)}
+    ${statbar(s, fuelClass, { pulses })}
     <div class="ticker" aria-label="Station exchange and dock talk">
       ${exchLane(s)}
       ${dockTalkLane(s, tickerPaused)}
@@ -692,7 +743,7 @@ export function stationScreen(
   `;
 }
 
-export function eventScreen(s: GameState, e: GameEvent): string {
+export function eventScreen(s: GameState, e: GameEvent, pulses: Pulses = {}): string {
   const stakes = choiceStakes(s, e);
   const odds = choiceOdds(e);
   const choices = e.choices
@@ -707,7 +758,7 @@ export function eventScreen(s: GameState, e: GameEvent): string {
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="event-card">
-          ${statbar(s, fuelWarnClass(s), { presentation: false, extra: "st-statbar--event" })}
+          ${statbar(s, fuelWarnClass(s), { presentation: false, extra: "st-statbar--event", pulses })}
           <h1 tabindex="-1">${e.title}</h1><p>${e.description}</p><div class="choices">${choices}</div>
         </div>
       </div></div>
@@ -773,7 +824,8 @@ export function runEndScreen(
   s: GameState,
   r: RunEnd,
   restartArmed = false,
-  meta?: RunMeta
+  meta?: RunMeta,
+  shareStatus: ShareStatus = "idle"
 ): string {
   const banked = r.status !== "lost";
   const identity = meta
@@ -798,12 +850,7 @@ export function runEndScreen(
     s.contracts.delivered + s.contracts.expired + s.activeMissions.length > 0
       ? `<div class="st-kv"><span class="st-kv__label">Contracts</span><span class="st-kv__value st-num">${s.contracts.delivered} delivered · ${s.contracts.expired} expired${forfeitNote}${sunkNote}</span></div>`
       : "";
-  const restart = restartArmed
-    ? `<div class="retire-confirm">
-            <button class="st-btn st-btn--ghost retire-confirm__go" data-act="restartConfirm">Start a Practice run?</button>
-            <button class="st-btn st-btn--ghost retire-confirm__cancel" data-act="restartCancel" aria-label="Cancel new run" title="Cancel">✕</button>
-          </div>`
-    : `<button class="st-btn st-btn--ghost" data-act="restart">New run</button>`;
+  const restart = restartControls(restartArmed);
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
@@ -828,7 +875,7 @@ export function runEndScreen(
               >Your run, one glyph per day — ${stripSummary(s.dayHighlights, r.daysSurvived, r.status)}</span
             ><span aria-hidden="true">${stripCells(s.dayHighlights, r.daysSurvived, r.status)}</span>
           </p>
-          <button class="st-btn" data-act="share">Copy score card</button>
+          <button class="st-btn" data-act="share">${shareButtonLabel(shareStatus)}</button>
           ${restart}
         </div>
       </div></div>
