@@ -879,6 +879,25 @@
     opacity: 0.55;
   }
 }
+/* P3-2: a one-shot tint on the stat that just moved. */
+@keyframes st-chip-pulse-up {
+  from {
+    background: color-mix(in srgb, var(--st-positive) 35%, transparent);
+  }
+}
+@keyframes st-chip-pulse-down {
+  from {
+    background: color-mix(in srgb, var(--st-negative) 35%, transparent);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .st-statbar__chip--pulse-up {
+    animation: st-chip-pulse-up 0.6s var(--st-ease) 1;
+  }
+  .st-statbar__chip--pulse-down {
+    animation: st-chip-pulse-down 0.6s var(--st-ease) 1;
+  }
+}
 .st-flash-in {
   animation: st-flash-in var(--st-dur-slow) ease-out;
 }

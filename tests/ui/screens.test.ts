@@ -1452,3 +1452,11 @@ describe("danger pips (P3-2)", () => {
     expect(html).toMatch(/<span class="st-orb__pips[^"]*" aria-hidden="true">/);
   });
 });
+
+describe("statbar vital pulses (P3-2)", () => {
+  it("marks the moved stat for a one-shot pulse (P3-2)", () => {
+    const html = stationScreen(createGame(42), [], "", false, undefined, false, { credits: "up" });
+    expect(html).toContain("st-statbar__chip--pulse-up");
+    expect(stationScreen(createGame(42))).not.toContain("st-statbar__chip--pulse");
+  });
+});

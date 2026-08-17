@@ -44,6 +44,7 @@ import { starMap, laneTone } from "./map";
 import { runStrip, stripSummary } from "./share";
 import type { CalendarCell } from "./storage";
 import { FeatDef, FeatId, featDef } from "../engine/feats";
+import { Pulses, Vitals } from "./pulse";
 
 const cr = (n: number) => `${n.toLocaleString()}cr`;
 
@@ -120,6 +121,13 @@ function screenHead(s: GameState, dateLabel = "", meta?: RunMeta): string {
   </header>`;
 }
 
+/** P3-2: one-shot animation class for a vital that just moved. The full innerHTML
+ *  swap means the class lands on a fresh node, so the animation plays exactly once. */
+function pulseClass(pulses: Pulses, key: keyof Vitals): string {
+  const dir = pulses[key];
+  return dir ? ` st-statbar__chip--pulse-${dir}` : "";
+}
+
 /**
  * At-a-glance vitals strip. On the station screen it duplicates panel data, so it
  * ships presentation-only (aria-hidden). On the event screen it is the ONLY vitals
@@ -128,18 +136,18 @@ function screenHead(s: GameState, dateLabel = "", meta?: RunMeta): string {
 function statbar(
   s: GameState,
   fuelClass: string,
-  opts: { presentation?: boolean; extra?: string } = {}
+  opts: { presentation?: boolean; extra?: string; pulses?: Pulses } = {}
 ): string {
-  const { presentation = true, extra = "" } = opts;
+  const { presentation = true, extra = "", pulses = {} } = opts;
   const creditsClass = s.credits < 0 ? " credits-negative" : "";
   const heat = heatOf(s);
   const heatChip = heat
     ? `<span class="st-statbar__chip st-num st-statbar__chip--heat" title="Word of your fortune travels — every lane carries +${Math.round(heat * 100)}% raid risk.">☠ heat +${Math.round(heat * 100)}%</span>`
     : "";
   return `<div class="st-statbar${extra ? ` ${extra}` : ""}"${presentation ? ' aria-hidden="true"' : ""}>
-    <span class="st-statbar__chip st-statbar__chip--gold st-num${creditsClass}">${cr(s.credits)}</span>
-    <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
-    <span class="st-statbar__chip st-num">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
+    <span class="st-statbar__chip st-statbar__chip--gold st-num${creditsClass}${pulseClass(pulses, "credits")}">${cr(s.credits)}</span>
+    <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}${pulseClass(pulses, "fuel")}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
+    <span class="st-statbar__chip st-num${pulseClass(pulses, "hull")}">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
     <span class="st-statbar__chip st-num">Hold ${cargoUsed(s.cargo)}/${s.cargoCapacity}</span>
     <span class="st-statbar__chip st-num">🏆 ${cr(s.peakNetWorth)}</span>${heatChip}
   </div>`;
@@ -669,7 +677,8 @@ export function stationScreen(
   dateLabel = "",
   retireArmed = false,
   meta?: RunMeta,
-  tickerPaused = false
+  tickerPaused = false,
+  pulses: Pulses = {}
 ): string {
   const report = turnReport.length
     ? `<div class="turn-report" role="status" aria-live="polite">
@@ -686,7 +695,7 @@ export function stationScreen(
 
   return `
     ${screenHead(s, dateLabel, meta)}
-    ${statbar(s, fuelClass)}
+    ${statbar(s, fuelClass, { pulses })}
     <div class="ticker" aria-label="Station exchange and dock talk">
       ${exchLane(s)}
       ${dockTalkLane(s, tickerPaused)}
@@ -712,7 +721,7 @@ export function stationScreen(
   `;
 }
 
-export function eventScreen(s: GameState, e: GameEvent): string {
+export function eventScreen(s: GameState, e: GameEvent, pulses: Pulses = {}): string {
   const stakes = choiceStakes(s, e);
   const odds = choiceOdds(e);
   const choices = e.choices
@@ -727,7 +736,7 @@ export function eventScreen(s: GameState, e: GameEvent): string {
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
         <div class="event-card">
-          ${statbar(s, fuelWarnClass(s), { presentation: false, extra: "st-statbar--event" })}
+          ${statbar(s, fuelWarnClass(s), { presentation: false, extra: "st-statbar--event", pulses })}
           <h1 tabindex="-1">${e.title}</h1><p>${e.description}</p><div class="choices">${choices}</div>
         </div>
       </div></div>

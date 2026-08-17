@@ -36,6 +36,7 @@ import { NODES } from "./engine/world";
 import { RUN_LENGTH } from "./engine/run-end";
 import { endHeadline, type RunMeta } from "./ui/screens";
 import { BACKDROP_SVG } from "./ui/art";
+import { Pulses, Vitals, vitalPulses, vitalsOf } from "./ui/pulse";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 // Static decoration, injected once — deliberately outside the paint() cycle.
@@ -76,6 +77,9 @@ let lastAct: { act?: string; id?: string } = {};
 // Whether the live run came out of storage rather than being created here. Gates
 // safePaint's recovery: only a restored run has a snapshot worth blaming.
 let resumedFromSnapshot = false;
+// Vitals as of the last paint, so paint() can diff this turn's movement into a
+// one-shot pulse (P3-2). null before the first paint — nothing has moved yet.
+let prevVitals: Vitals | null = null;
 
 function startNewRun() {
   state = bootDailyGame();
@@ -187,6 +191,8 @@ function restoreFocus() {
 }
 
 function paint() {
+  const nextVitals = vitalsOf(state);
+  const pulses: Pulses = vitalPulses(prevVitals, nextVitals);
   render(app, {
     state,
     pendingEvent,
@@ -196,9 +202,11 @@ function paint() {
     restartArmed,
     meta: buildMeta(),
     tickerPaused,
+    pulses,
   });
   document.title = titleFor(state);
   restoreFocus();
+  prevVitals = nextVitals;
 }
 
 /**
