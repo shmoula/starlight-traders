@@ -70,6 +70,9 @@ export const HEAT_CAP = 0.15;
 /** ⚙ Heat gained between two of the Syndicate's warnings (fiction.ts heatLine). */
 export const HEAT_VOICE_STEP = 0.05;
 
+/** ⚙ Share of net worth the pirates demand once it beats the flat toll (E1-5b). */
+export const TOLL_RATE = 0.1;
+
 /**
  * Extra ambush chance this run has earned by getting rich (E1-5). A step function so
  * the number on the statbar is stable and quotable, rounded to 2 decimals so the

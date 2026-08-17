@@ -15,6 +15,7 @@ import {
 } from "../../src/engine/preview";
 import { createGame, resolveChoice } from "../../src/engine/game";
 import { GameEvent } from "../../src/engine/types";
+import { TOLL_RATE, netWorth } from "../../src/engine/economy";
 
 const ev = (kind: GameEvent["kind"], ids: string[]): GameEvent => ({
   kind,
@@ -195,5 +196,45 @@ describe("lethal-stake marker (B-6)", () => {
     expect(
       choiceStakes(fine, { kind: "engine", title: "", description: "", choices: [] }).ack
     ).not.toContain(LETHAL_MARK);
+  });
+});
+
+describe("pirateToll (E1-5b) — stakes that keep up with the fortune", () => {
+  const rich = (credits: number, day = 11) => ({ ...createGame(42), credits, day });
+
+  it("keeps the flat formula below the crossover — the early run is unchanged", () => {
+    // Day 1, credits 800, debt 1500 → net worth −700: the rate term is negative.
+    expect(pirateToll(createGame(42))).toBe(160); // 150 + 1 × 10, exactly as before
+    // Day 11 with a small purse: flat 260 still wins under (150 + 110)/0.1 = 2,600cr.
+    const s = rich(2000);
+    expect(netWorth(s)).toBeLessThan(2600);
+    expect(pirateToll(s)).toBe(260);
+  });
+
+  it("charges TOLL_RATE of net worth once that exceeds the flat floor", () => {
+    const s = rich(11_500); // net worth 11,500 − 1,500 debt = 10,000
+    expect(netWorth(s)).toBe(10_000);
+    expect(pirateToll(s)).toBe(Math.round(TOLL_RATE * 10_000)); // 1,000 at the default
+  });
+
+  it("never asks for more than the player holds", () => {
+    // Wealth locked in cargo, purse nearly empty: the clamp binds.
+    const s = {
+      ...createGame(42),
+      day: 11,
+      credits: 50,
+      cargo: { water: 30, parts: 0, luxury: 0 },
+    };
+    expect(pirateToll(s)).toBe(50);
+  });
+
+  it("never goes negative on a broke, indebted ship", () => {
+    expect(pirateToll({ ...createGame(42), credits: 0, day: 12 })).toBe(0);
+  });
+
+  it("the displayed stake is the charged toll (E1-4)", () => {
+    const s = rich(11_500);
+    const e = { kind: "pirates", title: "", description: "", choices: [] } as GameEvent;
+    expect(choiceStakes(s, e).pay).toBe(`~${pirateToll(s)}cr`);
   });
 });
