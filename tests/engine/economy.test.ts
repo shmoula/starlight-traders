@@ -12,9 +12,14 @@ import {
   MARKET_DEPTH,
   DEPTH_SLOPE,
   DEPTH_FLOOR,
+  HEAT_CAP,
+  HEAT_PER_CR,
+  HEAT_STEP,
+  heatOf,
 } from "../../src/engine/economy";
 import { getPrice } from "../../src/engine/world";
 import { GameState, emptyRecords } from "../../src/engine/types";
+import { createGame } from "../../src/engine/game";
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -146,5 +151,32 @@ describe("escape math prices the hold through depth (E2-1/E2-2h)", () => {
     };
     expect(netSaleProceeds(saturated, "water", qty)).toBeLessThan(escapeCost(saturated));
     expect(canEscape(saturated)).toBe(false);
+  });
+});
+
+describe("heat (E1-5) — danger scaled by peak fortune", () => {
+  const withPeak = (peakNetWorth: number) => ({ ...createGame(42), peakNetWorth });
+
+  it("is zero for a fresh run and for any non-positive peak", () => {
+    expect(heatOf(createGame(42))).toBe(0);
+    expect(heatOf(withPeak(0))).toBe(0);
+    expect(heatOf(withPeak(-5000))).toBe(0);
+  });
+
+  it("steps once per HEAT_PER_CR of peak, not continuously", () => {
+    expect(heatOf(withPeak(HEAT_PER_CR - 1))).toBe(0);
+    expect(heatOf(withPeak(HEAT_PER_CR))).toBe(HEAT_STEP);
+    expect(heatOf(withPeak(HEAT_PER_CR * 2 - 1))).toBe(HEAT_STEP);
+    expect(heatOf(withPeak(6249))).toBe(0.04); // the measured day-11 median
+  });
+
+  it("caps, so no fortune can push a lane past HEAT_CAP", () => {
+    expect(heatOf(withPeak((HEAT_CAP / HEAT_STEP) * HEAT_PER_CR))).toBe(HEAT_CAP);
+    expect(heatOf(withPeak(10_000_000))).toBe(HEAT_CAP);
+  });
+
+  it("returns exact 2-decimal values, so displayed % and thresholds never drift", () => {
+    expect(heatOf(withPeak(HEAT_PER_CR * 3))).toBe(0.03); // not 0.030000000000000002
+    expect(Math.round(heatOf(withPeak(HEAT_PER_CR * 7)) * 100)).toBe(7);
   });
 });

@@ -53,6 +53,33 @@ export const MARKET_DEPTH = 20; // ⚙ units/commodity/day at list price
 export const DEPTH_SLOPE = 0.08; // ⚙ price impact per unit past depth
 export const DEPTH_FLOOR = 0.6; // ⚙ degraded price never falls below this × list
 
+// --- Heat (E1-5) -------------------------------------------------------------------
+// The run's only escalating pressure. Derived from peakNetWorth, never stored: the
+// modifier precedent (E3-1) — anything derivable from existing state needs no field,
+// no snapshot migration, and cannot go stale in a resumed run. Reading *peak* rather
+// than current net worth makes it undodgeable: there is no "sell up and fly empty on
+// day 11" line of play to balance around. The sympathy case is handled by pirateToll,
+// which scales with CURRENT net worth and is still clamped to credits.
+
+/** ⚙ Credits of peak fortune per point of heat. */
+export const HEAT_PER_CR = 1500;
+/** ⚙ Danger added per point. */
+export const HEAT_STEP = 0.01;
+/** ⚙ Ceiling — well below events.ts's DANGER_CAP, which still binds on the total. */
+export const HEAT_CAP = 0.15;
+/** ⚙ Heat gained between two of the Syndicate's warnings (fiction.ts heatLine). */
+export const HEAT_VOICE_STEP = 0.05;
+
+/**
+ * Extra ambush chance this run has earned by getting rich (E1-5). A step function so
+ * the number on the statbar is stable and quotable, rounded to 2 decimals so the
+ * displayed percentage and the voice thresholds are exact rather than float-fuzzy.
+ */
+export function heatOf(state: GameState): number {
+  const points = Math.floor(Math.max(0, state.peakNetWorth) / HEAT_PER_CR);
+  return Math.min(HEAT_CAP, Math.round(points * HEAT_STEP * 100) / 100);
+}
+
 /** Sale price of one unit given `t` units already sold here today. */
 function depthUnitPrice(list: number, t: number): number {
   const past = Math.max(0, t - MARKET_DEPTH + 1);
