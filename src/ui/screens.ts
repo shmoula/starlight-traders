@@ -40,7 +40,7 @@ import { STATION_DOSSIERS, epilogue } from "../engine/fiction";
 import { choiceOdds, choiceStakes } from "../engine/preview";
 import { bulletin } from "../engine/bulletin";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
-import { starMap } from "./map";
+import { starMap, laneTone } from "./map";
 import { runStrip, stripSummary } from "./share";
 import type { CalendarCell } from "./storage";
 import { FeatDef, FeatId, featDef } from "../engine/feats";
@@ -362,10 +362,18 @@ function navigatorPanel(s: GameState): string {
       const disabled = s.fuel < cost;
       const reason = disabled ? ` — need ${cost}, have ${s.fuel}` : "";
       const detail = `${cost} fuel · dock ${cr(fee)} · ${raid}% raid risk · sells taxed ${taxPct}%${customsNote}${salvageNote}`;
+      // P3-2: three pips, filled to the lane's tier — the glanceable read of the same
+      // number the meta line spells out, and heat's most visible surface as it climbs.
+      const tone = laneTone(pirateChance(s, n));
+      const filled = tone === "safe" ? 1 : tone === "warn" ? 2 : 3;
+      const pips = `<span class="st-orb__pips st-orb__pips--${tone}" aria-hidden="true">${[1, 2, 3]
+        .map((i) => `<span class="st-orb__pip${i <= filled ? " is-on" : ""}"></span>`)
+        .join("")}</span>`;
       return `<button class="st-orb" data-act="jump" data-id="${n}"${disabledAttr(disabled, `Need ${cost}⛽, have ${s.fuel}`)}>
         <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
         <span class="st-orb__label">${NODES[n].name}</span>
         <span class="st-orb__meta st-num">${cost}${fuelIcon()} · ${cr(fee)} · ${raid}%</span>
+        ${pips}
         <span class="st-orb__tip st-num" role="tooltip" aria-hidden="true">${detail}${reason}</span>
         <span class="st-sr-only"> — jump here, ${detail}${reason}</span>
       </button>`;

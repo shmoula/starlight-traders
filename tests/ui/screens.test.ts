@@ -1430,3 +1430,25 @@ describe("statbar heat + peak chips (E1-5 / P2-4)", () => {
     expect(stationScreen(s)).toContain("heat +9%");
   });
 });
+
+describe("danger pips (P3-2)", () => {
+  it("gives every jump orb a pip group in the lane's tier", () => {
+    const html = stationScreen(createGame(42));
+    // terra→kiruna is 0.05 (safe); terra→verge is 0.25 (hot)
+    expect(html).toContain('class="st-orb__pips st-orb__pips--safe"');
+    expect(html).toContain('class="st-orb__pips st-orb__pips--hot"');
+  });
+
+  it("reddens the pips as heat climbs, with no change to the announced text", () => {
+    const rich = { ...createGame(42), peakNetWorth: 6249 }; // heat 0.04 → 0.05 + 0.04 = 0.09
+    const html = stationScreen(rich);
+    expect(html).toContain('class="st-orb__pips st-orb__pips--safe"'); // 0.09 still < 0.10
+    const hotter = { ...createGame(42), peakNetWorth: 22_500 }; // heat 0.15 → 0.20
+    expect(stationScreen(hotter)).toContain('class="st-orb__pips st-orb__pips--warn"');
+  });
+
+  it("keeps pips out of the accessibility tree — the raid % already says it", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toMatch(/<span class="st-orb__pips[^"]*" aria-hidden="true">/);
+  });
+});

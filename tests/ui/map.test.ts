@@ -1,6 +1,6 @@
 // tests/ui/map.test.ts
 import { describe, it, expect } from "vitest";
-import { starMap, MAP_LAYOUT, MAP_VIEW } from "../../src/ui/map";
+import { starMap, MAP_LAYOUT, MAP_VIEW, laneTone } from "../../src/ui/map";
 import { createGame } from "../../src/engine/game";
 import { NODE_IDS } from "../../src/engine/world";
 
@@ -87,5 +87,15 @@ describe("starMap (E2-3c)", () => {
       expect(MAP_LAYOUT[n].y).toBeGreaterThan(0);
       expect(MAP_LAYOUT[n].y).toBeLessThan(MAP_VIEW.h);
     }
+  });
+});
+
+describe("laneTone (P3-2 danger pips share the map's tiers)", () => {
+  it("splits at the authored boundaries", () => {
+    expect(laneTone(0.09)).toBe("safe");
+    expect(laneTone(0.1)).toBe("warn");
+    expect(laneTone(0.24)).toBe("warn");
+    expect(laneTone(0.25)).toBe("hot");
+    expect(laneTone(0.9)).toBe("hot");
   });
 });

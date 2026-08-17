@@ -725,6 +725,28 @@
   text-align: center;
   line-height: 1.25;
 }
+/* Danger pips (P3-2): the orb's glanceable risk read. Tones match the star map's
+   lane classes so the two surfaces can never disagree. */
+.st-orb__pips {
+  display: inline-flex;
+  gap: 3px;
+  margin-top: 2px;
+}
+.st-orb__pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+.st-orb__pips--safe .st-orb__pip.is-on {
+  background: var(--st-cyan);
+}
+.st-orb__pips--warn .st-orb__pip.is-on {
+  background: var(--st-gold);
+}
+.st-orb__pips--hot .st-orb__pip.is-on {
+  background: var(--st-orange);
+}
 .st-orb:hover .st-orb__sphere {
   border-color: var(--st-border-strong);
 }
