@@ -17,7 +17,7 @@ import {
 } from "../../src/engine/game";
 import { missionFeasibility } from "../../src/engine/missions";
 import { COMMODITIES, NODES, NODE_IDS, commodityName, getPrice } from "../../src/engine/world";
-import { dockingFee, MARKET_DEPTH, saleProceeds } from "../../src/engine/economy";
+import { dockingFee, HEAT_PER_CR, MARKET_DEPTH, saleProceeds } from "../../src/engine/economy";
 import { GameEvent, Mission, RunEnd } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { STATION_DOSSIERS, epilogue } from "../../src/engine/fiction";
@@ -1401,5 +1401,32 @@ describe("market depth + P&L surfaces (E2-1c/P2-2b)", () => {
   it("empty rows carry neither basis nor P&L", () => {
     const html = stationScreen(createGame(42));
     expect(html).not.toContain("paid ~");
+  });
+});
+
+describe("statbar heat + peak chips (E1-5 / P2-4)", () => {
+  const rich = { ...createGame(42), peakNetWorth: 6249 };
+
+  it("always shows peak net worth, so the number driving danger is visible", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("🏆");
+    expect(html).toContain("0cr"); // a fresh run's peak
+    expect(stationScreen(rich)).toContain("6,249cr");
+  });
+
+  it("shows the heat chip only once heat exists, with the % the lanes actually carry", () => {
+    expect(stationScreen(createGame(42))).not.toContain("heat +");
+    const html = stationScreen(rich);
+    expect(html).toContain("heat +4%");
+  });
+
+  it("announces heat to screen readers, since the statbar is aria-hidden here", () => {
+    const html = stationScreen(rich);
+    expect(html).toMatch(/st-sr-only[^>]*>[^<]*heat/i);
+  });
+
+  it("steps the chip with the peak", () => {
+    const s = { ...createGame(42), peakNetWorth: HEAT_PER_CR * 9 };
+    expect(stationScreen(s)).toContain("heat +9%");
   });
 });

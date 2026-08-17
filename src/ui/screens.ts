@@ -20,6 +20,7 @@ import {
   cargoUsed,
   dockingFee,
   escapeCost,
+  heatOf,
   netWorth,
   saleProceeds,
   spendableCredits,
@@ -131,11 +132,16 @@ function statbar(
 ): string {
   const { presentation = true, extra = "" } = opts;
   const creditsClass = s.credits < 0 ? " credits-negative" : "";
+  const heat = heatOf(s);
+  const heatChip = heat
+    ? `<span class="st-statbar__chip st-num st-statbar__chip--heat" title="Word of your fortune travels — every lane carries +${Math.round(heat * 100)}% raid risk.">☠ heat +${Math.round(heat * 100)}%</span>`
+    : "";
   return `<div class="st-statbar${extra ? ` ${extra}` : ""}"${presentation ? ' aria-hidden="true"' : ""}>
     <span class="st-statbar__chip st-statbar__chip--gold st-num${creditsClass}">${cr(s.credits)}</span>
     <span class="st-statbar__chip st-num${fuelClass ? ` ${fuelClass}` : ""}">${fuelIcon()}Fuel ${s.fuel}/${s.fuelCapacity}</span>
     <span class="st-statbar__chip st-num">${hullIcon()}Hull ${s.hull}/${s.hullMax}</span>
     <span class="st-statbar__chip st-num">Hold ${cargoUsed(s.cargo)}/${s.cargoCapacity}</span>
+    <span class="st-statbar__chip st-num">🏆 ${cr(s.peakNetWorth)}</span>${heatChip}
   </div>`;
 }
 
@@ -338,6 +344,12 @@ function navigatorPanel(s: GameState): string {
   const tailBanner = s.pirateTail
     ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Pirate tail — raid risk up on every lane until you jump.</div>`
     : "";
+  // E1-5: the statbar chip is aria-hidden here (it duplicates panel data), so heat gets
+  // one announced line. The per-lane raid % below already includes it.
+  const heat = heatOf(s);
+  const heatNote = heat
+    ? `<p class="st-sr-only">Heat +${Math.round(heat * 100)}% — your peak fortune of ${cr(s.peakNetWorth)} adds ${Math.round(heat * 100)} points of raid risk to every lane.</p>`
+    : "";
   const orbs = NODE_IDS.filter((n) => n !== s.location)
     .map((n) => {
       const cost = fuelCost(s.seed, s.location, n);
@@ -361,7 +373,7 @@ function navigatorPanel(s: GameState): string {
     .join("");
   return panel(
     "Navigator",
-    `${banner}${tailBanner}${starMap(s)}<div class="st-orb-group">${orbs}</div>`
+    `${banner}${tailBanner}${heatNote}${starMap(s)}<div class="st-orb-group">${orbs}</div>`
   );
 }
 
