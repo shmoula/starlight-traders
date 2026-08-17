@@ -257,6 +257,7 @@ export function sweepSummary(seeds: readonly number[]): ArchetypeSummary[] {
       else if (r.status === "lost") sum.lost++;
       else sum.retired++;
     }
+    if (seeds.length === 0) return sum;
     sum.earlyDangerMean /= seeds.length;
     sum.lateDangerMean /= seeds.length;
     sum.lateTollShareMean /= seeds.length;
