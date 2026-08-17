@@ -126,3 +126,18 @@ export const EVENT_VARIANTS: Record<GameEventKind, ((crew: string) => string)[]>
       "Something rattles loose behind the reactor shroud. The fix holds; the fuel gauge remembers.",
   ],
 };
+
+// The Syndicate's escalation ladder (E1-5c). Heat is a number on the statbar; these
+// give it a voice, in the lender's register from E0-4 — dry, informational, and not
+// on your side. One line per HEAT_VOICE_STEP crossed.
+export const HEAT_LINES: string[] = [
+  "The Syndicate's ledger is public. Someone has been reading yours.",
+  "Your manifest is being quoted in ports you have never docked at.",
+  "Every crew on the lane knows your tonnage now. Fly accordingly.",
+];
+
+/** The line for a heat tier (1-based); null below the first threshold. */
+export function heatLine(tier: number): string | null {
+  if (tier < 1) return null;
+  return HEAT_LINES[Math.min(tier, HEAT_LINES.length) - 1];
+}

@@ -19,7 +19,7 @@ import {
   STARTING,
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
-import { crewName } from "../../src/engine/fiction";
+import { crewName, heatLine, HEAT_LINES } from "../../src/engine/fiction";
 import {
   canEscape,
   dockingFee,
@@ -29,6 +29,10 @@ import {
   saleProceeds,
   taxOnSale,
   MARKET_DEPTH,
+  HEAT_PER_CR,
+  HEAT_VOICE_STEP,
+  HEAT_STEP,
+  heatOf,
 } from "../../src/engine/economy";
 import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
@@ -1517,5 +1521,40 @@ describe("salvage bait (E3-4)", () => {
     const tailed = { ...createGame(42), pirateTail: true, fuel: 16 };
     const r = jump(tailed, "vulcan");
     expect(r.state.pirateTail).toBe(false);
+  });
+});
+
+describe("heat's voice (E1-5c)", () => {
+  // trackPeak is internal; arrive() is the public path that raises the peak. Drive it
+  // by handing arrive a state whose net worth is already above the threshold.
+  const arriveWithWorth = (credits: number, peakNetWorth = 0) =>
+    arrive({ ...createGame(42), credits, peakNetWorth }).state;
+
+  it("announces the first threshold exactly once, in the lender's register", () => {
+    // Net worth = credits − 1,500 debt. 5 heat points needs peak ≥ 5 × HEAT_PER_CR.
+    const s = arriveWithWorth(5 * HEAT_PER_CR + 1500);
+    expect(heatOf(s)).toBe(HEAT_VOICE_STEP);
+    const last = s.log[s.log.length - 1];
+    expect(last.msg).toBe(heatLine(1));
+    expect(last.tone).toBe("bad");
+    expect(last.delta).toBeUndefined();
+  });
+
+  it("says nothing when the peak rises within the same tier", () => {
+    const before = 5 * HEAT_PER_CR + 1500;
+    const s = arriveWithWorth(before + HEAT_PER_CR, 5 * HEAT_PER_CR); // 5 → 6 points
+    expect(s.log.some((l) => l.msg === heatLine(1))).toBe(false);
+    expect(s.log.some((l) => l.msg === heatLine(2))).toBe(false);
+  });
+
+  it("fires the higher line when a single haul jumps two tiers", () => {
+    const s = arriveWithWorth(10 * HEAT_PER_CR + 1500);
+    expect(heatOf(s)).toBe(10 * HEAT_STEP);
+    expect(s.log[s.log.length - 1].msg).toBe(heatLine(2));
+  });
+
+  it("stays silent for a run that never gets rich", () => {
+    const s = arriveWithWorth(900);
+    expect(s.log.some((l) => HEAT_LINES.includes(l.msg))).toBe(false);
   });
 });

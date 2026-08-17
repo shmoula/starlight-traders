@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { CREW_ROSTER, crewName, capFirst, epilogue } from "../../src/engine/fiction";
+import {
+  CREW_ROSTER,
+  crewName,
+  capFirst,
+  epilogue,
+  HEAT_LINES,
+  heatLine,
+} from "../../src/engine/fiction";
 
 const SEEDS = Array.from({ length: 50 }, (_, i) => i + 1);
 
@@ -104,6 +111,25 @@ describe("EVENT_VARIANTS (E2-4c)", () => {
   it("every pirate variant names the crew", () => {
     for (const v of EVENT_VARIANTS.pirates) {
       expect(v("the Red Kestrel").toLowerCase()).toContain("the red kestrel");
+    }
+  });
+});
+
+describe("heat lines (E1-5c)", () => {
+  it("returns one authored line per crossed tier, and nothing for tier 0", () => {
+    expect(heatLine(0)).toBeNull();
+    expect(heatLine(1)).toBe(HEAT_LINES[0]);
+    expect(heatLine(3)).toBe(HEAT_LINES[2]);
+  });
+
+  it("clamps past the last authored tier rather than returning undefined", () => {
+    expect(heatLine(99)).toBe(HEAT_LINES[HEAT_LINES.length - 1]);
+  });
+
+  it("keeps the Syndicate's voice: every line is a sentence under 90 chars", () => {
+    for (const line of HEAT_LINES) {
+      expect(line.length).toBeLessThanOrEqual(90);
+      expect(line.endsWith(".")).toBe(true);
     }
   });
 });
