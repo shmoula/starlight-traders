@@ -34,7 +34,7 @@ import { FEATS, earnedFeats, featDef } from "./engine/feats";
 import { dailyModifier } from "./engine/modifiers";
 import { NODES } from "./engine/world";
 import { RUN_LENGTH } from "./engine/run-end";
-import { endHeadline, type RunMeta } from "./ui/screens";
+import { endHeadline, type RunMeta, type ShareStatus } from "./ui/screens";
 import { BACKDROP_SVG } from "./ui/art";
 import { Pulses, Vitals, vitalPulses, vitalsOf } from "./ui/pulse";
 
@@ -87,6 +87,9 @@ let retireArmed = false;
 let restartArmed = false;
 // Dock-talk marquee pause — pure view state, never snapshotted.
 let tickerPaused = false;
+// Result of the last clipboard attempt, shown on the share button for ~2s (P2-4).
+let shareStatus: ShareStatus = "idle";
+let shareResetTimer: number | null = null;
 // Last action dispatched, used to restore focus after the innerHTML re-render.
 let lastAct: { act?: string; id?: string } = {};
 // Whether the live run came out of storage rather than being created here. Gates
@@ -225,6 +228,7 @@ function paint() {
     meta: buildMeta(),
     tickerPaused,
     pulses,
+    shareStatus,
   });
   document.title = titleFor(state);
   restoreFocus();
@@ -357,7 +361,7 @@ app.addEventListener("click", async (e) => {
 
   if (act === "share") {
     if (state.runEnd) {
-      await copyShare({
+      const ok = await copyShare({
         dateLabel: dateLabelOf(state),
         score: state.runEnd.score,
         daysSurvived: state.runEnd.daysSurvived,
@@ -368,6 +372,13 @@ app.addEventListener("click", async (e) => {
         featNames: (lastDebrief?.newFeats ?? []).map((id) => featDef(id).name),
         modifier: `${dailyModifier(state.seed).glyph} ${dailyModifier(state.seed).name}`,
       });
+      shareStatus = ok ? "ok" : "fail";
+      if (shareResetTimer !== null) window.clearTimeout(shareResetTimer);
+      shareResetTimer = window.setTimeout(() => {
+        shareStatus = "idle";
+        shareResetTimer = null;
+        safePaint();
+      }, 2000);
     }
   } else {
     applyAction(act, id, qty);

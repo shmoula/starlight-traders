@@ -606,6 +606,15 @@ describe("runEndScreen debrief (E1-3)", () => {
   });
 });
 
+describe("share button feedback (P2-4)", () => {
+  it("labels the button by copy status", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    expect(runEndScreen(ended, ended.runEnd!, false, META)).toContain("Copy score card");
+    expect(runEndScreen(ended, ended.runEnd!, false, META, "ok")).toContain("Copied ✓");
+    expect(runEndScreen(ended, ended.runEnd!, false, META, "fail")).toContain("Copy failed");
+  });
+});
+
 describe("runEndScreen restart confirm (P3-3)", () => {
   it("offers a plain New run button when disarmed", () => {
     const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");

@@ -1,6 +1,6 @@
 // src/ui/render.ts
 import { GameEvent, GameState, LogEntry } from "../engine/types";
-import { eventScreen, runEndScreen, stationScreen, RunMeta } from "./screens";
+import { eventScreen, runEndScreen, stationScreen, RunMeta, ShareStatus } from "./screens";
 import { Pulses } from "./pulse";
 
 export interface ViewModel {
@@ -20,11 +20,19 @@ export interface ViewModel {
   tickerPaused: boolean;
   /** Which vitals moved since the last paint, and which way (P3-2). */
   pulses: Pulses;
+  /** Result of the last clipboard attempt, shown on the share button for ~2s (P2-4). */
+  shareStatus: ShareStatus;
 }
 
 export function render(root: HTMLElement, vm: ViewModel): void {
   if (vm.state.runEnd) {
-    root.innerHTML = runEndScreen(vm.state, vm.state.runEnd, vm.restartArmed, vm.meta);
+    root.innerHTML = runEndScreen(
+      vm.state,
+      vm.state.runEnd,
+      vm.restartArmed,
+      vm.meta,
+      vm.shareStatus
+    );
   } else if (vm.pendingEvent) {
     root.innerHTML = eventScreen(vm.state, vm.pendingEvent, vm.pulses);
   } else {

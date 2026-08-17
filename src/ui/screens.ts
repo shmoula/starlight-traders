@@ -51,6 +51,9 @@ const cr = (n: number) => `${n.toLocaleString()}cr`;
 /** Compact exchange-board symbol per commodity for the EXCH ticker lane. */
 const COMMODITY_SYM: Record<CommodityId, string> = { water: "WTR", parts: "PRT", luxury: "LUX" };
 
+/** Result of the last clipboard attempt, shown on the button for ~2s (P2-4). */
+export type ShareStatus = "idle" | "ok" | "fail";
+
 export interface RunMeta {
   runNumber: number;
   runLabel: "The Daily" | "Practice";
@@ -802,7 +805,8 @@ export function runEndScreen(
   s: GameState,
   r: RunEnd,
   restartArmed = false,
-  meta?: RunMeta
+  meta?: RunMeta,
+  shareStatus: ShareStatus = "idle"
 ): string {
   const banked = r.status !== "lost";
   const identity = meta
@@ -857,7 +861,13 @@ export function runEndScreen(
               >Your run, one glyph per day — ${stripSummary(s.dayHighlights, r.daysSurvived, r.status)}</span
             ><span aria-hidden="true">${stripCells(s.dayHighlights, r.daysSurvived, r.status)}</span>
           </p>
-          <button class="st-btn" data-act="share">Copy score card</button>
+          <button class="st-btn" data-act="share">${
+            shareStatus === "ok"
+              ? "Copied ✓"
+              : shareStatus === "fail"
+                ? "Copy failed"
+                : "Copy score card"
+          }</button>
           ${restart}
         </div>
       </div></div>
