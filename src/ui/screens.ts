@@ -372,8 +372,10 @@ function navigatorPanel(s: GameState): string {
   const tailBanner = s.pirateTail
     ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Pirate tail — raid risk up on every lane until you jump.</div>`
     : "";
-  // E1-5: the statbar chip is aria-hidden here (it duplicates panel data), so heat gets
-  // one announced line. The per-lane raid % below already includes it.
+  // E1-5: heat gets exactly one announced surface per screen. On the station screen the
+  // statbar chip is aria-hidden (it duplicates panel data), so this sr-only line carries
+  // it; on the event screen the statbar isn't aria-hidden, so the chip announces it there
+  // and this line isn't rendered. The per-lane raid % below already includes heat.
   const heat = heatOf(s);
   const heatNote = heat
     ? `<p class="st-sr-only">Heat +${Math.round(heat * 100)}% — your peak fortune of ${cr(s.peakNetWorth)} adds ${Math.round(heat * 100)} points of raid risk to every lane.</p>`

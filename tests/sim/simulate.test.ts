@@ -120,6 +120,9 @@ describe("pressure curve (E1-5 acceptance) — the endgame is no longer flat", (
   });
 
   it("the turtle is untouched: it never gets rich, so it earns no heat and no scaled toll", () => {
+    // Canary: if either assertion trips, a balance change let a cautious run go net-worth
+    // positive at least once across the 100 seeds — peakSum > 0 means it earned heat,
+    // lateTollShareMean > 0 means the scaled toll fired. The turtle must stay flat.
     expect(summary.cautious.peakSum).toBe(0); // no heat: heat is derived from peakNetWorth
     expect(summary.cautious.lateTollShareMean).toBe(0); // no scaled toll: net worth never positive
   });
