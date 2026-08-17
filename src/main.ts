@@ -41,6 +41,21 @@ import { Pulses, Vitals, vitalPulses, vitalsOf } from "./ui/pulse";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 // Static decoration, injected once — deliberately outside the paint() cycle.
 document.querySelector<HTMLDivElement>("#backdrop")!.innerHTML = BACKDROP_SVG;
+const toastLayer = document.getElementById("toasts");
+
+/** P3-2: float the credit delta that just landed. A missing layer degrades to no
+ *  toast — never a throw, since this is decoration on top of a rendered truth. */
+function showCreditToast(prev: Vitals | null, next: Vitals): void {
+  if (!toastLayer || !prev) return;
+  const delta = next.credits - prev.credits;
+  if (delta === 0) return;
+  const el = document.createElement("div");
+  el.className = `st-toast st-toast--${delta > 0 ? "up" : "down"} st-num`;
+  el.textContent = `${delta > 0 ? "+" : "−"}${Math.abs(delta).toLocaleString()}cr`;
+  el.addEventListener("animationend", () => el.remove());
+  window.setTimeout(() => el.remove(), 2000);
+  toastLayer.appendChild(el);
+}
 
 // One place ties the seed and the display date to a single instant, so they cannot
 // desync: the run stamps its own UTC day into GameState (see createGame), and the
@@ -213,6 +228,7 @@ function paint() {
   });
   document.title = titleFor(state);
   restoreFocus();
+  showCreditToast(prevVitals, nextVitals);
   prevVitals = nextVitals;
 }
 

@@ -31,6 +31,10 @@
   <body class="st-app-bg">
     <div id="backdrop" aria-hidden="true"></div>
     <div id="app"></div>
+    <!-- Toast layer (P3-2). Lives OUTSIDE #app because render() swaps #app's innerHTML
+         wholesale — a toast inside it would be destroyed by the next paint. aria-hidden
+         because the structured log already announces every credit change. -->
+    <div id="toasts" aria-hidden="true"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

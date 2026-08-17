@@ -902,6 +902,49 @@
   animation: st-flash-in var(--st-dur-slow) ease-out;
 }
 
+/* P3-2 toast layer: fixed above the cockpit, click-through, one float per delta. */
+#toasts {
+  position: fixed;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 50;
+}
+.st-toast {
+  font-weight: 700;
+  text-shadow: 0 0 8px rgb(0 0 0 / 60%);
+  opacity: 0;
+}
+.st-toast--up {
+  color: var(--st-positive);
+}
+.st-toast--down {
+  color: var(--st-negative);
+}
+@keyframes st-toast-float {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-22px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .st-toast {
+    animation: st-toast-float 1.4s var(--st-ease) forwards;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :where([class^="st-"], [class*=" st-"], .turn-report) {
     animation: none !important;
