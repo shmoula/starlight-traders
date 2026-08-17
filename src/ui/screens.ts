@@ -54,6 +54,23 @@ const COMMODITY_SYM: Record<CommodityId, string> = { water: "WTR", parts: "PRT",
 /** Result of the last clipboard attempt, shown on the button for ~2s (P2-4). */
 export type ShareStatus = "idle" | "ok" | "fail";
 
+/** Share button label for the last clipboard attempt (P2-4). */
+function shareButtonLabel(shareStatus: ShareStatus): string {
+  if (shareStatus === "ok") return "Copied ✓";
+  if (shareStatus === "fail") return "Copy failed";
+  return "Copy score card";
+}
+
+/** New-run control on the debrief: a two-step confirm when armed, else one button. */
+function restartControls(restartArmed: boolean): string {
+  return restartArmed
+    ? `<div class="retire-confirm">
+            <button class="st-btn st-btn--ghost retire-confirm__go" data-act="restartConfirm">Start a Practice run?</button>
+            <button class="st-btn st-btn--ghost retire-confirm__cancel" data-act="restartCancel" aria-label="Cancel new run" title="Cancel">✕</button>
+          </div>`
+    : `<button class="st-btn st-btn--ghost" data-act="restart">New run</button>`;
+}
+
 export interface RunMeta {
   runNumber: number;
   runLabel: "The Daily" | "Practice";
@@ -831,12 +848,7 @@ export function runEndScreen(
     s.contracts.delivered + s.contracts.expired + s.activeMissions.length > 0
       ? `<div class="st-kv"><span class="st-kv__label">Contracts</span><span class="st-kv__value st-num">${s.contracts.delivered} delivered · ${s.contracts.expired} expired${forfeitNote}${sunkNote}</span></div>`
       : "";
-  const restart = restartArmed
-    ? `<div class="retire-confirm">
-            <button class="st-btn st-btn--ghost retire-confirm__go" data-act="restartConfirm">Start a Practice run?</button>
-            <button class="st-btn st-btn--ghost retire-confirm__cancel" data-act="restartCancel" aria-label="Cancel new run" title="Cancel">✕</button>
-          </div>`
-    : `<button class="st-btn st-btn--ghost" data-act="restart">New run</button>`;
+  const restart = restartControls(restartArmed);
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
@@ -861,13 +873,7 @@ export function runEndScreen(
               >Your run, one glyph per day — ${stripSummary(s.dayHighlights, r.daysSurvived, r.status)}</span
             ><span aria-hidden="true">${stripCells(s.dayHighlights, r.daysSurvived, r.status)}</span>
           </p>
-          <button class="st-btn" data-act="share">${
-            shareStatus === "ok"
-              ? "Copied ✓"
-              : shareStatus === "fail"
-                ? "Copy failed"
-                : "Copy score card"
-          }</button>
+          <button class="st-btn" data-act="share">${shareButtonLabel(shareStatus)}</button>
           ${restart}
         </div>
       </div></div>
