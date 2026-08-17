@@ -10,7 +10,9 @@ import {
   commodityName,
   fuelCost,
   getPrice,
+  isLongHaul,
 } from "../engine/world";
+import { dailyModifier } from "../engine/modifiers";
 import {
   MARKET_DEPTH,
   REFUEL_PRICE,
@@ -84,7 +86,7 @@ const disabledAttr = (disabled: boolean, title: string): string =>
 
 /** Statbar/bar warning class shared by the station and event screens. */
 function fuelWarnClass(s: GameState): string {
-  const cheapest = cheapestJumpCost(s.location);
+  const cheapest = cheapestJumpCost(s.seed, s.location);
   return s.fuel < cheapest ? "stat-critical" : s.fuel < cheapest * 2 ? "stat-warn" : "";
 }
 
@@ -99,9 +101,11 @@ const deltaHtml = (l: LogEntry): string =>
       }${Math.abs(l.delta).toLocaleString()}cr</span>`;
 
 function screenHead(s: GameState, dateLabel = "", meta?: RunMeta): string {
+  const mod = dailyModifier(s.seed);
+  const modChip = ` · ${mod.glyph} ${mod.name}`; // E3-1b: today's sky, named in the head
   const sub = meta
-    ? `${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH} · Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}`
-    : `${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH}${dateLabel ? ` · ${dateLabel}` : ""}`;
+    ? `${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH} · Starlight #${meta.runNumber} · ${meta.dateLabel} · ${meta.runLabel}${modChip}`
+    : `${NODES[s.location].name} · Day ${s.day}/${RUN_LENGTH}${dateLabel ? ` · ${dateLabel}` : ""}${modChip}`;
   const stats =
     meta?.bootStats && s.day === 1
       ? `<p class="screen-head__stats">Today: ${meta.bootStats.attemptsToday} flown · best ${
@@ -327,19 +331,25 @@ function logbookPanel(lb: NonNullable<RunMeta["logbook"]>): string {
 
 function navigatorPanel(s: GameState): string {
   const banner =
-    s.fuel < cheapestJumpCost(s.location)
+    s.fuel < cheapestJumpCost(s.seed, s.location)
       ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Not enough fuel to jump anywhere — refuel below (${REFUEL_PRICE}cr/unit). ${cr(escapeCost(s))} of your credits is held back for it.</div>`
       : "";
+  // E3-4: a live pirate tail lifts raid risk on every lane until the next jump clears it.
+  const tailBanner = s.pirateTail
+    ? `<div class="st-badge st-badge--alert nav-warning" role="status">⚠ Pirate tail — raid risk up on every lane until you jump.</div>`
+    : "";
   const orbs = NODE_IDS.filter((n) => n !== s.location)
     .map((n) => {
-      const cost = fuelCost(s.location, n);
+      const cost = fuelCost(s.seed, s.location, n);
       const fee = dockingFee(n);
-      const raid = Math.round(pirateChance(s.location, n) * 100);
+      const raid = Math.round(pirateChance(s, n) * 100);
       const taxPct = Math.round(NODES[n].taxRate * 100);
       const customsNote = n === "meridian" ? " · customs patrol this approach" : "";
+      // E3-2a: long-haul lanes out of the current port are the salvage-rich corridors.
+      const salvageNote = isLongHaul(s.location, n) ? " · salvage-rich lane" : "";
       const disabled = s.fuel < cost;
       const reason = disabled ? ` — need ${cost}, have ${s.fuel}` : "";
-      const detail = `${cost} fuel · dock ${cr(fee)} · ${raid}% raid risk · sells taxed ${taxPct}%${customsNote}`;
+      const detail = `${cost} fuel · dock ${cr(fee)} · ${raid}% raid risk · sells taxed ${taxPct}%${customsNote}${salvageNote}`;
       return `<button class="st-orb" data-act="jump" data-id="${n}"${disabledAttr(disabled, `Need ${cost}⛽, have ${s.fuel}`)}>
         <span class="st-orb__sphere" style="--orb-art: ${ORB_ART[n]}" aria-hidden="true"></span>
         <span class="st-orb__label">${NODES[n].name}</span>
@@ -349,7 +359,10 @@ function navigatorPanel(s: GameState): string {
       </button>`;
     })
     .join("");
-  return panel("Navigator", `${banner}${starMap(s)}<div class="st-orb-group">${orbs}</div>`);
+  return panel(
+    "Navigator",
+    `${banner}${tailBanner}${starMap(s)}<div class="st-orb-group">${orbs}</div>`
+  );
 }
 
 function cargoPanel(s: GameState): string {
@@ -469,7 +482,8 @@ function tradeHubPanel(s: GameState): string {
             canAfford ? "" : ` aria-disabled="true" aria-describedby="${acceptHintId}"`
           }>Accept</button>` +
           (canAfford ? "" : ` <span id="${acceptHintId}" class="bad">${acceptHint}</span>`);
-      return `<li>Deliver ${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${feasibility}
+      const icePrefix = m.tag === "ice" ? "❄ ICE RUN — " : ""; // E3-2b
+      return `<li>${icePrefix}Deliver ${m.qty} ${commodityName(m.commodity)} → ${NODES[m.destination].name} by day ${m.deadlineDay} · reward ${cr(m.reward)}<br>${feasibility}
       ${action}</li>`;
     })
     .join("");
@@ -501,7 +515,7 @@ function tradeHubPanel(s: GameState): string {
       const daysChip = chip && ` · ${chip}`;
       const boughtUsed = docksideUnitsShown(s, m);
       const provenance = ready && boughtUsed > 0 ? ` — ${boughtUsed} bought here pay spot` : "";
-      const canReach = atDestination || s.fuel >= fuelCost(s.location, m.destination);
+      const canReach = atDestination || s.fuel >= fuelCost(s.seed, s.location, m.destination);
       const jumpHintId = `jump-hint-${m.id}`;
       // Shortfall shortcut: buys the full missing amount at the local price, or
       // is disabled with a reason — never a silent partial (B-1 precedent).

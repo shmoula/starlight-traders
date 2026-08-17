@@ -131,7 +131,33 @@ describe("stationScreen day identity", () => {
 
   it("omits the date segment when no label is given", () => {
     const html = stationScreen(createGame(42));
-    expect(html).toContain("Terra Hub · Day 1/12</p>");
+    expect(html).toContain("Terra Hub · Day 1/12 · ✨ Clear skies</p>");
+  });
+});
+
+describe("M4 round 1 station surfaces", () => {
+  it("the screen head names the day's modifier (E3-1b)", () => {
+    const html = stationScreen(createGame(42));
+    expect(html).toContain("✨ Clear skies");
+    expect(stationScreen(createGame(1))).toContain("⚡ Ion storms");
+  });
+
+  it("a live tail shows the Navigator banner; untailed shows none (E3-4)", () => {
+    const tailed = { ...createGame(42), pirateTail: true };
+    expect(stationScreen(tailed)).toContain("Pirate tail");
+    expect(stationScreen(createGame(42))).not.toContain("Pirate tail");
+  });
+
+  it("long-haul orbs are named salvage-rich from Kiruna (E3-2a)", () => {
+    const atKiruna = { ...createGame(42), location: "kiruna" as const };
+    const html = stationScreen(atKiruna);
+    expect(html).toContain("salvage-rich lane");
+    expect(html.match(/salvage-rich lane/g)!.length).toBe(4); // 2 orbs × (tip + sr-only)
+  });
+
+  it("ice-run offers carry the ❄ prefix (E3-2b)", () => {
+    const atKirunaIceDay = { ...createGame(42), location: "kiruna" as const, day: 9 };
+    expect(stationScreen(atKirunaIceDay)).toContain("❄ ICE RUN — Deliver");
   });
 });
 

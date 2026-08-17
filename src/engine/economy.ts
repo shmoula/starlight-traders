@@ -126,7 +126,7 @@ export function liquidationValue(state: GameState): number {
 
 /** Credits needed to top the tank up to the cheapest jump out — 0 once it is flyable. */
 export function escapeCost(state: GameState): number {
-  const shortfall = Math.max(0, cheapestJumpCost(state.location) - state.fuel);
+  const shortfall = Math.max(0, cheapestJumpCost(state.seed, state.location) - state.fuel);
   return shortfall * REFUEL_PRICE;
 }
 
@@ -137,7 +137,7 @@ export function escapeCost(state: GameState): number {
  * to go. Only a tank too short for the cheapest hop has to be bought out of trouble.
  */
 export function canEscape(state: GameState): boolean {
-  if (state.fuel >= cheapestJumpCost(state.location)) return true;
+  if (state.fuel >= cheapestJumpCost(state.seed, state.location)) return true;
   return state.credits + liquidationValue(state) >= escapeCost(state);
 }
 

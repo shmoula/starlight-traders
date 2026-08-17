@@ -19,6 +19,7 @@ describe("shareText", () => {
       label: "The Daily",
       strip: "🟦",
       endLabel: "Audited",
+      modifier: "⚡ Ion storms",
     });
     expect(txt).toContain("84,210");
     expect(txt).toContain("12");
@@ -37,6 +38,7 @@ describe("shareText", () => {
       label: "Practice",
       strip: "🟦",
       endLabel: "Audited",
+      modifier: "⚡ Ion storms",
     });
     expect(txt).not.toContain("Seed #");
     expect(txt).toContain("Practice");
@@ -51,6 +53,7 @@ describe("shareText", () => {
       label: "Practice",
       strip: "🟦",
       endLabel: "Audited",
+      modifier: "⚡ Ion storms",
     });
     expect(txt.toLowerCase()).toContain("starlight");
   });
@@ -64,10 +67,11 @@ describe("shareText", () => {
       label: "The Daily",
       strip: "🟦🟦🟥💰🟦🟨🟦🟦💰🟦🟦🟦",
       endLabel: "Audited",
+      modifier: "⚡ Ion storms",
     });
     const lines = txt.split("\n");
     expect(lines).toHaveLength(4);
-    expect(lines[0]).toBe("🚀 Starlight #29 · Jul 29 · The Daily");
+    expect(lines[0]).toBe("🚀 Starlight #29 · Jul 29 · The Daily · ⚡ Ion storms");
     expect(lines[1]).toBe("Score 2,140 · survived 12 days — Audited");
     expect(lines[2]).toBe("🟦🟦🟥💰🟦🟨🟦🟦💰🟦🟦🟦");
     expect(lines[3]).toBe(`Beat my run: ${GAME_URL}`);
@@ -82,6 +86,7 @@ describe("shareText", () => {
       label: "Practice",
       strip: runStrip({ 2: "bigTrade", 3: "pirates" }, 4, "lost"),
       endLabel: "Ship Destroyed",
+      modifier: "⚡ Ion storms",
     });
     const lines = txt.split("\n");
     expect(lines).toHaveLength(4);
@@ -99,7 +104,13 @@ describe("share feat line (E2-5d)", () => {
     label: "The Daily" as const,
     strip: "🟦",
     endLabel: "Audited",
+    modifier: "⚡ Ion storms",
   };
+
+  it("line 1 carries the day's modifier tag (E3-1b)", () => {
+    const text = shareText({ ...BASE, modifier: "⚡ Ion storms" });
+    expect(text.split("\n")[0]).toContain("· ⚡ Ion storms");
+  });
 
   it("appends one line naming the first new feat", () => {
     const text = shareText({ ...BASE, featNames: ["Clean Sweep"] });

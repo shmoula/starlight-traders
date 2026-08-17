@@ -156,6 +156,10 @@ describe("createGame", () => {
     expect(s.status).toBe("playing");
     expect(s.day).toBe(1);
   });
+
+  it("createGame starts untailed (E3-4)", () => {
+    expect(createGame(42).pirateTail).toBe(false);
+  });
 });
 
 describe("market depth + cost basis state (E2-1/P2-2)", () => {
@@ -1456,5 +1460,62 @@ describe("E2-2j: payday stats exclude the returned deposit", () => {
     const line = done.log[done.log.length - 1];
     expect(line.msg).toContain("+550cr");
     expect(line.delta).toBe(550);
+  });
+});
+
+describe("syndicateRest interest holiday (E3-1)", () => {
+  // Seed 3 = syndicateRest, seed 42 = clearSkies (modifiers.test.ts pins both).
+  it("accrues no interest across a full run on a rest seed", () => {
+    let s = createGame(3);
+    for (const to of ["vulcan", "terra", "vulcan", "terra", "vulcan", "terra"] as const) {
+      s = refuel(s, 10);
+      const r = jump(s, to);
+      if (r.event === null) break;
+      s = arrive(resolveChoice(r.state, r.event, r.event.choices[0].id)).state;
+      if (s.status !== "playing") break;
+    }
+    expect(s.debt).toBe(STARTING.debt); // nothing compounded
+    expect(interestForecast(createGame(3))).toBeNull();
+  });
+
+  it("clear-skies seeds accrue exactly as before", () => {
+    expect(interestForecast(createGame(42))).toEqual({ inDays: 2, amount: 60 }); // day 1 → tick day 3, 4% of 1500
+  });
+});
+
+describe("salvage bait (E3-4)", () => {
+  const collect = (seed: number, day: number, extra: Partial<GameState> = {}) => {
+    const s = { ...createGame(seed), day, ...extra };
+    const e = { kind: "salvage", title: "", description: "", choices: [] } as GameEvent;
+    return resolveChoice(s, e, "collect");
+  };
+
+  it("a clean scoop on a bait day latches the tail and says so", () => {
+    const s = collect(42, 8);
+    expect(s.pirateTail).toBe(true);
+    expect(s.cargo.parts).toBeGreaterThan(0); // the scoop itself still happened
+    expect(s.log[s.log.length - 1].msg).toContain("bait");
+    expect(s.log[s.log.length - 1].tone).toBe("bad");
+  });
+
+  it("a clean scoop on a no-bait day stays untailed", () => {
+    expect(collect(42, 5).pirateTail).toBe(false);
+  });
+
+  it("the warhead outcome never also rolls bait — no pile-ons", () => {
+    const s = collect(42, 4); // hazard day
+    expect(s.pirateTail).toBe(false);
+    expect(s.hull).toBeLessThan(100);
+  });
+
+  it("a full hold scoops nothing and draws no tail, even on a bait day", () => {
+    const s = collect(42, 8, { cargo: { water: 30, parts: 0, luxury: 0 } });
+    expect(s.pirateTail).toBe(false);
+  });
+
+  it("jump clears the tail, fired or not", () => {
+    const tailed = { ...createGame(42), pirateTail: true, fuel: 16 };
+    const r = jump(tailed, "vulcan");
+    expect(r.state.pirateTail).toBe(false);
   });
 });

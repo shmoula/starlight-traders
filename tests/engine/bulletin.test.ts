@@ -3,6 +3,8 @@ import { bulletin } from "../../src/engine/bulletin";
 import { COMMODITIES, NODES, NODE_IDS, getPrice } from "../../src/engine/world";
 import { CommodityId, NodeId } from "../../src/engine/types";
 import { crewName, capFirst, CREW_ROSTER } from "../../src/engine/fiction";
+import { dailyModifier } from "../../src/engine/modifiers";
+import { iceRunDay } from "../../src/engine/missions";
 
 const SEEDS = Array.from({ length: 50 }, (_, i) => i + 1);
 
@@ -33,9 +35,30 @@ function demandPairs(seed: number) {
 }
 
 describe("bulletin (E1-1)", () => {
-  it("is deterministic: same seed, same three lines", () => {
+  it("is deterministic: same seed, same lines", () => {
     expect(bulletin(1482862887)).toEqual(bulletin(1482862887));
-    expect(bulletin(1482862887)).toHaveLength(3);
+    // seed 1482862887 posts a day-1 ice run → the full 5-line bulletin.
+    expect(bulletin(1482862887)).toHaveLength(5);
+  });
+
+  it("leads with the modifier's TODAY line (E3-1)", () => {
+    expect(bulletin(42)[0]).toBe(dailyModifier(42).bulletinLine);
+    expect(bulletin(9)[0]).toContain("Pirate amnesty");
+  });
+
+  it("appends the ice-run notice exactly when day 1 posts one (E3-2b)", () => {
+    expect(iceRunDay(5, 1)).toBe(true); // fixture guard
+    expect(iceRunDay(42, 1)).toBe(false);
+    const withIce = bulletin(5);
+    expect(withIce).toHaveLength(5);
+    expect(withIce[4]).toBe("❄ Ice run posted at Kiruna Belt — the Verge pays for water");
+    expect(bulletin(42)).toHaveLength(4);
+  });
+
+  it("every line keeps the ≤70-char ticker budget", () => {
+    for (const seed of [1, 3, 4, 5, 6, 9, 10, 42]) {
+      for (const line of bulletin(seed)) expect(line.length, line).toBeLessThanOrEqual(70);
+    }
   });
 
   it("every line stays within 70 characters across 50 seeds", () => {
@@ -49,19 +72,19 @@ describe("bulletin (E1-1)", () => {
   it("the glut line names the deepest-discount day-1 produce price, verbatim", () => {
     for (const seed of SEEDS) {
       const glut = producePairs(seed).reduce((a, b) => (b.ratio < a.ratio ? b : a));
-      expect(bulletin(seed)[0]).toContain(`${glut.price}cr`);
-      expect(bulletin(seed)[0]).toContain(NODES[glut.node].name);
+      expect(bulletin(seed)[1]).toContain(`${glut.price}cr`);
+      expect(bulletin(seed)[1]).toContain(NODES[glut.node].name);
     }
   });
 
   it("the premium line names the highest-premium day-1 demand pair, verbatim", () => {
     for (const seed of SEEDS) {
       const premium = demandPairs(seed).reduce((a, b) => (b.ratio > a.ratio ? b : a));
-      expect(bulletin(seed)[1]).toContain(`${premium.price}cr`);
-      expect(bulletin(seed)[1]).toContain(
+      expect(bulletin(seed)[2]).toContain(`${premium.price}cr`);
+      expect(bulletin(seed)[2]).toContain(
         COMMODITIES.find((c) => c.id === premium.commodity)!.name
       );
-      expect(bulletin(seed)[1]).toContain(NODES[premium.node].name);
+      expect(bulletin(seed)[2]).toContain(NODES[premium.node].name);
     }
   });
 
@@ -69,7 +92,7 @@ describe("bulletin (E1-1)", () => {
     // Max EDGE_DANGER is the kiruna–verge / meridian–verge tie at 30%;
     // riskiestLane breaks ties by sorted key order → kiruna–verge.
     for (const seed of SEEDS) {
-      expect(bulletin(seed)[2]).toBe(
+      expect(bulletin(seed)[3]).toBe(
         `${capFirst(crewName(seed))} chatter thick on the Kiruna Belt–The Verge lane`
       );
     }

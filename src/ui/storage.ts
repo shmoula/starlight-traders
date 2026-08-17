@@ -279,7 +279,7 @@ export function persist(save: StarlightSave): void {
 // and unit-tested; the wrappers degrade silently.
 
 export interface RunSnapshot {
-  version: 5;
+  version: 6;
   dateKey: string; // UTC "YYYY-MM-DD" of the run (from state.bootDate)
   label: "The Daily" | "Practice";
   state: GameState;
@@ -355,16 +355,25 @@ function hasValidStateCore(st: Partial<GameState>): boolean {
   );
 }
 
+/** dayHighlights is a plain object whose every value is a known highlight kind. */
+function isValidDayHighlights(dayHighlights: unknown): boolean {
+  return (
+    typeof dayHighlights === "object" &&
+    dayHighlights !== null &&
+    Object.values(dayHighlights).every((k) => HIGHLIGHT_KINDS.has(k))
+  );
+}
+
 function isValidSnapshotState(s: unknown, dateKey: string): s is GameState {
   if (typeof s !== "object" || s === null) return false;
   const st = s as Partial<GameState>;
   if (typeof st.bootDate !== "string" || !stampsDay(st.bootDate, dateKey)) return false;
-  if (typeof st.dayHighlights !== "object" || st.dayHighlights === null) return false;
-  if (!Object.values(st.dayHighlights).every((k) => HIGHLIGHT_KINDS.has(k))) return false;
+  if (!isValidDayHighlights(st.dayHighlights)) return false;
   if (!isValidLog(st.log)) return false;
   if (!isValidBoughtHere(st.boughtHere)) return false;
   if (!allNonNegativeNumbers(st.soldHere, COMMODITY_KEYS)) return false;
   if (!allNonNegativeNumbers(st.costBasis, COMMODITY_KEYS)) return false;
+  if (typeof st.pirateTail !== "boolean") return false;
   if (!isValidContracts(st.contracts)) return false;
   if (!hasValidMissionFields(st.activeMissions)) return false;
   if (!isValidRecords(st.records)) return false;
@@ -417,6 +426,15 @@ function migrateV4Depth(state: unknown): void {
   if (typeof state === "object" && state !== null) {
     if (st.soldHere === undefined) st.soldHere = { water: 0, parts: 0, luxury: 0 };
     if (st.costBasis === undefined) st.costBasis = { water: 0, parts: 0, luxury: 0 };
+  }
+}
+
+/** v5 → v6 (E3-4): pre-round runs carry no tail — default it. A resumed run
+ *  silently starts untailed for the day. */
+function migrateV5Tail(state: unknown): void {
+  const st = state as { pirateTail?: unknown };
+  if (typeof state === "object" && state !== null && st.pirateTail === undefined) {
+    st.pirateTail = false;
   }
 }
 
@@ -486,7 +504,13 @@ function isValidContracts(c: unknown): boolean {
 const MISSION_NUMERIC_KEYS = ["deposit", "reward", "qty"];
 function hasValidMissionFields(missions: unknown): boolean {
   return (
-    Array.isArray(missions) && missions.every((m) => allNonNegativeNumbers(m, MISSION_NUMERIC_KEYS))
+    Array.isArray(missions) &&
+    missions.every((m) => {
+      if (!allNonNegativeNumbers(m, MISSION_NUMERIC_KEYS)) return false;
+      // E3-2b: the only tag we mint is "ice"; anything else is a corrupt/forged doc.
+      const tag = (m as { tag?: unknown }).tag;
+      return tag === undefined || tag === "ice";
+    })
   );
 }
 
@@ -514,14 +538,16 @@ type ParsedSnapshot = (Partial<Omit<RunSnapshot, "version">> & { version?: numbe
  * applied in sequence below, so a v1 doc passes through all of them: its bare-string log
  * is wrapped (migrateV1Log) on the way to v2, it gains contract fields
  * (migrateV2Contracts) on the way to v3, then it gains records (migrateV3Records) on the
- * way to v4, then it gains depth/basis fields (migrateV4Depth) on the way to v5. A new
- * migration step is a one-line addition here.
+ * way to v4, then it gains depth/basis fields (migrateV4Depth) on the way to v5, then it
+ * gains the pirate-tail flag (migrateV5Tail) on the way to v6. A new migration step is a
+ * one-line addition here.
  */
 const SNAPSHOT_MIGRATIONS: ReadonlyArray<[from: number, migrate: (state: unknown) => void]> = [
   [1, migrateV1Log],
   [2, migrateV2Contracts],
   [3, migrateV3Records],
   [4, migrateV4Depth],
+  [5, migrateV5Tail],
 ];
 
 /**
@@ -553,7 +579,7 @@ export function parseSnapshot(raw: string | null, todayKey: string): RunSnapshot
     migrateSnapshotToCurrentVersion(p);
     if (
       !p ||
-      p.version !== 5 ||
+      p.version !== 6 ||
       p.dateKey !== todayKey ||
       (p.label !== "The Daily" && p.label !== "Practice") ||
       typeof p.logMarkBeforeJump !== "number" ||

@@ -41,11 +41,13 @@ import {
   engineHullStrain,
   fleeDamage,
   pirateToll,
+  SALVAGE_BAIT_DIVISOR,
   SALVAGE_HAZARD_DIVISOR,
   SALVAGE_TRAP_DAMAGE,
   salvageAmount,
 } from "./preview";
 import { RUN_LENGTH, endRun } from "./run-end";
+import { dailyModifier } from "./modifiers";
 
 export const STARTING = {
   credits: 800,
@@ -85,6 +87,7 @@ export function createGame(seed: number, bootDate = ""): GameState {
     boughtHere: { water: 0, parts: 0, luxury: 0 },
     soldHere: { water: 0, parts: 0, luxury: 0 },
     costBasis: { water: 0, parts: 0, luxury: 0 },
+    pirateTail: false,
     contracts: { delivered: 0, expired: 0, forfeitedCr: 0 },
     peakNetWorth: 0,
     dayHighlights: {},
@@ -298,7 +301,7 @@ export function netProceeds(state: GameState, id: CommodityId, qty: number): num
  * jump() applies, so the chip can never disagree with the accrual.
  */
 export function interestForecast(s: GameState): { inDays: number; amount: number } | null {
-  if (s.debt <= 0 || s.status !== "playing") return null;
+  if (s.debt <= 0 || s.status !== "playing" || dailyModifier(s.seed).interestHoliday) return null;
   const inDays = INTEREST_EVERY - (s.day % INTEREST_EVERY);
   return { inDays, amount: loanInterest(s.debt, s.day + inDays) };
 }
@@ -522,7 +525,7 @@ export function checkLoss(state: GameState): GameState {
 export function jump(state: GameState, to: NodeId): { state: GameState; event: GameEvent | null } {
   if (state.status !== "playing") return { state, event: null };
   if (to === state.location) return { state, event: null };
-  const cost = fuelCost(state.location, to);
+  const cost = fuelCost(state.seed, state.location, to);
   if (state.fuel < cost) return { state, event: null };
 
   let s: GameState = {
@@ -532,10 +535,11 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
     day: state.day + 1,
     boughtHere: { water: 0, parts: 0, luxury: 0 },
     soldHere: { water: 0, parts: 0, luxury: 0 },
+    pirateTail: false, // E3-4: the tail lasts exactly one jump, fired or not
   };
 
-  // Interest accrues on a fixed cadence.
-  if (s.day % INTEREST_EVERY === 0 && s.debt > 0) {
+  // Interest accrues on a fixed cadence — unless today's sky is a Syndicate rest (E3-1).
+  if (s.day % INTEREST_EVERY === 0 && s.debt > 0 && !dailyModifier(s.seed).interestHoliday) {
     const interest = loanInterest(s.debt, s.day);
     s = withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day), "bad");
   }
@@ -549,7 +553,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
     -fee
   );
 
-  const event = rollEvent(s.seed, s.day, state.location, to);
+  const event = rollEvent(s.seed, s.day, state.location, to, state.pirateTail);
   return { state: s, event };
 }
 
@@ -603,6 +607,9 @@ function resolvePirates(s: GameState, choiceId: string): GameState {
   return withLog(withHullDamage(marked, dmg), `Outran ${crew} — took ${dmg} hull damage.`, "bad");
 }
 
+/** Salts the bait draw so it is independent of the same-day hazard draw (E3-4). */
+const BAIT_SALT = 0xba17;
+
 function resolveSalvage(s: GameState, choiceId: string): GameState {
   if (choiceId !== "collect") return s;
   // Deterministic per seed/day via the shared hash — mulberry32's hashSeed avoids the
@@ -615,13 +622,23 @@ function resolveSalvage(s: GameState, choiceId: string): GameState {
     );
   }
   const got = salvageAmount(s);
-  return got > 0
-    ? withLog(
-        trackFullHold({ ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } }),
-        `Salvaged ${got} ${commodityName("parts")}.`,
-        "good"
-      )
-    : withLog(s, `Hold full — left the salvage drifting.`, "neutral");
+  if (got <= 0) return withLog(s, `Hold full — left the salvage drifting.`, "neutral");
+  let next = withLog(
+    trackFullHold({ ...s, cargo: { ...s.cargo, parts: s.cargo.parts + got } }),
+    `Salvaged ${got} ${commodityName("parts")}.`,
+    "good"
+  );
+  // E3-4: a clean scoop is seeded 1-in-SALVAGE_BAIT_DIVISOR to be bait — announced
+  // immediately, so the tail is a navigation decision, not a gotcha. Salted apart from
+  // the hazard draw, and unreachable from the warhead/full-hold paths above.
+  if (hashSeed(s.seed, s.day, BAIT_SALT) % SALVAGE_BAIT_DIVISOR === 0) {
+    next = withLog(
+      { ...next, pirateTail: true },
+      `That debris was bait — a pirate tail swings in behind you.`,
+      "bad"
+    );
+  }
+  return next;
 }
 
 function resolveEngine(s: GameState): GameState {

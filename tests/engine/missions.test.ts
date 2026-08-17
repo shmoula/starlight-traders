@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateMissions, missionFeasibility } from "../../src/engine/missions";
+import { generateMissions, missionFeasibility, iceRunDay } from "../../src/engine/missions";
 import { createGame } from "../../src/engine/game";
 import { COMMODITIES, NODE_IDS, getPrice, baselinePrice, fuelCost } from "../../src/engine/world";
 import { mulberry32, hashSeed } from "../../src/engine/rng";
@@ -39,7 +39,9 @@ describe("reward floor + deposit (E2-2)", () => {
     for (let seed = 1; seed <= 30; seed++) {
       for (let day = 1; day <= 12; day++) {
         for (const node of NODE_IDS) {
-          for (const m of generateMissions(seed, day, node)) {
+          // The ice run (E3-2b) is a deliberately out-of-band long-haul special; this
+          // invariant is about the ordinary premium roll, so exclude the tagged mission.
+          for (const m of generateMissions(seed, day, node).filter((m) => m.tag !== "ice")) {
             const originCost = m.qty * getPrice(seed, day, node, m.commodity);
             // E2-2f: the premium anchors to the destination's day-independent base, not
             // the offer-day spot — so the cap is measured against baselinePrice.
@@ -88,15 +90,15 @@ describe("reward floor + deposit (E2-2)", () => {
     };
     for (let seed = 1; seed <= 10; seed++) {
       for (const node of NODE_IDS) {
-        const actual = generateMissions(seed, 3, node).map(
-          ({ id, commodity, destination, qty, deadlineDay }) => ({
+        const actual = generateMissions(seed, 3, node)
+          .filter((m) => m.tag !== "ice") // the ice special (E3-2b) is appended, not part of the base draws
+          .map(({ id, commodity, destination, qty, deadlineDay }) => ({
             id,
             commodity,
             destination,
             qty,
             deadlineDay,
-          })
-        );
+          }));
         expect(actual).toEqual(reference(seed, 3, node));
       }
     }
@@ -108,7 +110,9 @@ describe("reward anchoring (E2-2f)", () => {
     for (let seed = 1; seed <= 50; seed++) {
       for (let day = 1; day <= 8; day++) {
         for (const origin of NODE_IDS) {
-          for (const m of generateMissions(seed, day, origin)) {
+          // The ice run (E3-2b) rides a wider premium band on purpose; this anchoring
+          // invariant covers the ordinary roll, so skip the tagged mission.
+          for (const m of generateMissions(seed, day, origin).filter((m) => m.tag !== "ice")) {
             const base = baselinePrice(m.destination, m.commodity);
             const floor = Math.round(
               MISSION_REWARD_FLOOR_MULT * m.qty * getPrice(seed, day, origin, m.commodity)
@@ -121,6 +125,37 @@ describe("reward anchoring (E2-2f)", () => {
         }
       }
     }
+  });
+});
+
+describe("ice runs (E3-2b)", () => {
+  it("iceRunDay matches the seeded cadence", () => {
+    expect(iceRunDay(42, 9)).toBe(true);
+    expect(iceRunDay(42, 11)).toBe(true);
+    expect(iceRunDay(42, 3)).toBe(false);
+  });
+
+  it("posts exactly one tagged water→Verge contract at Kiruna on an ice day", () => {
+    const board = generateMissions(42, 9, "kiruna");
+    const ice = board.filter((m) => m.tag === "ice");
+    expect(ice).toHaveLength(1);
+    expect(ice[0]).toMatchObject({ commodity: "water", destination: "verge" });
+    expect(ice[0].id).toBe("kiruna-9-ice");
+    expect(ice[0].qty).toBeGreaterThanOrEqual(10);
+    expect(ice[0].qty).toBeLessThanOrEqual(14);
+    expect(ice[0].deadlineDay).toBeGreaterThanOrEqual(11); // day + 2
+    expect(ice[0].deadlineDay).toBeLessThanOrEqual(12); // day + 3
+    expect(ice[0].deposit).toBe(Math.round(0.1 * ice[0].reward));
+    expect(ice[0].reward).toBeGreaterThanOrEqual(Math.round(ice[0].qty * 20 * 2.4));
+  });
+
+  it("no ice run off-cadence, at other stations, and no disturbance to the base board", () => {
+    expect(generateMissions(42, 3, "kiruna").some((m) => m.tag === "ice")).toBe(false);
+    expect(generateMissions(42, 9, "terra").some((m) => m.tag === "ice")).toBe(false);
+    const withIce = generateMissions(42, 9, "kiruna").filter((m) => m.tag !== "ice");
+    expect(withIce.length).toBeGreaterThanOrEqual(1);
+    expect(withIce.length).toBeLessThanOrEqual(3);
+    expect(withIce.every((m) => m.id.startsWith("kiruna-9-") && !m.id.endsWith("ice"))).toBe(true);
   });
 });
 
@@ -139,7 +174,7 @@ describe("missionFeasibility (P2-3)", () => {
     const s = createGame(42); // terra, day 1
     const f = missionFeasibility(s, m);
     const cargoCost = 10 * getPrice(42, 1, "terra", "water");
-    const fuel = fuelCost("terra", "kiruna"); // 4
+    const fuel = fuelCost(42, "terra", "kiruna"); // 4
     expect(f).toEqual({
       cargoCost,
       fuel,
@@ -161,7 +196,7 @@ describe("missionFeasibility (P2-3)", () => {
     const s = createGame(42); // terra, day 1
     const f = missionFeasibility(s, underwater);
     const cargoCost = 10 * getPrice(42, 1, "terra", "water");
-    const fuel = fuelCost("terra", "kiruna"); // 4
+    const fuel = fuelCost(42, "terra", "kiruna"); // 4
     expect(f.estProfit).toBe(10 - cargoCost - fuel * REFUEL_PRICE - dockingFee("kiruna"));
     expect(f.estProfit).toBeLessThan(0);
   });

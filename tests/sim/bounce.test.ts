@@ -22,6 +22,7 @@ function sellState(seed: number, day: number, node: NodeId): GameState {
     boughtHere: { water: 0, parts: 0, luxury: 0 },
     soldHere: { water: 0, parts: 0, luxury: 0 },
     costBasis: { water: 0, parts: 0, luxury: 0 },
+    pirateTail: false,
     contracts: { delivered: 0, expired: 0, forfeitedCr: 0 },
     peakNetWorth: 0,
     dayHighlights: {},
@@ -48,7 +49,7 @@ function bestArb(seed: number, day: number, K: number): number {
           gross -
           taxOnSale(b, gross) -
           units * buyP -
-          fuelCost(a, b) * REFUEL_PRICE -
+          fuelCost(seed, a, b) * REFUEL_PRICE -
           dockingFee(b);
         if (p > best) best = p;
       }
@@ -72,11 +73,12 @@ describe("contract bounce line (E2-2f)", () => {
             if (m.destination === origin || day + 3 > m.deadlineDay) continue;
             const B = m.destination;
             const C = NODE_IDS.filter((n) => n !== B && n !== origin).sort(
-              (a, b) => fuelCost(B, a) - fuelCost(B, b)
+              (a, b) => fuelCost(seed, B, a) - fuelCost(seed, B, b)
             )[0];
             const K =
               m.qty * getPrice(seed, day + 1, B, m.commodity) +
-              (fuelCost(origin, B) + fuelCost(B, C) + fuelCost(C, B)) * REFUEL_PRICE +
+              (fuelCost(seed, origin, B) + fuelCost(seed, B, C) + fuelCost(seed, C, B)) *
+                REFUEL_PRICE +
               2 * dockingFee(B) +
               dockingFee(C);
             const bounceProfit = m.reward - K;

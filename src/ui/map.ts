@@ -74,7 +74,7 @@ function nodeMarkup(s: GameState, n: NodeId): string {
     const ring = `<circle class="map-here-ring" cx="${x}" cy="${y}" r="${NODE_R + 5}"/>`;
     return `<g class="map-node map-node--here${weenie}">${halo}${ring}${orb}${name}</g>`;
   }
-  const unreachable = s.fuel < fuelCost(s.location, n);
+  const unreachable = s.fuel < fuelCost(s.seed, s.location, n);
   const cls = unreachable ? " map-node--unreachable" : "";
   const dis = unreachable ? ' aria-disabled="true"' : "";
   return `<g class="map-node${weenie}${cls}" data-act="jump" data-id="${n}"${dis}>${halo}${orb}${name}</g>`;
@@ -101,12 +101,12 @@ export function starMap(s: GameState): string {
         continue;
       }
       const other = a === s.location ? b : a;
-      const risk = pirateChance(s.location, other);
+      const risk = pirateChance(s, other);
       lanes.push(line(`map-edge--${laneTone(risk)}`));
       const lp = labelPos(here, MAP_LAYOUT[other]);
       labels.push(
         `<text class="map-label st-num" x="${lp.x}" y="${lp.y}">` +
-          `${fuelCost(s.location, other)}⛽ · ${Math.round(risk * 100)}%</text>`
+          `${fuelCost(s.seed, s.location, other)}⛽ · ${Math.round(risk * 100)}%</text>`
       );
     }
   }
