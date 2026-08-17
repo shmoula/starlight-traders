@@ -29,7 +29,7 @@ import {
   spendableCredits,
 } from "./economy";
 import { docksideUnitsUsed, generateMissions } from "./missions";
-import { rollEvent } from "./events";
+import { riskOf, rollEvent } from "./events";
 import { crewName } from "./fiction";
 import { hashSeed } from "./rng";
 import {
@@ -553,7 +553,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
     -fee
   );
 
-  const event = rollEvent(s.seed, s.day, state.location, to, state.pirateTail);
+  const event = rollEvent(s.seed, s.day, state.location, to, riskOf(state));
   return { state: s, event };
 }
 
