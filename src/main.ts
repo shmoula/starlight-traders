@@ -79,6 +79,8 @@ let lastAct: { act?: string; id?: string } = {};
 let resumedFromSnapshot = false;
 // Vitals as of the last paint, so paint() can diff this turn's movement into a
 // one-shot pulse (P3-2). null before the first paint — nothing has moved yet.
+// Also reset to null by startNewRun(), since an in-page restart reuses this module
+// scope rather than getting a fresh one.
 let prevVitals: Vitals | null = null;
 
 function startNewRun() {
@@ -90,6 +92,11 @@ function startNewRun() {
   recorded = false;
   lastDebrief = undefined;
   resumedFromSnapshot = false;
+  // This is an in-page restart, not a reload — module scope survives it, so prevVitals
+  // still holds the previous run's last-painted vitals. Without clearing it, the new
+  // run's fixed starting numbers would diff against the old run's end-state and fire
+  // spurious pulses on the very first paint (P3-2).
+  prevVitals = null;
   runLabel = labelForDay(save, utcDateKey(state.bootDate));
 }
 
