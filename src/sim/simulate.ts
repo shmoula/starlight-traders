@@ -12,9 +12,9 @@ import {
   sell,
 } from "../engine/game";
 import { COMMODITIES, NODE_IDS, fuelCost, getPrice } from "../engine/world";
-import { MARKET_DEPTH, REFUEL_PRICE, dockingFee, netWorth } from "../engine/economy";
+import { MARKET_DEPTH, REFUEL_PRICE, canEscape, dockingFee, netWorth } from "../engine/economy";
 import { pirateChance } from "../engine/events";
-import { pirateToll } from "../engine/preview";
+import { DISTRESS_FUEL, pirateToll } from "../engine/preview";
 
 const EARLY_DAY = 3; // ⚙ "the opening"
 const LATE_DAY = 9; // ⚙ "the last three days"
@@ -46,6 +46,8 @@ export interface SimResult {
   bigTradeDays: number;
   /** Bait tails latched during the run (E3-4) — observability for the death-rate split. */
   tails: number;
+  /** Days marked 🟩 — beacons this persona answered (E3-3 observability). */
+  rescues: number;
   /** Median lane danger on the jumps taken on days ≤ 3 (E1-5 pressure curve). */
   earlyDanger: number;
   /** Median lane danger on the jumps taken on days ≥ 9. */
@@ -91,6 +93,7 @@ function toResult(s: GameState, tails: number, obs: DayObs[]): SimResult {
     status: s.status,
     bigTradeDays: Object.values(s.dayHighlights).filter((k) => k === "bigTrade").length,
     tails,
+    rescues: Object.values(s.dayHighlights).filter((k) => k === "rescue").length,
     earlyDanger: median(obs.filter((o) => o.day <= EARLY_DAY).map((o) => o.danger)),
     lateDanger: median(obs.filter((o) => o.day >= LATE_DAY).map((o) => o.danger)),
     lateTollShare: median(
@@ -138,7 +141,8 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
       if (r.event === null) break;
       const choice = chooseEventOption(
         kind,
-        r.event.choices.map((c) => c.id)
+        r.event.choices.map((c) => c.id),
+        r.state
       );
       s = resolveChoice(r.state, r.event, choice);
       if (s.pirateTail) tails++;
@@ -161,7 +165,8 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
     }
     const choice = chooseEventOption(
       kind,
-      r.event.choices.map((c) => c.id)
+      r.event.choices.map((c) => c.id),
+      r.state
     );
     s = resolveChoice(r.state, r.event, choice);
     if (s.pirateTail) tails++;
@@ -179,7 +184,15 @@ export function runArchetype(kind: Archetype, seed: number): SimResult {
   return toResult(s, tails, obs);
 }
 
-function chooseEventOption(kind: Archetype, ids: string[]): string {
+function chooseEventOption(kind: Archetype, ids: string[], s: GameState): string {
+  // Distress policy (E3-3): cautious never diverts; greedy always answers (the engine's
+  // fuel guard makes it safe); balanced answers only when the diversion keeps the run
+  // escapable.
+  if (ids.includes("answer")) {
+    if (kind === "cautious") return "ignore";
+    if (kind === "greedy") return "answer";
+    return canEscape({ ...s, fuel: s.fuel - DISTRESS_FUEL }) ? "answer" : "ignore";
+  }
   if (ids.includes("pay") && kind === "cautious") return "pay";
   if (ids.includes("flee") && kind !== "cautious") return "flee";
   // Salvage and derelict both stake hull on a gamble; only the greedy archetype takes
@@ -222,6 +235,7 @@ export interface ArchetypeSummary {
   scoreSum: number;
   netWorthSum: number;
   tailsSum: number;
+  rescuesSum: number;
   /** Mean across seeds of each run's median early/late danger and late toll share. */
   earlyDangerMean: number;
   lateDangerMean: number;
@@ -240,6 +254,7 @@ export function sweepSummary(seeds: readonly number[]): ArchetypeSummary[] {
       scoreSum: 0,
       netWorthSum: 0,
       tailsSum: 0,
+      rescuesSum: 0,
       earlyDangerMean: 0,
       lateDangerMean: 0,
       lateTollShareMean: 0,
@@ -250,6 +265,7 @@ export function sweepSummary(seeds: readonly number[]): ArchetypeSummary[] {
       sum.scoreSum += r.score;
       sum.netWorthSum += r.netWorthAtEnd;
       sum.tailsSum += r.tails;
+      sum.rescuesSum += r.rescues;
       sum.earlyDangerMean += r.earlyDanger;
       sum.lateDangerMean += r.lateDanger;
       sum.lateTollShareMean += r.lateTollShare;

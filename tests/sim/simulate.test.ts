@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import { Archetype, runArchetype, sweepSummary, viableLoops } from "../../src/sim/simulate";
 import { dailyModifier } from "../../src/engine/modifiers";
 import { HEAT_PER_CR } from "../../src/engine/economy";
+import { hashSeed } from "../../src/engine/rng";
+import { DISTRESS_SALT } from "../../src/engine/game";
+import { DISTRESS_GRATEFUL_DEN, DISTRESS_GRATEFUL_NUM } from "../../src/engine/preview";
 
 const SEEDS = Array.from({ length: 100 }, (_, i) => i + 1);
 const ALL: Archetype[] = ["cautious", "balanced", "greedy"];
@@ -125,6 +128,24 @@ describe("pressure curve (E1-5 acceptance) — the endgame is no longer flat", (
     // lateTollShareMean > 0 means the scaled toll fired. The turtle must stay flat.
     expect(summary.cautious.peakSum).toBe(0); // no heat: heat is derived from peakNetWorth
     expect(summary.cautious.lateTollShareMean).toBe(0); // no scaled toll: net worth never positive
+  });
+});
+
+describe("distress gates (E3-3 acceptance)", () => {
+  it("the grateful split lands near 3-in-5 over a wide window", () => {
+    let grateful = 0;
+    for (let seed = 1; seed <= 400; seed++) {
+      if (hashSeed(seed, 7, DISTRESS_SALT) % DISTRESS_GRATEFUL_DEN < DISTRESS_GRATEFUL_NUM)
+        grateful++;
+    }
+    expect(grateful / 400).toBeGreaterThan(0.55); // ⚙
+    expect(grateful / 400).toBeLessThan(0.65); // ⚙
+  });
+
+  it("the sweep actually meets and answers beacons — and the turtle never does", () => {
+    const sum = Object.fromEntries(sweepSummary(SEEDS).map((s) => [s.kind, s]));
+    expect(sum.balanced.rescuesSum + sum.greedy.rescuesSum).toBeGreaterThan(0);
+    expect(sum.cautious.rescuesSum).toBe(0);
   });
 });
 
