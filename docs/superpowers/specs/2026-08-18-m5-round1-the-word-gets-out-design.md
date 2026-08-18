@@ -456,3 +456,44 @@ Round:
 - [ ] ROADMAP gains a Milestone 5 section with these three rows ticked on
       land; ENGAGEMENT_BACKLOG rows E3-3/E3-5/E2-2k updated; the ⚪ backlog
       tail is empty (only B-4's stretch remains, in BACKLOG.md).
+
+## Deviations
+
+Recorded at round close (2026-08-18). Plan-time deviations were decided as the
+plan was written; implementation deviations surfaced during execution.
+
+**Plan-time (from the plan header):**
+
+- **`CardData` score-breakdown lines narrowed to one `peak` field.** Net worth
+  and bonus are one subtraction from the score line, so they need no separate
+  lines; only the E1-5-era `peak` stat is worth its own line (YAGNI — the spec's
+  plural "score-breakdown lines" over-provisioned).
+- **`choiceBlockReason` lives in `preview.ts`, not `screens.ts`.** The P0-2
+  reason string must be engine-derived so the disabled button and the
+  `resolveDistress` guard cannot drift — `preview.ts` is the honesty module, so
+  the reason belongs there rather than in the view.
+- **The op vocabulary is `rect | rrect | circle | line | text`, not the spec's
+  `poly`.** The cell glyphs draw cleaner with lines and circles; nothing needs
+  an arbitrary polygon, so `poly` was dropped and `rrect`/`circle`/`line` added.
+- **The card uses the system font stack deliberately.** Layout must be identical
+  whether or not a web font finished loading, and nothing measures text, so no
+  web font is loaded for the canvas.
+
+**Implementation (discovered during execution):**
+
+- **The unaffordable distress "answer" button uses `aria-disabled="true"` +
+  `aria-describedby`, not a plain `disabled` attribute.** A code-review finding:
+  a plain `disabled` drops the control from the tab order, so a screen reader
+  never announces the "Need 2⛽, have N" reason. This matches the existing P0-2
+  stranding-honesty pattern in `screens.ts`. (Committed as `fix(m5): distress
+answer uses aria-disabled+describedby for screen readers (E3-3e)`.)
+- **Task 10 extracted a small `cardSurfaces(s, r, meta)` helper in
+  `screens.ts`** rather than leaving two inline ternaries in `runEndScreen`, to
+  stay under the project's ESLint complexity cap of 15. The HTML output is
+  functionally identical.
+- **Task 7 required NO knob changes and NO gate re-records.** All three plan
+  predictions were confirmed exactly — cautious distress-inert at +907 drift
+  (audited 97/100), greedy deaths drifted down to 21/100 (inside the 10–40
+  band), balanced ≥95% audited (measured 100%) — so the persona policy shipped
+  as specced with `canEscape`-gated balanced answering; no tightening was
+  needed.

@@ -74,14 +74,21 @@ sim gate only measures the real game after E2-3 lands.
 | **P3-2** | Juice (pulse stats, floating toast, danger pips)        | ✅ **Shipped 2026-08-17.** Delta-keyed stat pulse classes (`vitalPulses`), a floating `+860cr` credit toast outside the swapped `#app` root, and green→amber→red danger pips (`laneTone`) shared by jump orbs and star-map lanes; all motion respects `prefers-reduced-motion`.                                                                                                                                                                                                          |
 | **P2-4** | Live score-chase in statbar + share confirm             | ✅ **Shipped 2026-08-17.** Statbar carries a `🏆 {peak}` chip; the share button flips to `Copied ✓` / `Copy failed` for 2s instead of discarding `copyShare`'s result.                                                                                                                                                                                                                                                                                                                   |
 
----
+## 🟢 Milestone 5 — Launch cut
 
-## ⚪ Backlog — revisit later
+**Round 1 closed 2026-08-18 ("The Word Gets Out"): E3-5 + E3-3 + E2-2k shipped together** — the
+run card drawn to a 1200×630 PNG from a pure display-list with an image-first copy path
+(text card kept as the honest fallback, Save PNG everywhere), the seventh event: a
+distress beacon answered for 2⛽ + one full day at seeded 60/40 odds shown per E1-4, and
+partition-neutral liquidation tax closing the last ±1cr path across the escape line.
+Sweep re-recorded with NO knob changes: cautious distress-inert (+907 drift, audited 97),
+balanced 100% audited (73 rescues), greedy deaths drifted down 35→21 (86 rescues).
 
-| Item     | What                                                         | Why not now                                                                                                                                                           |
-| :------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **E3-3** | Distress Call (7th event)                                    | Additive content, not corrective.                                                                                                                                     |
-| **E3-5** | Image share card (canvas → PNG, real icons instead of emoji) | Craft on the acquisition surface only pays once the loop it advertises is worth joining. E1-2's text card ships now and stays the fallback. Spec in ENGAGEMENT §3 P3. |
+| Item      | What                                               | Notes                                                                                                                                                                          |
+| :-------- | :------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **E3-5**  | Image share card (canvas → PNG, drawn strip cells) | ✅ **Shipped 2026-08-18.** Pure `cardOps` display-list painted by a dumb canvas replayer; image-first clipboard with text fallback + Save PNG.                                 |
+| **E3-3**  | Distress Call (7th event, values-driven choice)    | ✅ **Shipped 2026-08-18.** Answer costs 2⛽ + a real day for a seeded 60/40 reward priced on the beacon's day; band inserted after derelict so risk bands stay byte-identical. |
+| **E2-2k** | Liquidation-tax neutrality (±1cr escape-line fix)  | ✅ **Shipped 2026-08-18.** `saleTax` charges on cumulative per-commodity gross so any partition of a stack telescopes to the single rounded charge.                            |
 
 ---
 
@@ -125,5 +132,21 @@ peak ≥ `HEAT_PER_CR`) — balanced +0.0272, greedy +0.0305, against a 0.02 flo
 greedy deaths landed at 35/100 (10–40 band); the cautious anchor stayed
 unmoved at −189,973 (no heat, no scaled toll). Final knobs at plan defaults
 (HEAT_PER_CR=1500, TOLL_RATE=0.1, HEAT_STEP=0.01, HEAT_CAP=0.15,
-HEAT_VOICE_STEP=0.05) — no tuning was needed. See the two backlog files for
-details.
+HEAT_VOICE_STEP=0.05) — no tuning was needed. **Milestone 5 (Launch cut)
+opened and closed 2026-08-18 with round 1 ("The Word Gets Out"):** E3-5 (image
+share card — the run card drawn to a 1200×630 PNG from a pure `cardOps`
+display-list, image-first clipboard with the text card as the honest fallback
+and Save PNG everywhere), E3-3 (Distress Call — the seventh event, answered for
+2⛽ + one full day at a seeded 60/40 split priced on the beacon's day, banded
+after derelict so every risk-outcome roll stays byte-identical), and E2-2k
+(partition-neutral liquidation tax via `saleTax` on the cumulative
+per-commodity gross, closing the last ±1cr path across the escape line) all
+shipped. The sweep was re-recorded with **no knob changes** and **no gate
+thresholds re-recorded** — the persona fix alone re-held every gate at its
+existing baseline: cautious stayed distress-inert (netWorthSum −189,973,
++907 drift vs the pre-depth baseline, audited 97/100, 0 rescues), balanced held
+100% audited (netWorthSum ratio 0.721 to baseline, 73 rescues), and greedy
+deaths drifted down 35→21 (10–40 band, 86 rescues); the grateful split lands in
+(0.55, 0.65) over a 400-seed window. Knobs at plan defaults (DISTRESS_BAND=0.08,
+DISTRESS_FUEL=2, DISTRESS_REWARD_BASE=250, DISTRESS_REWARD_PER_DAY=15, grateful
+3/5). See the two backlog files for details.
