@@ -14,6 +14,11 @@ export const TAIL_BONUS = 0.35;
 export const SALVAGE_BAND = 0.18;
 /** Long-haul lanes (isLongHaul) double the salvage band — bigger crossings, bigger fields. */
 export const LONG_HAUL_SALVAGE_BAND = 0.36;
+/** Width of the distress band (E3-3) — constant on every lane: a beacon is no likelier
+ *  on a frontier run than a milk run, and amnesty does not silence it (it empties only
+ *  the hostile pirate/salvage bands). Inserted after derelict, before customs, so the
+ *  four risk-outcome bands keep their thresholds — only old customs/quiet rolls re-deal. */
+export const DISTRESS_BAND = 0.08; // ⚙
 
 /**
  * The two per-jump risk inputs that are not properties of the lane itself: a bait tail
@@ -90,12 +95,14 @@ export function rollEvent(
   const pSalvage = pPirates + salvageBand;
   const pEngine = pSalvage + 0.1;
   const pDerelict = pEngine + 0.12;
-  const pCustoms = to === "meridian" ? pDerelict + 0.15 : pDerelict;
+  const pDistress = pDerelict + DISTRESS_BAND;
+  const pCustoms = to === "meridian" ? pDistress + 0.15 : pDistress;
 
   if (r < pPirates) return pirates(describe("pirates"));
   if (r < pSalvage) return salvage(describe("salvage"));
   if (r < pEngine) return engine(describe("engine"));
   if (r < pDerelict) return derelict(describe("derelict"));
+  if (r < pDistress) return distress(describe("distress"));
   if (r < pCustoms) return customs(describe("customs"));
   return quiet(describe("quiet"));
 }
@@ -140,6 +147,17 @@ function derelict(description: string): GameEvent {
     choices: [
       { id: "board", label: "Board it (gamble)" },
       { id: "leave", label: "Leave it be" },
+    ],
+  };
+}
+function distress(description: string): GameEvent {
+  return {
+    kind: "distress",
+    title: "Distress Call",
+    description,
+    choices: [
+      { id: "answer", label: "Answer the call (divert)" },
+      { id: "ignore", label: "Hold your course" },
     ],
   };
 }

@@ -5,6 +5,7 @@ import {
   effectiveDanger,
   SALVAGE_BAND,
   LONG_HAUL_SALVAGE_BAND,
+  DISTRESS_BAND,
   JumpRisk,
   riskOf,
   DANGER_CAP,
@@ -15,7 +16,7 @@ import { crewName } from "../../src/engine/fiction";
 import { dailyModifier } from "../../src/engine/modifiers";
 import { createGame } from "../../src/engine/game";
 import { heatOf, HEAT_CAP } from "../../src/engine/economy";
-import { GameState, NodeId } from "../../src/engine/types";
+import { GameEvent, GameState, NodeId } from "../../src/engine/types";
 
 describe("rollEvent", () => {
   it("is deterministic for the same seed/day/route", () => {
@@ -25,7 +26,7 @@ describe("rollEvent", () => {
   });
 
   it("always returns a known event kind with at least one choice", () => {
-    const known = ["quiet", "pirates", "salvage", "derelict", "customs", "engine"];
+    const known = ["quiet", "pirates", "salvage", "derelict", "distress", "customs", "engine"]; // E3-3 band re-deal
     for (let day = 1; day <= 60; day++) {
       const e = rollEvent(11, day, "terra", "verge", CALM);
       expect(known).toContain(e.kind);
@@ -123,7 +124,8 @@ describe("RNG order preservation (E2-4c)", () => {
           const pSalvage = pPirates + salvageBand;
           const pEngine = pSalvage + 0.1;
           const pDerelict = pEngine + 0.12;
-          const pCustoms = to === "meridian" ? pDerelict + 0.15 : pDerelict;
+          const pDistress = pDerelict + DISTRESS_BAND; // E3-3 band re-deal
+          const pCustoms = to === "meridian" ? pDistress + 0.15 : pDistress;
           const expected =
             r < pPirates
               ? "pirates"
@@ -133,9 +135,11 @@ describe("RNG order preservation (E2-4c)", () => {
                   ? "engine"
                   : r < pDerelict
                     ? "derelict"
-                    : r < pCustoms
-                      ? "customs"
-                      : "quiet";
+                    : r < pDistress
+                      ? "distress"
+                      : r < pCustoms
+                        ? "customs"
+                        : "quiet";
           expect(rollEvent(seed, day, from, to, CALM).kind).toBe(expected);
         }
       }
@@ -255,5 +259,43 @@ describe("heat in the danger stack (E1-5a)", () => {
         (_, i) => rollEvent(7, i + 1, "terra", "kiruna", { tailed: false, heat: 0 }).kind
       ).join(",")
     );
+  });
+});
+
+describe("distress band (E3-3)", () => {
+  it("appears on a calm lane at roughly its band width", () => {
+    let n = 0;
+    for (let day = 1; day <= 400; day++) {
+      if (rollEvent(42, day, "terra", "kiruna", CALM).kind === "distress") n++;
+    }
+    expect(n / 400).toBeGreaterThan(0.04); // band is 0.08; generous noise margin
+    expect(n / 400).toBeLessThan(0.12);
+  });
+
+  it("survives amnesty — a beacon is not a pirate", () => {
+    let n = 0;
+    for (let day = 1; day <= 400; day++) {
+      if (rollEvent(9, day, "terra", "verge", CALM).kind === "distress") n++; // seed 9 = amnesty
+    }
+    expect(n).toBeGreaterThan(0);
+  });
+
+  it("meridian still rolls customs above the distress band", () => {
+    const kinds = new Set(
+      Array.from({ length: 400 }, (_, i) => rollEvent(7, i + 1, "terra", "meridian", CALM).kind)
+    );
+    expect(kinds.has("customs")).toBe(true);
+    expect(kinds.has("distress")).toBe(true);
+  });
+
+  it("carries the two authored choices", () => {
+    let e: GameEvent | null = null;
+    for (let day = 1; day <= 400 && !e; day++) {
+      const r = rollEvent(42, day, "terra", "kiruna", CALM);
+      if (r.kind === "distress") e = r;
+    }
+    expect(e).not.toBeNull();
+    expect(e!.title).toBe("Distress Call");
+    expect(e!.choices.map((c) => c.id)).toEqual(["answer", "ignore"]);
   });
 });
