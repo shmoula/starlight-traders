@@ -125,6 +125,12 @@ export const EVENT_VARIANTS: Record<GameEventKind, ((crew: string) => string)[]>
     () =>
       "Something rattles loose behind the reactor shroud. The fix holds; the fuel gauge remembers.",
   ],
+  distress: [
+    () =>
+      "A thin voice on the open channel: engines dead, air thinning. Answering costs fuel and a day.",
+    () => "A distress beacon repeats from a debris shadow. Nobody else is slowing down for it.",
+    () => "An automated mayday, hours old, still calling. Out here the law is whoever answers.",
+  ],
 };
 
 // The Syndicate's escalation ladder (E1-5c). Heat is a number on the statbar; these

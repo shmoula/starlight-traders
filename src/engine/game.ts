@@ -153,7 +153,12 @@ function trackPayday(state: GameState, amount: number, label: string): GameState
 }
 
 /** When a day earns several highlights, the highest rank is the one the strip shows. */
-const HIGHLIGHT_RANK: Record<DayHighlightKind, number> = { pirates: 3, bigTrade: 2, delivery: 1 };
+const HIGHLIGHT_RANK: Record<DayHighlightKind, number> = {
+  pirates: 4,
+  rescue: 3,
+  bigTrade: 2,
+  delivery: 1,
+};
 
 /** Record the current day's notable moment for the share strip (E1-2). Upgrade-only. */
 function markDay(s: GameState, kind: DayHighlightKind): GameState {

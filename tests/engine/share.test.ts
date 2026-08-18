@@ -177,6 +177,11 @@ describe("runStrip", () => {
     );
   });
 
+  it("maps a rescue day to 🟩 and counts it in the summary (E3-3)", () => {
+    expect(runStrip({ 2: "rescue" }, 3, "audited")).toBe("🟦🟩🟦");
+    expect(stripSummary({ 2: "rescue" }, 3, "audited")).toContain("1 distress call answered");
+  });
+
   it("stamps 💀 on the final day of a lost run only", () => {
     expect(runStrip({ 3: "pirates" }, 3, "lost")).toBe("🟦🟦💀"); // 💀 outranks the day's own mark
     expect(runStrip({}, 1, "lost")).toBe("💀"); // day-1 death is a single skull

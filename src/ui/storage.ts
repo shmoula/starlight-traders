@@ -312,6 +312,7 @@ function isValidEvent(e: unknown): e is GameEvent | null {
  */
 const HIGHLIGHT_KIND_TABLE: Record<DayHighlightKind, true> = {
   pirates: true,
+  rescue: true,
   bigTrade: true,
   delivery: true,
 };

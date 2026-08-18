@@ -33,6 +33,7 @@ export function runNumber(bootISO: string): number {
 
 const STRIP_GLYPHS: Record<DayHighlightKind, string> = {
   pirates: "🟥",
+  rescue: "🟩",
   bigTrade: "💰",
   delivery: "🟨",
 };
@@ -60,6 +61,7 @@ export function runStrip(
 
 const STRIP_NOUNS: Record<DayHighlightKind, [one: string, many: string]> = {
   pirates: ["pirate encounter", "pirate encounters"],
+  rescue: ["distress call answered", "distress calls answered"],
   bigTrade: ["big trade", "big trades"],
   delivery: ["delivery", "deliveries"],
 };
