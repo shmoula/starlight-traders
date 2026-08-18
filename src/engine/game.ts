@@ -20,7 +20,7 @@ import {
   dockingFee,
   netSaleProceeds,
   saleProceeds,
-  taxOnSale,
+  saleTax,
   loanInterest,
   LOAN_STEP_IMPATIENT,
   LOAN_STEP_DESPERATE,
@@ -264,7 +264,7 @@ export function sell(state: GameState, id: CommodityId, qty: number): GameState 
   if (qty <= 0 || state.cargo[id] < qty) return state;
   // E2-1: gross walks the depth curve; the log names the saturation when it bites.
   const { gross, degradedUnits } = saleProceeds(state, id, qty);
-  const tax = taxOnSale(state.location, gross);
+  const tax = saleTax(state, id, gross);
   let next: GameState = {
     ...state,
     credits: state.credits + gross - tax,

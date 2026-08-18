@@ -28,13 +28,14 @@ import {
   BIG_TRADE_CR,
   saleProceeds,
   taxOnSale,
+  liquidationValue,
   MARKET_DEPTH,
   HEAT_PER_CR,
   HEAT_VOICE_STEP,
   HEAT_STEP,
   heatOf,
 } from "../../src/engine/economy";
-import { GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
+import { CommodityId, GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
 import { SALVAGE_HAZARD_DIVISOR, fleeDamage } from "../../src/engine/preview";
@@ -1556,5 +1557,35 @@ describe("heat's voice (E1-5c)", () => {
   it("stays silent for a run that never gets rich", () => {
     const s = arriveWithWorth(900);
     expect(s.log.some((l) => HEAT_LINES.includes(l.msg))).toBe(false);
+  });
+});
+
+describe("liquidation is exactly what the escape math promised (E2-2k)", () => {
+  it("unit-by-unit selling realizes liquidationValue to the credit", () => {
+    let s: GameState = {
+      ...createGame(42),
+      location: "meridian",
+      credits: 100,
+      cargo: { water: 12, parts: 5, luxury: 3 },
+    };
+    const promised = liquidationValue(s);
+    const before = s.credits;
+    (["water", "parts", "luxury"] as CommodityId[]).forEach((id) => {
+      while (s.cargo[id] > 0) s = sell(s, id, 1);
+    });
+    expect(s.credits - before).toBe(promised);
+  });
+
+  it("any split of a stack sale nets the same credits as selling it whole", () => {
+    const base: GameState = {
+      ...createGame(42),
+      location: "meridian",
+      cargo: { water: 30, parts: 0, luxury: 0 }, // 30 crosses MARKET_DEPTH — degraded units included
+    };
+    const whole = sell(base, "water", 30).credits;
+    for (const q of [1, 7, 15, 19, 20, 21, 29]) {
+      const split = sell(sell(base, "water", q), "water", 30 - q).credits;
+      expect(split, `split ${q}/${30 - q}`).toBe(whole);
+    }
   });
 });
