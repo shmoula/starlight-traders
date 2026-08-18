@@ -1,6 +1,6 @@
 # M5 Round 1 — "The Word Gets Out" (E3-5 + E3-3 + E2-2k)
 
-**Date:** 2026-08-18 · **Status:** 📝 drafted
+**Date:** 2026-08-18 · **Status:** ✅ shipped 2026-08-18
 **Source:** [ROADMAP.md](../../ROADMAP.md) ⚪ backlog tail; specs in
 [ENGAGEMENT_BACKLOG.md](../../ENGAGEMENT_BACKLOG.md) rows E3-5, E3-3, and the
 E2-2 follow-up row E2-2k.

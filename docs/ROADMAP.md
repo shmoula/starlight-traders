@@ -9,7 +9,7 @@ _runs don't end → nothing else matters_ (no score banking, no "one more run", 
 daily). E0-1 is the keystone; persistence, share card, debrief, and final scoring all hang
 off a run that actually ends.
 
-Legend: ✅ committed · 🟡 deferred (tuning) · ⚪ backlog (revisit) · 🔀 absorbed into another item.
+Legend: ✅ committed · 🔀 absorbed into another item.
 
 ---
 
