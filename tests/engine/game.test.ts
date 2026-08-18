@@ -17,6 +17,7 @@ import {
   buyBlockReason,
   maxBuyable,
   STARTING,
+  DISTRESS_SALT,
 } from "../../src/engine/game";
 import { getPrice, commodityName } from "../../src/engine/world";
 import { crewName, heatLine, HEAT_LINES } from "../../src/engine/fiction";
@@ -38,7 +39,14 @@ import {
 import { CommodityId, GameEvent, GameState, Mission, NodeId } from "../../src/engine/types";
 import { endRun } from "../../src/engine/run-end";
 import { hashSeed } from "../../src/engine/rng";
-import { SALVAGE_HAZARD_DIVISOR, fleeDamage } from "../../src/engine/preview";
+import {
+  SALVAGE_HAZARD_DIVISOR,
+  fleeDamage,
+  DISTRESS_FUEL,
+  distressReward,
+  DISTRESS_GRATEFUL_DEN,
+  DISTRESS_GRATEFUL_NUM,
+} from "../../src/engine/preview";
 
 describe("createGame goal line", () => {
   it("opens the log by stating the stake, the deadline, and the shared sky", () => {
@@ -1587,5 +1595,119 @@ describe("liquidation is exactly what the escape math promised (E2-2k)", () => {
       const split = sell(sell(base, "water", q), "water", 30 - q).credits;
       expect(split, `split ${q}/${30 - q}`).toBe(whole);
     }
+  });
+});
+
+const distressEvent: GameEvent = {
+  kind: "distress",
+  title: "Distress Call",
+  description: "",
+  choices: [
+    { id: "answer", label: "Answer the call (divert)" },
+    { id: "ignore", label: "Hold your course" },
+  ],
+};
+
+/** First day in 1..12 whose grateful roll matches `want` — keeps tests seed-honest. */
+const dayWhere = (seed: number, want: boolean): number => {
+  for (let d = 1; d <= 12; d++) {
+    if (hashSeed(seed, d, DISTRESS_SALT) % DISTRESS_GRATEFUL_DEN < DISTRESS_GRATEFUL_NUM === want)
+      return d;
+  }
+  throw new Error("no such day in range");
+};
+
+describe("distress resolution (E3-3)", () => {
+  it("answering spends exactly the fuel and the day", () => {
+    const s = { ...createGame(42), day: 3, fuel: 10 };
+    const next = resolveChoice(s, distressEvent, "answer");
+    expect(next.fuel).toBe(10 - DISTRESS_FUEL);
+    expect(next.day).toBe(4);
+  });
+
+  it("ignoring costs nothing and marks nothing", () => {
+    const s = { ...createGame(42), day: 3, fuel: 10 };
+    const next = resolveChoice(s, distressEvent, "ignore");
+    expect(next.fuel).toBe(10);
+    expect(next.day).toBe(3);
+    expect(next.dayHighlights[3]).toBeUndefined();
+    expect(next.dayHighlights[4]).toBeUndefined();
+  });
+
+  it("cannot answer below the fuel cost — resolves as ignore", () => {
+    const s = { ...createGame(42), day: 3, fuel: 1 };
+    expect(resolveChoice(s, distressEvent, "answer")).toEqual(s);
+  });
+
+  it("pays the grateful reward on the day the beacon fired, with the log delta", () => {
+    const day = dayWhere(42, true);
+    const s = { ...createGame(42), day, fuel: 10 };
+    const next = resolveChoice(s, distressEvent, "answer");
+    expect(next.credits).toBe(s.credits + distressReward(day)); // day₀, not the advanced day
+    const last = next.log[next.log.length - 1];
+    expect(last.tone).toBe("good");
+    expect(last.delta).toBe(distressReward(day));
+  });
+
+  it("a dead echo pays nothing and says so neutrally", () => {
+    const day = dayWhere(42, false);
+    const s = { ...createGame(42), day, fuel: 10 };
+    const next = resolveChoice(s, distressEvent, "answer");
+    expect(next.credits).toBe(s.credits);
+    expect(next.log[next.log.length - 1].tone).toBe("neutral");
+  });
+
+  it("marks the spent day 🟩 whichever way the roll goes", () => {
+    for (const want of [true, false]) {
+      const day = dayWhere(42, want);
+      const next = resolveChoice({ ...createGame(42), day, fuel: 10 }, distressEvent, "answer");
+      expect(next.dayHighlights[day + 1]).toBe("rescue");
+    }
+  });
+
+  it("accrues interest when the diverted day lands on the cadence", () => {
+    const s = { ...createGame(42), day: 5, debt: 1500, fuel: 10 };
+    const next = resolveChoice(s, distressEvent, "answer");
+    expect(next.day).toBe(6); // 6 % INTEREST_EVERY === 0
+    expect(next.debt).toBeGreaterThan(1500);
+  });
+
+  it("no interest when the diverted day is off-cadence", () => {
+    const s = { ...createGame(42), day: 3, debt: 1500, fuel: 10 };
+    expect(resolveChoice(s, distressEvent, "answer").debt).toBe(1500); // lands on day 4
+  });
+
+  it("respects the Syndicate rest holiday", () => {
+    const s = { ...createGame(3), day: 5, debt: 1500, fuel: 10 }; // seed 3 → syndicateRest
+    expect(resolveChoice(s, distressEvent, "answer").debt).toBe(1500);
+  });
+
+  it("the spent day expires a contract that needed it", () => {
+    const m: Mission = {
+      id: "m1",
+      commodity: "water",
+      qty: 5,
+      destination: "terra",
+      reward: 500,
+      deposit: 50,
+      deadlineDay: 4,
+    };
+    const base = { ...createGame(42), location: "kiruna" as const, day: 4, fuel: 10 };
+    const answered = resolveChoice({ ...base, activeMissions: [m] }, distressEvent, "answer");
+    expect(arrive(answered).expired.map((x) => x.id)).toContain("m1");
+    const ignored = resolveChoice({ ...base, activeMissions: [m] }, distressEvent, "ignore");
+    expect(arrive(ignored).expired).toHaveLength(0);
+  });
+
+  it("an answer on the day-12 transit cannot postpone the audit", () => {
+    const answered = resolveChoice(
+      { ...createGame(42), day: 12, fuel: 10 },
+      distressEvent,
+      "answer"
+    );
+    expect(answered.day).toBe(13);
+    const landed = arrive(answered).state;
+    expect(landed.status).toBe("audited");
+    expect(landed.runEnd?.daysSurvived).toBe(12); // endRun caps at RUN_LENGTH
   });
 });

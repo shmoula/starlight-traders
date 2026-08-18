@@ -47,6 +47,10 @@ import {
   SALVAGE_HAZARD_DIVISOR,
   SALVAGE_TRAP_DAMAGE,
   salvageAmount,
+  DISTRESS_FUEL,
+  distressReward,
+  DISTRESS_GRATEFUL_DEN,
+  DISTRESS_GRATEFUL_NUM,
 } from "./preview";
 import { RUN_LENGTH, endRun } from "./run-end";
 import { dailyModifier } from "./modifiers";
@@ -535,6 +539,16 @@ export function checkLoss(state: GameState): GameState {
   return state;
 }
 
+/** Interest accrues on a fixed cadence — unless today's sky is a Syndicate rest (E3-1).
+ *  One author for jump and the distress diversion (E3-3): an added day can neither
+ *  dodge nor double the cadence. */
+function accrueInterest(s: GameState): GameState {
+  if (s.day % INTEREST_EVERY !== 0 || s.debt <= 0 || dailyModifier(s.seed).interestHoliday)
+    return s;
+  const interest = loanInterest(s.debt, s.day);
+  return withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day), "bad");
+}
+
 /**
  * Jump to a destination: spend fuel, advance the day, accrue interest, pay docking,
  * then return the pending in-transit event for the UI to resolve. Deliveries are NOT
@@ -557,11 +571,7 @@ export function jump(state: GameState, to: NodeId): { state: GameState; event: G
     pirateTail: false, // E3-4: the tail lasts exactly one jump, fired or not
   };
 
-  // Interest accrues on a fixed cadence — unless today's sky is a Syndicate rest (E3-1).
-  if (s.day % INTEREST_EVERY === 0 && s.debt > 0 && !dailyModifier(s.seed).interestHoliday) {
-    const interest = loanInterest(s.debt, s.day);
-    s = withLog({ ...s, debt: s.debt + interest }, interestLine(interest, s.day), "bad");
-  }
+  s = accrueInterest(s);
 
   // Docking fee on arrival.
   const fee = dockingFee(to);
@@ -629,6 +639,9 @@ function resolvePirates(s: GameState, choiceId: string): GameState {
 /** Salts the bait draw so it is independent of the same-day hazard draw (E3-4). */
 const BAIT_SALT = 0xba17;
 
+/** Salts the grateful/echo draw apart from the same-day hazard and bait draws (E3-3). */
+export const DISTRESS_SALT = 0xd157;
+
 function resolveSalvage(s: GameState, choiceId: string): GameState {
   if (choiceId !== "collect") return s;
   // Deterministic per seed/day via the shared hash — mulberry32's hashSeed avoids the
@@ -690,6 +703,27 @@ function resolveDerelict(s: GameState, choiceId: string): GameState {
   );
 }
 
+function resolveDistress(s: GameState, choiceId: string): GameState {
+  if (choiceId !== "answer" || s.fuel < DISTRESS_FUEL) return s;
+  // The roll and the reward read day₀ — the day the stake line was priced on (E1-4);
+  // the rescue mark lands on the advanced day — the day the diversion spent.
+  const day0 = s.day;
+  let next: GameState = { ...s, fuel: s.fuel - DISTRESS_FUEL, day: s.day + 1 };
+  next = accrueInterest(next);
+  next = markDay(next, "rescue");
+  next = withLog(next, `Diverted to the beacon — ${DISTRESS_FUEL} fuel and a day.`, "bad");
+  if (hashSeed(s.seed, day0, DISTRESS_SALT) % DISTRESS_GRATEFUL_DEN < DISTRESS_GRATEFUL_NUM) {
+    const reward = distressReward(day0);
+    return withLog(
+      { ...next, credits: next.credits + reward },
+      `A grateful trader transfers ${reward}cr. "Whatever you're hauling — thank you."`,
+      "good",
+      reward
+    );
+  }
+  return withLog(next, `The beacon was a dead echo. Nobody there. Nothing left.`, "neutral");
+}
+
 function resolveCustoms(s: GameState, choiceId: string): GameState {
   if (choiceId === "comply" && s.cargo.luxury > 0) {
     const seized = s.cargo.luxury;
@@ -738,6 +772,9 @@ export function resolveChoice(state: GameState, event: GameEvent, choiceId: stri
       break;
     case "customs":
       s = resolveCustoms(s, choiceId);
+      break;
+    case "distress":
+      s = resolveDistress(s, choiceId);
       break;
     case "quiet":
     default:
