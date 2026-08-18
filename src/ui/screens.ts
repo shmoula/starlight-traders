@@ -51,12 +51,13 @@ const cr = (n: number) => `${n.toLocaleString()}cr`;
 /** Compact exchange-board symbol per commodity for the EXCH ticker lane. */
 const COMMODITY_SYM: Record<CommodityId, string> = { water: "WTR", parts: "PRT", luxury: "LUX" };
 
-/** Result of the last clipboard attempt, shown on the button for ~2s (P2-4). */
-export type ShareStatus = "idle" | "ok" | "fail";
+/** Result of the last share attempt, shown on the button for ~2s (P2-4/E3-5):
+ *  which artifact actually landed — the PNG, the text fallback, or neither. */
+export type ShareStatus = "idle" | "img" | "text" | "fail";
 
-/** Share button label for the last clipboard attempt (P2-4). */
 function shareButtonLabel(shareStatus: ShareStatus): string {
-  if (shareStatus === "ok") return "Copied ✓";
+  if (shareStatus === "img") return "Copied image ✓";
+  if (shareStatus === "text") return "Copied text ✓";
   if (shareStatus === "fail") return "Copy failed";
   return "Copy score card";
 }
@@ -830,6 +831,18 @@ function featUnlockLines(meta?: RunMeta): string {
   return `<div class="run-end__feats">${lines}${overflow}</div>`;
 }
 
+/** E3-5: the drawn card preview and its Save-PNG link. Both stay hidden until main.ts
+ *  has painted pixels for them — a failed draw degrades to the HTML strip and the text
+ *  copy, never a broken-image icon. Rendered only when run meta is available. */
+function cardSurfaces(s: GameState, r: RunEnd, meta?: RunMeta): { img: string; save: string } {
+  if (!meta) return { img: "", save: "" };
+  const alt = `Starlight #${meta.runNumber} score card — ${stripSummary(s.dayHighlights, r.daysSurvived, r.status)}`;
+  return {
+    img: `<img id="share-card" class="run-end__card" hidden alt="${alt}">`,
+    save: `<a id="share-save" class="st-btn" download="starlight-${meta.runNumber}.png" hidden>Save PNG</a>`,
+  };
+}
+
 export function runEndScreen(
   s: GameState,
   r: RunEnd,
@@ -861,6 +874,7 @@ export function runEndScreen(
       ? `<div class="st-kv"><span class="st-kv__label">Contracts</span><span class="st-kv__value st-num">${s.contracts.delivered} delivered · ${s.contracts.expired} expired${forfeitNote}${sunkNote}</span></div>`
       : "";
   const restart = restartControls(restartArmed);
+  const { img: cardImg, save: saveLink } = cardSurfaces(s, r, meta);
   return `<div class="overlay-stage">
     <div class="st-glow-wrap">
       <div class="st-panel st-panel--chamfer"><div class="st-panel__inner">
@@ -880,12 +894,14 @@ export function runEndScreen(
           ${pb}
           ${featLines}
           <p class="score st-num">Score: ${r.score.toLocaleString()}</p>
+          ${cardImg}
           <p class="run-end__strip">
             <span class="st-sr-only"
               >Your run, one glyph per day — ${stripSummary(s.dayHighlights, r.daysSurvived, r.status)}</span
             ><span aria-hidden="true">${stripCells(s.dayHighlights, r.daysSurvived, r.status)}</span>
           </p>
           <button class="st-btn" data-act="share">${shareButtonLabel(shareStatus)}</button>
+          ${saveLink}
           ${restart}
         </div>
       </div></div>

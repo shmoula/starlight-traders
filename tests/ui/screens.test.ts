@@ -606,12 +606,29 @@ describe("runEndScreen debrief (E1-3)", () => {
   });
 });
 
-describe("share button feedback (P2-4)", () => {
-  it("labels the button by copy status", () => {
+describe("share button feedback (P2-4/E3-5)", () => {
+  it("labels the button by what actually landed", () => {
     const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
     expect(runEndScreen(ended, ended.runEnd!, false, META)).toContain("Copy score card");
-    expect(runEndScreen(ended, ended.runEnd!, false, META, "ok")).toContain("Copied ✓");
+    expect(runEndScreen(ended, ended.runEnd!, false, META, "img")).toContain("Copied image ✓");
+    expect(runEndScreen(ended, ended.runEnd!, false, META, "text")).toContain("Copied text ✓");
     expect(runEndScreen(ended, ended.runEnd!, false, META, "fail")).toContain("Copy failed");
+  });
+});
+
+describe("card preview and Save PNG (E3-5)", () => {
+  it("renders the hidden preview img with the strip-summary alt text", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toMatch(/<img id="share-card"[^>]*hidden/);
+    expect(html).toMatch(/alt="Starlight #\d+ score card — /);
+  });
+
+  it("renders the hidden Save PNG anchor with the run-numbered filename", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toMatch(/<a id="share-save"[^>]*download="starlight-\d+\.png"[^>]*hidden/);
+    expect(html).toContain("Save PNG");
   });
 });
 

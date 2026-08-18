@@ -88,6 +88,14 @@ body {
   font-size: var(--st-text-lg);
   line-height: 1.5;
 }
+/* E3-5: the drawn card preview. Hidden until main.ts has pixels for it. */
+.run-end__card {
+  display: block;
+  width: min(100%, 480px);
+  margin: 8px auto;
+  border: 1px solid color-mix(in srgb, var(--st-cyan) 30%, transparent);
+  border-radius: 8px;
+}
 /* One fixed box per day. The glyph set is not uniform in width (💰/💀 are narrower than
  * the squares), so centring each in an equal cell is what keeps the row a grid. */
 .run-end__day {

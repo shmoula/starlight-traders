@@ -372,7 +372,7 @@ app.addEventListener("click", async (e) => {
         featNames: (lastDebrief?.newFeats ?? []).map((id) => featDef(id).name),
         modifier: `${dailyModifier(state.seed).glyph} ${dailyModifier(state.seed).name}`,
       });
-      shareStatus = ok ? "ok" : "fail";
+      shareStatus = ok ? "text" : "fail";
       if (shareResetTimer !== null) window.clearTimeout(shareResetTimer);
       shareResetTimer = window.setTimeout(() => {
         shareStatus = "idle";
