@@ -748,11 +748,18 @@ export function eventScreen(s: GameState, e: GameEvent, pulses: Pulses = {}): st
   const odds = choiceOdds(e);
   const choices = e.choices
     .map((c) => {
-      // E3-3: an unaffordable choice renders disabled with the engine's reason where
-      // its stake would sit (P0-2's stranding-honesty pattern).
+      // E3-3: an unaffordable choice mirrors the P0-2 shortfall-buy pattern —
+      // aria-disabled (not plain `disabled`) so it stays focusable, with the reason
+      // wired via aria-describedby so a screen reader announces it. The global click
+      // handler skips aria-disabled controls, and resolveDistress no-ops below the
+      // fuel cost, so the still-clickable button can't answer.
       const block = choiceBlockReason(s, e, c.id);
-      const parts = block ? [block] : [stakes[c.id], odds[c.id]].filter(Boolean);
-      return `<button class="st-btn" data-act="resolve" data-id="${c.id}"${block ? " disabled" : ""}>${c.label}${
+      if (block) {
+        const hintId = `choice-hint-${c.id}`;
+        return `<button class="st-btn" data-act="resolve" data-id="${c.id}" aria-disabled="true" aria-describedby="${hintId}">${c.label}</button><span id="${hintId}" class="choice-stake st-num bad">${block}</span>`;
+      }
+      const parts = [stakes[c.id], odds[c.id]].filter(Boolean);
+      return `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}${
         parts.length ? `<span class="choice-stake st-num">${parts.join(" · ")}</span>` : ""
       }</button>`;
     })

@@ -1490,8 +1490,12 @@ describe("distress call surfaces (E3-3)", () => {
 
   it("disables the answer below the fuel cost, with the honest reason", () => {
     const html = eventScreen({ ...createGame(42), fuel: 1 }, ev);
-    expect(html).toMatch(/data-id="answer"[^>]*disabled/);
+    // aria-disabled (not plain `disabled`) keeps it focusable so a screen reader
+    // announces the reason via aria-describedby — the P0-2 shortfall-buy pattern.
+    expect(html).toMatch(/data-id="answer"[^>]*aria-disabled="true"/);
+    expect(html).toMatch(/data-id="answer"[^>]*aria-describedby="choice-hint-answer"/);
+    expect(html).toContain('id="choice-hint-answer"');
     expect(html).toContain("Need 2⛽, have 1");
-    expect(html).not.toMatch(/data-id="ignore"[^>]*disabled/);
+    expect(html).not.toMatch(/data-id="ignore"[^>]*aria-disabled/);
   });
 });
