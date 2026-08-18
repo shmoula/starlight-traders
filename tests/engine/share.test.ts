@@ -7,6 +7,7 @@ import {
   runNumber,
   runStrip,
   stripSummary,
+  stripKinds,
 } from "../../src/ui/share";
 
 describe("shareText", () => {
@@ -186,5 +187,17 @@ describe("runStrip", () => {
     expect(runStrip({ 3: "pirates" }, 3, "lost")).toBe("🟦🟦💀"); // 💀 outranks the day's own mark
     expect(runStrip({}, 1, "lost")).toBe("💀"); // day-1 death is a single skull
     expect(runStrip({}, 3, "audited")).toBe("🟦🟦🟦"); // banked runs never show 💀
+  });
+});
+
+describe("stripKinds (E3-5) — the one cell derivation", () => {
+  it("derives one kind per day, death stamping a lost final day", () => {
+    expect(stripKinds({ 1: "pirates" }, 3, "lost")).toEqual(["pirates", "plain", "death"]);
+    expect(stripKinds({ 2: "delivery" }, 2, "audited")).toEqual(["plain", "delivery"]);
+    expect(stripKinds({ 2: "rescue" }, 2, "retired")).toEqual(["plain", "rescue"]);
+  });
+
+  it("death outranks whatever else the final day held", () => {
+    expect(stripKinds({ 2: "bigTrade" }, 2, "lost")).toEqual(["plain", "death"]);
   });
 });

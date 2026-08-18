@@ -31,32 +31,48 @@ export function runNumber(bootISO: string): number {
   return Math.floor((midnightUTC - RUN_NUMBER_EPOCH_UTC) / 86_400_000) + 1;
 }
 
-const STRIP_GLYPHS: Record<DayHighlightKind, string> = {
+/** One cell of the run-strip: a day's highlight, an uneventful day, or the death day. */
+export type StripCellKind = DayHighlightKind | "plain" | "death";
+
+/**
+ * The structured strip — one kind per day survived (E1-2/E3-5). The ONLY derivation:
+ * runStrip maps it to emoji, screens.ts's stripCells to spans, and card.ts's cardOps to
+ * drawn cells, so the pasted text, the debrief HTML, and the PNG tell one story (B-1).
+ */
+export function stripKinds(
+  highlights: Partial<Record<number, DayHighlightKind>>,
+  daysSurvived: number,
+  status: RunEndStatus
+): StripCellKind[] {
+  const out: StripCellKind[] = [];
+  for (let day = 1; day <= daysSurvived; day++) {
+    if (day === daysSurvived && status === "lost") {
+      out.push("death");
+      continue;
+    }
+    out.push(highlights[day] ?? "plain");
+  }
+  return out;
+}
+
+const STRIP_GLYPHS: Record<StripCellKind, string> = {
   pirates: "🟥",
   rescue: "🟩",
   bigTrade: "💰",
   delivery: "🟨",
+  plain: "🟦",
+  death: "💀",
 };
 
-/**
- * One glyph per day survived — the spoiler-free story of the run (E1-2). 💀 stamps the
- * final day of a lost run (derived from RunEnd, not recorded); unmarked days are 🟦.
- */
+/** One glyph per day survived — the spoiler-free story of the run (E1-2). */
 export function runStrip(
   highlights: Partial<Record<number, DayHighlightKind>>,
   daysSurvived: number,
   status: RunEndStatus
 ): string {
-  let out = "";
-  for (let day = 1; day <= daysSurvived; day++) {
-    if (day === daysSurvived && status === "lost") {
-      out += "💀";
-      continue;
-    }
-    const kind = highlights[day];
-    out += kind ? STRIP_GLYPHS[kind] : "🟦";
-  }
-  return out;
+  return stripKinds(highlights, daysSurvived, status)
+    .map((k) => STRIP_GLYPHS[k])
+    .join("");
 }
 
 const STRIP_NOUNS: Record<DayHighlightKind, [one: string, many: string]> = {
@@ -68,20 +84,18 @@ const STRIP_NOUNS: Record<DayHighlightKind, [one: string, many: string]> = {
 
 /**
  * The run-strip in words, for assistive tech — the glyphs themselves read as a useless
- * run of "blue square, blue square". Counts only days inside the strip, and treats a lost
- * run's final day as the death rather than whatever else it held, exactly as runStrip does.
+ * run of "blue square, blue square". Derived from the same stripKinds the glyphs are.
  */
 export function stripSummary(
   highlights: Partial<Record<number, DayHighlightKind>>,
   daysSurvived: number,
   status: RunEndStatus
 ): string {
-  const lost = status === "lost";
+  const kinds = stripKinds(highlights, daysSurvived, status);
   const tally = new Map<DayHighlightKind, number>();
-  for (let day = 1; day <= daysSurvived; day++) {
-    if (day === daysSurvived && lost) continue;
-    const kind = highlights[day];
-    if (kind) tally.set(kind, (tally.get(kind) ?? 0) + 1);
+  for (const k of kinds) {
+    if (k === "plain" || k === "death") continue;
+    tally.set(k, (tally.get(k) ?? 0) + 1);
   }
   const parts = (Object.keys(STRIP_NOUNS) as DayHighlightKind[])
     .filter((k) => tally.has(k))
@@ -89,7 +103,7 @@ export function stripSummary(
       const n = tally.get(k)!;
       return `${n} ${STRIP_NOUNS[k][n === 1 ? 0 : 1]}`;
     });
-  if (lost) parts.push("lost on the final day");
+  if (kinds[kinds.length - 1] === "death") parts.push("lost on the final day");
   const days = `${daysSurvived} day${daysSurvived === 1 ? "" : "s"}`;
   return parts.length ? `${days}: ${parts.join(", ")}.` : `${days}, all uneventful.`;
 }
