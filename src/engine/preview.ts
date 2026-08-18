@@ -4,7 +4,7 @@
 // same formulas, so a stake label shown on a choice button can never drift from
 // what the choice actually does. E1-4 (honest events pass) extends this module.
 import { GameEvent, GameState } from "./types";
-import { cargoUsed, TOLL_RATE, netWorth } from "./economy";
+import { cargoUsed, TOLL_RATE, netWorth, canEscape } from "./economy";
 import { commodityName, getPrice } from "./world";
 
 /** Appended to a stake whose worst-case hull roll would destroy the ship (B-6 honesty). */
@@ -45,6 +45,31 @@ export const SALVAGE_TRAP_DAMAGE = 10;
 export const SALVAGE_HAZARD_DIVISOR = 3;
 /** A clean scoop draws a pirate tail on 1-in-N days (game.ts resolveSalvage's `% N`). */
 export const SALVAGE_BAIT_DIVISOR = 4; // ⚙ E3-4
+
+/** ⚙ Fuel burned diverting to a distress beacon (E3-3). */
+export const DISTRESS_FUEL = 2;
+/** ⚙ Base credits a grateful trader pays. */
+export const DISTRESS_REWARD_BASE = 250;
+/** ⚙ Reward growth per game day. */
+export const DISTRESS_REWARD_PER_DAY = 15;
+/** ⚙ Grateful outcomes per DISTRESS_GRATEFUL_DEN — the odds label derives from the pair. */
+export const DISTRESS_GRATEFUL_NUM = 3;
+export const DISTRESS_GRATEFUL_DEN = 5;
+
+/** Appended to a stake whose worst case leaves the run unable to fly out (E3-3 honesty). */
+export const STRAND_MARK = " — ⚠ could strand you";
+
+/** Credits the grateful trader transfers (E3-3), priced on the day the beacon fired. */
+export function distressReward(day: number): number {
+  return DISTRESS_REWARD_BASE + day * DISTRESS_REWARD_PER_DAY;
+}
+
+/** The strand warning when answering would leave the ship unable to buy its way out.
+ *  The event resolves at the destination dock (jump has already moved location), so
+ *  canEscape prices the right station. A warning, never a gate — B-6's rule. */
+function strandIf(s: GameState): string {
+  return canEscape({ ...s, fuel: s.fuel - DISTRESS_FUEL }) ? "" : STRAND_MARK;
+}
 
 /** A coolant leak always vents this many units of trouble. */
 export const ENGINE_LEAK = 2;
@@ -111,6 +136,10 @@ export function choiceStakes(s: GameState, e: GameEvent): Record<string, string>
         comply: s.cargo.luxury > 0 ? `lose ${s.cargo.luxury} luxury` : "nothing to seize",
         bribe: `~${bribeCost(s)}cr`,
       };
+    case "distress":
+      return {
+        answer: `−${DISTRESS_FUEL}⛽, −1 day — a grateful trader (~${distressReward(s.day)}cr), or nothing${strandIf(s)}`,
+      };
     default:
       return {};
   }
@@ -132,7 +161,22 @@ export function choiceOdds(e: GameEvent): Record<string, string> {
       const rewardPct = Math.round(100 / DERELICT_REWARD_DIVISOR);
       return { board: `${rewardPct}/${100 - rewardPct}` };
     }
+    case "distress": {
+      const pct = Math.round((100 * DISTRESS_GRATEFUL_NUM) / DISTRESS_GRATEFUL_DEN);
+      return { answer: `${pct}/${100 - pct}` };
+    }
     default:
       return {};
   }
+}
+
+/**
+ * Reason a choice cannot be taken right now, or null (E3-3). Rendered as a disabled
+ * button with the reason where a stake would sit — the P0-2 stranding-honesty pattern.
+ */
+export function choiceBlockReason(s: GameState, e: GameEvent, choiceId: string): string | null {
+  if (e.kind === "distress" && choiceId === "answer" && s.fuel < DISTRESS_FUEL) {
+    return `Need ${DISTRESS_FUEL}⛽, have ${s.fuel}`;
+  }
+  return null;
 }
