@@ -37,7 +37,7 @@ import { docksideUnitsUsed, missionFeasibility } from "../engine/missions";
 import { pirateChance } from "../engine/events";
 import { RUN_LENGTH } from "../engine/run-end";
 import { STATION_DOSSIERS, epilogue } from "../engine/fiction";
-import { choiceOdds, choiceStakes } from "../engine/preview";
+import { choiceBlockReason, choiceOdds, choiceStakes } from "../engine/preview";
 import { bulletin } from "../engine/bulletin";
 import { COMMODITY_ACCENT, ORB_ART, fuelIcon, hullIcon, iconBox } from "./art";
 import { starMap, laneTone } from "./map";
@@ -748,8 +748,11 @@ export function eventScreen(s: GameState, e: GameEvent, pulses: Pulses = {}): st
   const odds = choiceOdds(e);
   const choices = e.choices
     .map((c) => {
-      const parts = [stakes[c.id], odds[c.id]].filter(Boolean);
-      return `<button class="st-btn" data-act="resolve" data-id="${c.id}">${c.label}${
+      // E3-3: an unaffordable choice renders disabled with the engine's reason where
+      // its stake would sit (P0-2's stranding-honesty pattern).
+      const block = choiceBlockReason(s, e, c.id);
+      const parts = block ? [block] : [stakes[c.id], odds[c.id]].filter(Boolean);
+      return `<button class="st-btn" data-act="resolve" data-id="${c.id}"${block ? " disabled" : ""}>${c.label}${
         parts.length ? `<span class="choice-stake st-num">${parts.join(" · ")}</span>` : ""
       }</button>`;
     })

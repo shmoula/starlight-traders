@@ -1469,3 +1469,29 @@ describe("statbar vital pulses (P3-2)", () => {
     expect(stationScreen(createGame(42))).not.toContain("st-statbar__chip--pulse");
   });
 });
+
+describe("distress call surfaces (E3-3)", () => {
+  const ev: GameEvent = {
+    kind: "distress",
+    title: "Distress Call",
+    description: "A thin voice on the open channel.",
+    choices: [
+      { id: "answer", label: "Answer the call (divert)" },
+      { id: "ignore", label: "Hold your course" },
+    ],
+  };
+
+  it("shows the stake and the odds on an affordable answer", () => {
+    const html = eventScreen({ ...createGame(42), fuel: 10 }, ev);
+    expect(html).toContain("−2⛽, −1 day");
+    expect(html).toContain("60/40");
+    expect(html).not.toContain("disabled");
+  });
+
+  it("disables the answer below the fuel cost, with the honest reason", () => {
+    const html = eventScreen({ ...createGame(42), fuel: 1 }, ev);
+    expect(html).toMatch(/data-id="answer"[^>]*disabled/);
+    expect(html).toContain("Need 2⛽, have 1");
+    expect(html).not.toMatch(/data-id="ignore"[^>]*disabled/);
+  });
+});
