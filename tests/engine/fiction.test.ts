@@ -133,3 +133,14 @@ describe("heat lines (E1-5c)", () => {
     }
   });
 });
+
+describe("distress variants (E3-3)", () => {
+  it("has at least 3 authored variants, each a short sentence", () => {
+    expect(EVENT_VARIANTS.distress.length).toBeGreaterThanOrEqual(3);
+    for (const v of EVENT_VARIANTS.distress) {
+      const line = v("the Red Kestrel");
+      expect(line.length).toBeLessThanOrEqual(120);
+      expect(/[.?!]$/.test(line)).toBe(true);
+    }
+  });
+});

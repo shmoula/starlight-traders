@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   dockingFee,
   taxOnSale,
+  saleTax,
   loanInterest,
   cargoUsed,
   netWorth,
@@ -18,7 +19,7 @@ import {
   heatOf,
 } from "../../src/engine/economy";
 import { getPrice } from "../../src/engine/world";
-import { GameState, emptyRecords } from "../../src/engine/types";
+import { GameState, NodeId, emptyRecords } from "../../src/engine/types";
 import { createGame } from "../../src/engine/game";
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
@@ -178,5 +179,41 @@ describe("heat (E1-5) — danger scaled by peak fortune", () => {
   it("returns exact 2-decimal values, so displayed % and thresholds never drift", () => {
     expect(heatOf(withPeak(HEAT_PER_CR * 3))).toBe(0.03); // not 0.030000000000000002
     expect(Math.round(heatOf(withPeak(HEAT_PER_CR * 7)) * 100)).toBe(7);
+  });
+});
+
+describe("saleTax (E2-2k) — cumulative, partition-neutral", () => {
+  const at = (location: NodeId, soldWater = 0): GameState => ({
+    ...createGame(42),
+    location,
+    soldHere: { water: soldWater, parts: 0, luxury: 0 },
+  });
+
+  it("first sale of a visit charges exactly the old per-sale amount", () => {
+    expect(saleTax(at("meridian"), "water", 500)).toBe(taxOnSale("meridian", 500));
+  });
+
+  it("later sales telescope: split charges sum to the single rounded charge", () => {
+    const s0 = at("meridian");
+    for (const [q1, q2] of [
+      [1, 9],
+      [3, 7],
+      [5, 5],
+      [7, 3],
+    ] as const) {
+      const g1 = saleProceeds(s0, "water", q1).gross;
+      const s1 = at("meridian", q1);
+      const g2 = saleProceeds(s1, "water", q2).gross;
+      const whole = saleProceeds(s0, "water", q1 + q2).gross;
+      expect(g1 + g2).toBe(whole); // the depth curve is positional, so gross telescopes
+      expect(saleTax(s0, "water", g1) + saleTax(s1, "water", g2)).toBe(
+        taxOnSale("meridian", whole)
+      );
+    }
+  });
+
+  it("charges zero at the tax-free port and for a zero gross", () => {
+    expect(saleTax(at("verge"), "water", 999)).toBe(0);
+    expect(saleTax(at("meridian"), "water", 0)).toBe(0);
   });
 });

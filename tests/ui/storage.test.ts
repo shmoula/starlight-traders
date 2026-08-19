@@ -287,12 +287,12 @@ describe("parseSnapshot", () => {
   it("round-trips dayHighlights so a resumed run keeps its run-strip", () => {
     const base = createGame(42, BOOT);
     const snap = liveSnapshot({
-      state: { ...base, day: 3, dayHighlights: { 2: "pirates", 3: "bigTrade" } },
+      state: { ...base, day: 4, dayHighlights: { 2: "pirates", 3: "bigTrade", 4: "rescue" } },
     });
     const parsed = parseSnapshot(JSON.stringify(snap), TODAY);
     expect(parsed).toEqual(snap);
     expect(parsed!.state.dayHighlights[2]).toBe("pirates");
-    expect(runStrip(parsed!.state.dayHighlights, 3, "audited")).toBe("🟦🟥💰");
+    expect(runStrip(parsed!.state.dayHighlights, 4, "audited")).toBe("🟦🟥💰🟩");
   });
 
   it("round-trips a Practice-labelled snapshot", () => {

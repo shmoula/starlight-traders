@@ -606,12 +606,29 @@ describe("runEndScreen debrief (E1-3)", () => {
   });
 });
 
-describe("share button feedback (P2-4)", () => {
-  it("labels the button by copy status", () => {
+describe("share button feedback (P2-4/E3-5)", () => {
+  it("labels the button by what actually landed", () => {
     const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
     expect(runEndScreen(ended, ended.runEnd!, false, META)).toContain("Copy score card");
-    expect(runEndScreen(ended, ended.runEnd!, false, META, "ok")).toContain("Copied ✓");
+    expect(runEndScreen(ended, ended.runEnd!, false, META, "img")).toContain("Copied image ✓");
+    expect(runEndScreen(ended, ended.runEnd!, false, META, "text")).toContain("Copied text ✓");
     expect(runEndScreen(ended, ended.runEnd!, false, META, "fail")).toContain("Copy failed");
+  });
+});
+
+describe("card preview and Save PNG (E3-5)", () => {
+  it("renders the hidden preview img with the strip-summary alt text", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toMatch(/<img id="share-card"[^>]*hidden/);
+    expect(html).toMatch(/alt="Starlight #\d+ score card — /);
+  });
+
+  it("renders the hidden Save PNG anchor with the run-numbered filename", () => {
+    const ended = endRun({ ...createGame(42), day: 12 }, "audited", "Audited.");
+    const html = runEndScreen(ended, ended.runEnd!, false, META);
+    expect(html).toMatch(/<a id="share-save"[^>]*download="starlight-\d+\.png"[^>]*hidden/);
+    expect(html).toContain("Save PNG");
   });
 });
 
@@ -1467,5 +1484,35 @@ describe("statbar vital pulses (P3-2)", () => {
     const html = stationScreen(createGame(42), [], "", false, undefined, false, { credits: "up" });
     expect(html).toContain("st-statbar__chip--pulse-up");
     expect(stationScreen(createGame(42))).not.toContain("st-statbar__chip--pulse");
+  });
+});
+
+describe("distress call surfaces (E3-3)", () => {
+  const ev: GameEvent = {
+    kind: "distress",
+    title: "Distress Call",
+    description: "A thin voice on the open channel.",
+    choices: [
+      { id: "answer", label: "Answer the call (divert)" },
+      { id: "ignore", label: "Hold your course" },
+    ],
+  };
+
+  it("shows the stake and the odds on an affordable answer", () => {
+    const html = eventScreen({ ...createGame(42), fuel: 10 }, ev);
+    expect(html).toContain("−2⛽, −1 day");
+    expect(html).toContain("60/40");
+    expect(html).not.toContain("disabled");
+  });
+
+  it("disables the answer below the fuel cost, with the honest reason", () => {
+    const html = eventScreen({ ...createGame(42), fuel: 1 }, ev);
+    // aria-disabled (not plain `disabled`) keeps it focusable so a screen reader
+    // announces the reason via aria-describedby — the P0-2 shortfall-buy pattern.
+    expect(html).toMatch(/data-id="answer"[^>]*aria-disabled="true"/);
+    expect(html).toMatch(/data-id="answer"[^>]*aria-describedby="choice-hint-answer"/);
+    expect(html).toContain('id="choice-hint-answer"');
+    expect(html).toContain("Need 2⛽, have 1");
+    expect(html).not.toMatch(/data-id="ignore"[^>]*aria-disabled/);
   });
 });

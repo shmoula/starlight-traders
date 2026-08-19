@@ -133,6 +133,29 @@ export function netWorth(state: GameState): number {
   return state.credits + cargoValue(state) - state.debt;
 }
 
+/** Gross the soldHere[id] units already sold here today fetched, walking the same
+ *  depth curve saleProceeds prices with. Derived, never stored (E2-2k): soldHere
+ *  already remembers the units, and the curve is deterministic over them. */
+function grossSoldHere(s: GameState, id: CommodityId): number {
+  const list = getPrice(s.seed, s.day, s.location, id);
+  let gross = 0;
+  for (let i = 0; i < s.soldHere[id]; i++) gross += depthUnitPrice(list, i);
+  return gross;
+}
+
+/**
+ * The tax a sale grossing `gross` more credits of `id` owes here, on top of what this
+ * visit's earlier sales of it already paid (E2-2k). Charging on the CUMULATIVE gross
+ * makes any partition of a stack telescope to taxOnSale(node, totalGross) exactly, so
+ * liquidationValue's single-charge promise is realizable by any sequence of partial
+ * sales and the escape line (E2-2h) can no longer be crossed by per-sale rounding.
+ */
+export function saleTax(s: GameState, id: CommodityId, gross: number): number {
+  if (gross <= 0) return 0;
+  const before = grossSoldHere(s, id);
+  return taxOnSale(s.location, before + gross) - taxOnSale(s.location, before);
+}
+
 // --- Escape math (E2-2h) -----------------------------------------------------------
 // One shared answer to "can this run still leave the station?", used by the loss check,
 // by the dock-side guard that keeps a spend from stranding the player, and by the UI
@@ -142,7 +165,7 @@ export function netWorth(state: GameState): number {
  *  (E2-1), after the local tax. */
 export function netSaleProceeds(state: GameState, id: CommodityId, qty: number): number {
   const { gross } = saleProceeds(state, id, qty);
-  return gross - taxOnSale(state.location, gross);
+  return gross - saleTax(state, id, gross);
 }
 
 /**

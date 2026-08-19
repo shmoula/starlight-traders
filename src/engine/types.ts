@@ -69,7 +69,7 @@ export interface BankedRunEnd extends RunEndBase {
 export type RunEnd = LostRunEnd | BankedRunEnd;
 
 /** The notable thing that happened on a game day — feeds the share card's run-strip (E1-2). */
-export type DayHighlightKind = "pirates" | "bigTrade" | "delivery";
+export type DayHighlightKind = "pirates" | "rescue" | "bigTrade" | "delivery";
 
 /** Outcome coloring for a log line — replaces the UI's regex tone-guessing (P2-1). */
 export type LogTone = "good" | "bad" | "neutral";
@@ -155,7 +155,8 @@ export interface GameState {
   bootDate: string; // ISO instant the run was created — names the UTC day `seed` hashes; "" for seed-only sim runs
 }
 
-export type GameEventKind = "quiet" | "pirates" | "salvage" | "derelict" | "customs" | "engine";
+export type GameEventKind =
+  "quiet" | "pirates" | "salvage" | "derelict" | "customs" | "engine" | "distress";
 
 export interface GameEvent {
   kind: GameEventKind;

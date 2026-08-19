@@ -15,9 +15,18 @@ import {
   missionsHere,
   retire,
 } from "./engine/game";
-import { CommodityId, GameEvent, GameState, LogEntry, NodeId } from "./engine/types";
+import { CommodityId, GameEvent, GameState, LogEntry, NodeId, RunEnd } from "./engine/types";
 import { render } from "./ui/render";
-import { copyShare, formatDateLabel, utcDateKey, runNumber, runStrip } from "./ui/share";
+import {
+  copyShare,
+  formatDateLabel,
+  utcDateKey,
+  runNumber,
+  runStrip,
+  stripKinds,
+  type ShareData,
+} from "./ui/share";
+import { cardOps, copyCardImage, paintCard } from "./ui/card";
 import {
   loadSave,
   persist,
@@ -100,6 +109,60 @@ let resumedFromSnapshot = false;
 // Also reset to null by startNewRun(), since an in-page restart reuses this module
 // scope rather than getting a fresh one.
 let prevVitals: Vitals | null = null;
+
+// E3-5: the drawn card, painted once per run end. Keyed on the RunEnd object identity
+// so a restarted run can never show the previous run's card. View-only, never persisted.
+let cardFor: RunEnd | null = null;
+let cardCanvas: HTMLCanvasElement | null = null;
+let cardUrl: string | null = null;
+
+/** The share payload for the ended run, or null while playing. One builder for the
+ *  text card and the drawn card (E3-5) — two artifacts, one story. */
+function buildShareData(): ShareData | null {
+  if (!state.runEnd) return null;
+  return {
+    dateLabel: dateLabelOf(state),
+    score: state.runEnd.score,
+    daysSurvived: state.runEnd.daysSurvived,
+    runNumber: runNumber(state.bootDate),
+    label: runLabel,
+    strip: runStrip(state.dayHighlights, state.runEnd.daysSurvived, state.runEnd.status),
+    endLabel: endHeadline(state.runEnd),
+    featNames: (lastDebrief?.newFeats ?? []).map((id) => featDef(id).name),
+    modifier: `${dailyModifier(state.seed).glyph} ${dailyModifier(state.seed).name}`,
+  };
+}
+
+function ensureCard(): void {
+  if (!state.runEnd) {
+    cardFor = null;
+    cardCanvas = null;
+    cardUrl = null;
+    return;
+  }
+  if (cardFor === state.runEnd) return;
+  const d = buildShareData();
+  if (!d) return;
+  try {
+    const canvas = document.createElement("canvas");
+    paintCard(
+      canvas,
+      cardOps({
+        ...d,
+        kinds: stripKinds(state.dayHighlights, state.runEnd.daysSurvived, state.runEnd.status),
+        peak: state.peakNetWorth,
+      })
+    );
+    cardCanvas = canvas;
+    cardUrl = canvas.toDataURL("image/png");
+    cardFor = state.runEnd;
+  } catch {
+    // Decoration failed; the HTML strip and the text copy still work.
+    cardFor = null;
+    cardCanvas = null;
+    cardUrl = null;
+  }
+}
 
 function startNewRun() {
   state = bootDailyGame();
@@ -230,6 +293,18 @@ function paint() {
     pulses,
     shareStatus,
   });
+  // E3-5: re-assign the card pixels after every innerHTML swap (the node is fresh).
+  ensureCard();
+  const cardImg = document.getElementById("share-card") as HTMLImageElement | null;
+  if (cardImg && cardUrl) {
+    cardImg.src = cardUrl;
+    cardImg.hidden = false;
+  }
+  const saveLink = document.getElementById("share-save") as HTMLAnchorElement | null;
+  if (saveLink && cardUrl) {
+    saveLink.href = cardUrl;
+    saveLink.hidden = false;
+  }
   document.title = titleFor(state);
   restoreFocus();
   showCreditToast(prevVitals, nextVitals);
@@ -360,19 +435,15 @@ app.addEventListener("click", async (e) => {
   lastAct = { act, id };
 
   if (act === "share") {
-    if (state.runEnd) {
-      const ok = await copyShare({
-        dateLabel: dateLabelOf(state),
-        score: state.runEnd.score,
-        daysSurvived: state.runEnd.daysSurvived,
-        runNumber: runNumber(state.bootDate),
-        label: runLabel,
-        strip: runStrip(state.dayHighlights, state.runEnd.daysSurvived, state.runEnd.status),
-        endLabel: endHeadline(state.runEnd),
-        featNames: (lastDebrief?.newFeats ?? []).map((id) => featDef(id).name),
-        modifier: `${dailyModifier(state.seed).glyph} ${dailyModifier(state.seed).name}`,
-      });
-      shareStatus = ok ? "ok" : "fail";
+    const d = buildShareData();
+    if (d) {
+      ensureCard();
+      shareStatus =
+        cardCanvas && (await copyCardImage(cardCanvas))
+          ? "img"
+          : (await copyShare(d))
+            ? "text"
+            : "fail";
       if (shareResetTimer !== null) window.clearTimeout(shareResetTimer);
       shareResetTimer = window.setTimeout(() => {
         shareStatus = "idle";
