@@ -268,6 +268,27 @@ describe("distress previews (E3-3)", () => {
     expect(choiceStakes(s, distressEvent).answer).toContain(STRAND_MARK);
   });
 
+  it("prices the strand on the post-diversion day, not the day the beacon fired", () => {
+    // resolveDistress burns a full day (game.ts), and the market moves with it. At
+    // seed 1 / Vulcan the escape line flips across that day for a ship holding 1 water
+    // with an empty purse: escapable on day 6, stranded on day 7. Pricing today would
+    // hide the strand; pricing today+1 (as resolveDistress lands) surfaces it.
+    const stranded = {
+      ...createGame(1),
+      location: "vulcan" as const,
+      day: 6,
+      fuel: DISTRESS_FUEL,
+      credits: 0,
+      cargo: { water: 1, parts: 0, luxury: 0 },
+    };
+    expect(choiceStakes(stranded, distressEvent).answer).toContain(STRAND_MARK);
+
+    // The inverse guards against a phantom warning: escapable next day, so no mark —
+    // the pre-fix code, pricing today, would have flagged this one falsely.
+    const safe = { ...stranded, day: 7 };
+    expect(choiceStakes(safe, distressEvent).answer).not.toContain(STRAND_MARK);
+  });
+
   it("derives the odds label from the knobs", () => {
     expect(choiceOdds(distressEvent).answer).toBe("60/40");
   });

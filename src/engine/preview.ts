@@ -65,10 +65,12 @@ export function distressReward(day: number): number {
 }
 
 /** The strand warning when answering would leave the ship unable to buy its way out.
- *  The event resolves at the destination dock (jump has already moved location), so
- *  canEscape prices the right station. A warning, never a gate — B-6's rule. */
+ *  Mirrors resolveDistress's worst case exactly: the diversion spends DISTRESS_FUEL and
+ *  a full day, so canEscape prices the post-diversion day (s.day + 1) at the destination
+ *  dock (the jump already moved location) — otherwise a next-day market swing could hide
+ *  or invent a strand. A warning, never a gate — B-6's rule. */
 function strandIf(s: GameState): string {
-  return canEscape({ ...s, fuel: s.fuel - DISTRESS_FUEL }) ? "" : STRAND_MARK;
+  return canEscape({ ...s, fuel: s.fuel - DISTRESS_FUEL, day: s.day + 1 }) ? "" : STRAND_MARK;
 }
 
 /** A coolant leak always vents this many units of trouble. */
